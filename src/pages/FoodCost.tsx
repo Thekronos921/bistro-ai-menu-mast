@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { ArrowLeft, Search, DollarSign, TrendingUp, TrendingDown, Edit } from "lucide-react";
 import { Link } from "react-router-dom";
@@ -7,6 +6,25 @@ import AddDishDialog from "@/components/AddDishDialog";
 import EditRecipeDialog from "@/components/EditRecipeDialog";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+
+interface Ingredient {
+  id: string;
+  name: string;
+  unit: string;
+  cost_per_unit: number;
+}
+
+interface RecipeIngredient {
+  id: string;
+  quantity: number;
+  ingredients: Ingredient;
+}
+
+interface RecipeInstruction {
+  id: string;
+  step_number: number;
+  instruction: string;
+}
 
 interface Recipe {
   id: string;
@@ -21,21 +39,8 @@ interface Recipe {
   protein: number;
   carbs: number;
   fat: number;
-  recipe_ingredients: Array<{
-    id: string;
-    quantity: number;
-    ingredients: {
-      id: string;
-      name: string;
-      unit: string;
-      cost_per_unit: number;
-    };
-  }>;
-  recipe_instructions: Array<{
-    id: string;
-    step_number: number;
-    instruction: string;
-  }>;
+  recipe_ingredients: RecipeIngredient[];
+  recipe_instructions: RecipeInstruction[];
 }
 
 interface Dish {

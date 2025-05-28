@@ -4,6 +4,7 @@ import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import AddDishDialog from "@/components/AddDishDialog";
 import EditRecipeDialog from "@/components/EditRecipeDialog";
+import EditDishDialog from "@/components/EditDishDialog";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 
@@ -60,6 +61,7 @@ const FoodCost = () => {
   const [recipes, setRecipes] = useState<Recipe[]>([]);
   const [loading, setLoading] = useState(true);
   const [editingRecipe, setEditingRecipe] = useState<Recipe | null>(null);
+  const [editingDish, setEditingDish] = useState<Dish | null>(null);
   const { toast } = useToast();
 
   const categories = ["all", "Antipasti", "Primi Piatti", "Secondi Piatti", "Dolci", "Contorni"];
@@ -455,16 +457,25 @@ const FoodCost = () => {
                             </span>
                           </td>
                           <td className="px-6 py-4 text-center">
-                            {dish.recipes && (
+                            <div className="flex items-center justify-center space-x-1">
                               <Button
-                                onClick={() => setEditingRecipe(dish.recipes!)}
+                                onClick={() => setEditingDish(dish)}
                                 size="sm"
                                 variant="outline"
-                                className="mr-2"
                               >
                                 <Edit className="w-4 h-4" />
                               </Button>
-                            )}
+                              {dish.recipes && (
+                                <Button
+                                  onClick={() => setEditingRecipe(dish.recipes!)}
+                                  size="sm"
+                                  variant="outline"
+                                  className="ml-1"
+                                >
+                                  Modifica Ricetta
+                                </Button>
+                              )}
+                            </div>
                           </td>
                         </tr>
                       );
@@ -533,6 +544,15 @@ const FoodCost = () => {
           recipe={editingRecipe}
           onClose={() => setEditingRecipe(null)}
           onRecipeUpdated={fetchData}
+        />
+      )}
+
+      {/* Edit Dish Dialog */}
+      {editingDish && (
+        <EditDishDialog
+          dish={editingDish}
+          onClose={() => setEditingDish(null)}
+          onDishUpdated={fetchData}
         />
       )}
     </div>

@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -187,7 +186,6 @@ const EditRecipeDialog = ({ recipe, onClose, onRecipeUpdated }: EditRecipeDialog
 
     setLoading(true);
     try {
-      // Aggiorna ricetta
       const { error: recipeError } = await supabase
         .from('recipes')
         .update({
@@ -207,7 +205,6 @@ const EditRecipeDialog = ({ recipe, onClose, onRecipeUpdated }: EditRecipeDialog
 
       if (recipeError) throw recipeError;
 
-      // Elimina ingredienti esistenti
       const { error: deleteIngredientsError } = await supabase
         .from('recipe_ingredients')
         .delete()
@@ -215,7 +212,6 @@ const EditRecipeDialog = ({ recipe, onClose, onRecipeUpdated }: EditRecipeDialog
 
       if (deleteIngredientsError) throw deleteIngredientsError;
 
-      // Inserisci nuovi ingredienti
       const ingredientsData = validIngredients.map(ing => ({
         recipe_id: recipe.id,
         ingredient_id: ing.ingredient_id,
@@ -228,7 +224,6 @@ const EditRecipeDialog = ({ recipe, onClose, onRecipeUpdated }: EditRecipeDialog
 
       if (ingredientsError) throw ingredientsError;
 
-      // Elimina istruzioni esistenti
       const { error: deleteInstructionsError } = await supabase
         .from('recipe_instructions')
         .delete()
@@ -236,7 +231,6 @@ const EditRecipeDialog = ({ recipe, onClose, onRecipeUpdated }: EditRecipeDialog
 
       if (deleteInstructionsError) throw deleteInstructionsError;
 
-      // Inserisci nuove istruzioni
       const validInstructions = instructions.filter(inst => inst.instruction.trim());
       if (validInstructions.length > 0) {
         const instructionsData = validInstructions.map((inst, index) => ({
@@ -281,7 +275,6 @@ const EditRecipeDialog = ({ recipe, onClose, onRecipeUpdated }: EditRecipeDialog
         </DialogHeader>
         
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Colonna 1: Informazioni Base */}
           <div className="space-y-4">
             <h3 className="font-semibold text-lg">Informazioni Base</h3>
             
@@ -366,7 +359,6 @@ const EditRecipeDialog = ({ recipe, onClose, onRecipeUpdated }: EditRecipeDialog
               />
             </div>
 
-            {/* Valori Nutrizionali */}
             <div className="space-y-3">
               <h4 className="font-medium">Valori Nutrizionali (per porzione)</h4>
               <div className="grid grid-cols-2 gap-2">
@@ -406,7 +398,6 @@ const EditRecipeDialog = ({ recipe, onClose, onRecipeUpdated }: EditRecipeDialog
             </div>
           </div>
 
-          {/* Colonna 2: Ingredienti */}
           <div className="space-y-4">
             <div className="flex justify-between items-center">
               <h3 className="font-semibold text-lg">Ingredienti</h3>
@@ -479,7 +470,6 @@ const EditRecipeDialog = ({ recipe, onClose, onRecipeUpdated }: EditRecipeDialog
             </div>
           </div>
 
-          {/* Colonna 3: Preparazione */}
           <div className="space-y-4">
             <div className="flex justify-between items-center">
               <h3 className="font-semibold text-lg">Preparazione</h3>

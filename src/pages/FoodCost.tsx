@@ -1,9 +1,42 @@
+
 import { useState, useEffect } from "react";
-import { ArrowLeft, Search, DollarSign, TrendingUp, TrendingDown } from "lucide-react";
+import { ArrowLeft, Search, DollarSign, TrendingUp, TrendingDown, Edit } from "lucide-react";
 import { Link } from "react-router-dom";
+import { Button } from "@/components/ui/button";
 import AddDishDialog from "@/components/AddDishDialog";
+import EditRecipeDialog from "@/components/EditRecipeDialog";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+
+interface Recipe {
+  id: string;
+  name: string;
+  category: string;
+  preparation_time: number;
+  difficulty: string;
+  portions: number;
+  description: string;
+  allergens: string;
+  calories: number;
+  protein: number;
+  carbs: number;
+  fat: number;
+  recipe_ingredients: Array<{
+    id: string;
+    quantity: number;
+    ingredients: {
+      id: string;
+      name: string;
+      unit: string;
+      cost_per_unit: number;
+    };
+  }>;
+  recipe_instructions: Array<{
+    id: string;
+    step_number: number;
+    instruction: string;
+  }>;
+}
 
 interface Dish {
   id: string;
@@ -11,47 +44,92 @@ interface Dish {
   category: string;
   selling_price: number;
   recipe_id?: string;
-  recipes?: {
-    id: string;
-    recipe_ingredients: Array<{
-      quantity: number;
-      ingredients: {
-        cost_per_unit: number;
-      };
-    }>;
-  };
+  recipes?: Recipe;
 }
 
 const FoodCost = () => {
   const [searchTerm, setSearchTerm] = useState("");
+  const [selectedCategory, setSelectedCategory] = useState("all");
   const [dishes, setDishes] = useState<Dish[]>([]);
+  const [recipes, setRecipes] = useState<Recipe[]>([]);
   const [loading, setLoading] = useState(true);
+  const [editingRecipe, setEditingRecipe] = useState<Recipe | null>(null);
   const { toast } = useToast();
 
-  const fetchDishes = async () => {
+  const categories = ["all", "Antipasti", "Primi Piatti", "Secondi Piatti", "Dolci", "Contorni"];
+
+  const fetchData = async () => {
     try {
-      const { data, error } = await supabase
+      // Fetch dishes con ricette
+      const { data: dishesData, error: dishesError } = await supabase
         .from('dishes')
         .select(`
           *,
           recipes (
             id,
+            name,
+            category,
+            preparation_time,
+            difficulty,
+            portions,
+            description,
+            allergens,
+            calories,
+            protein,
+            carbs,
+            fat,
             recipe_ingredients (
+              id,
               quantity,
               ingredients (
+                id,
+                name,
+                unit,
                 cost_per_unit
               )
+            ),
+            recipe_instructions (
+              id,
+              step_number,
+              instruction
             )
           )
         `)
         .order('created_at', { ascending: false });
 
-      if (error) throw error;
-      setDishes(data || []);
+      if (dishesError) throw dishesError;
+
+      // Fetch ricette standalone (non ancora associate a piatti)
+      const { data: recipesData, error: recipesError } = await supabase
+        .from('recipes')
+        .select(`
+          *,
+          recipe_ingredients (
+            id,
+            quantity,
+            ingredients (
+              id,
+              name,
+              unit,
+              cost_per_unit
+            )
+          ),
+          recipe_instructions (
+            id,
+            step_number,
+            instruction
+          )
+        `)
+        .order('created_at', { ascending: false });
+
+      if (recipesError) throw recipesError;
+
+      setDishes(dishesData || []);
+      setRecipes(recipesData || []);
     } catch (error) {
       toast({
         title: "Errore",
-        description: "Errore nel caricamento dei piatti",
+        description: "Errore nel caricamento dei dati",
         variant: "destructive"
       });
     } finally {
@@ -60,16 +138,22 @@ const FoodCost = () => {
   };
 
   useEffect(() => {
-    fetchDishes();
+    fetchData();
 
     // Real-time updates
     const channel = supabase
-      .channel('dishes-changes')
+      .channel('food-cost-changes')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'dishes' }, () => {
-        fetchDishes();
+        fetchData();
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'recipes' }, () => {
+        fetchData();
       })
       .on('postgres_changes', { event: '*', schema: 'public', table: 'ingredients' }, () => {
-        fetchDishes(); // Aggiorna quando cambiano i costi degli ingredienti
+        fetchData();
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'recipe_ingredients' }, () => {
+        fetchData();
       })
       .subscribe();
 
@@ -78,15 +162,15 @@ const FoodCost = () => {
     };
   }, []);
 
-  const calculateFoodCost = (dish: Dish) => {
-    if (!dish.recipes?.recipe_ingredients) return 0;
-    return dish.recipes.recipe_ingredients.reduce((total, ri) => {
+  const calculateRecipeCost = (recipeIngredients: Recipe['recipe_ingredients']) => {
+    if (!recipeIngredients) return 0;
+    return recipeIngredients.reduce((total, ri) => {
       return total + (ri.ingredients.cost_per_unit * ri.quantity);
     }, 0);
   };
 
   const getDishAnalysis = (dish: Dish) => {
-    const foodCost = calculateFoodCost(dish);
+    const foodCost = dish.recipes ? calculateRecipeCost(dish.recipes.recipe_ingredients) : 0;
     const foodCostPercentage = dish.selling_price > 0 ? (foodCost / dish.selling_price) * 100 : 0;
     const margin = dish.selling_price - foodCost;
     
@@ -102,6 +186,24 @@ const FoodCost = () => {
     };
   };
 
+  const getRecipeAnalysis = (recipe: Recipe, assumedPrice: number = 25) => {
+    const foodCost = calculateRecipeCost(recipe.recipe_ingredients);
+    const foodCostPercentage = assumedPrice > 0 ? (foodCost / assumedPrice) * 100 : 0;
+    const margin = assumedPrice - foodCost;
+    
+    let status = "ottimo";
+    if (foodCostPercentage > 40) status = "critico";
+    else if (foodCostPercentage > 30) status = "buono";
+
+    return {
+      foodCost,
+      foodCostPercentage,
+      margin,
+      status,
+      assumedPrice
+    };
+  };
+
   const getStatusColor = (status: string) => {
     switch (status) {
       case "ottimo": return "bg-emerald-100 text-emerald-800 border-emerald-200";
@@ -111,22 +213,71 @@ const FoodCost = () => {
     }
   };
 
-  const filteredDishes = dishes.filter(dish =>
-    dish.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    dish.category.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const createDishFromRecipe = async (recipe: Recipe) => {
+    try {
+      const recipeCost = calculateRecipeCost(recipe.recipe_ingredients);
+      const suggestedPrice = recipeCost * 3; // Margine del 66%
+
+      const { error } = await supabase
+        .from('dishes')
+        .insert([{
+          name: recipe.name,
+          category: recipe.category,
+          selling_price: suggestedPrice,
+          recipe_id: recipe.id
+        }]);
+
+      if (error) throw error;
+
+      toast({
+        title: "Successo",
+        description: `Piatto "${recipe.name}" creato con prezzo suggerito €${suggestedPrice.toFixed(2)}`,
+      });
+
+      fetchData();
+    } catch (error) {
+      toast({
+        title: "Errore",
+        description: "Errore nella creazione del piatto",
+        variant: "destructive"
+      });
+    }
+  };
+
+  // Combina piatti e ricette per il filtro
+  const allItems = [
+    ...dishes.map(dish => ({ 
+      type: 'dish' as const, 
+      item: dish, 
+      name: dish.name, 
+      category: dish.category 
+    })),
+    ...recipes
+      .filter(recipe => !dishes.some(dish => dish.recipe_id === recipe.id))
+      .map(recipe => ({ 
+        type: 'recipe' as const, 
+        item: recipe, 
+        name: recipe.name, 
+        category: recipe.category 
+      }))
+  ];
+
+  const filteredItems = allItems.filter(({ name, category }) => {
+    const matchesSearch = name.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesCategory = selectedCategory === "all" || category === selectedCategory;
+    return matchesSearch && matchesCategory;
+  });
 
   // Calcola statistiche aggregate
-  const avgFoodCostPercentage = dishes.length > 0 
-    ? dishes.reduce((sum, dish) => sum + getDishAnalysis(dish).foodCostPercentage, 0) / dishes.length 
+  const allDishAnalyses = dishes.map(getDishAnalysis);
+  const avgFoodCostPercentage = allDishAnalyses.length > 0 
+    ? allDishAnalyses.reduce((sum, analysis) => sum + analysis.foodCostPercentage, 0) / allDishAnalyses.length 
     : 0;
 
-  const totalMargin = dishes.reduce((sum, dish) => sum + getDishAnalysis(dish).margin, 0);
-
-  const criticalDishes = dishes.filter(dish => getDishAnalysis(dish).foodCostPercentage > 40).length;
-
-  const targetReached = dishes.length > 0 
-    ? (dishes.filter(dish => getDishAnalysis(dish).foodCostPercentage < 35).length / dishes.length) * 100 
+  const totalMargin = allDishAnalyses.reduce((sum, analysis) => sum + analysis.margin, 0);
+  const criticalDishes = allDishAnalyses.filter(analysis => analysis.foodCostPercentage > 40).length;
+  const targetReached = allDishAnalyses.length > 0 
+    ? (allDishAnalyses.filter(analysis => analysis.foodCostPercentage < 35).length / allDishAnalyses.length) * 100 
     : 0;
 
   if (loading) {
@@ -160,7 +311,7 @@ const FoodCost = () => {
                 </div>
               </div>
             </div>
-            <AddDishDialog onAddDish={fetchDishes} />
+            <AddDishDialog onAddDish={fetchData} />
           </div>
         </div>
       </header>
@@ -201,92 +352,165 @@ const FoodCost = () => {
 
         {/* Search and Filters */}
         <div className="bg-white rounded-2xl border border-stone-200 p-6 mb-6">
-          <div className="flex items-center space-x-4">
+          <div className="flex flex-col md:flex-row md:items-center space-y-4 md:space-y-0 md:space-x-4">
             <div className="flex-1 relative">
               <Search className="w-5 h-5 text-slate-400 absolute left-3 top-3" />
               <input
                 type="text"
-                placeholder="Cerca piatti o categorie..."
+                placeholder="Cerca piatti o ricette..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="w-full pl-10 pr-4 py-2 border border-stone-200 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
               />
             </div>
-            <select className="px-4 py-2 border border-stone-200 rounded-lg focus:ring-2 focus:ring-emerald-500">
-              <option>Tutte le categorie</option>
-              <option>Antipasti</option>
-              <option>Primi Piatti</option>
-              <option>Secondi Piatti</option>
-              <option>Dolci</option>
-            </select>
-            <select className="px-4 py-2 border border-stone-200 rounded-lg focus:ring-2 focus:ring-emerald-500">
-              <option>Tutti gli stati</option>
-              <option>Ottimo (&lt; 30%)</option>
-              <option>Buono (30-35%)</option>
-              <option>Critico (&gt; 35%)</option>
-            </select>
+            <div className="flex space-x-2 overflow-x-auto">
+              {categories.map(category => (
+                <button
+                  key={category}
+                  onClick={() => setSelectedCategory(category)}
+                  className={`px-4 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-colors ${
+                    selectedCategory === category
+                      ? "bg-emerald-600 text-white"
+                      : "bg-stone-100 text-slate-600 hover:bg-stone-200"
+                  }`}
+                >
+                  {category === "all" ? "Tutte" : category}
+                </button>
+              ))}
+            </div>
           </div>
         </div>
 
-        {/* Dishes Table */}
+        {/* Items Table */}
         <div className="bg-white rounded-2xl border border-stone-200 overflow-hidden">
           <div className="px-6 py-4 border-b border-stone-200">
             <div className="flex items-center justify-between">
-              <h2 className="text-lg font-semibold text-slate-800">Analisi Food Cost per Piatto</h2>
-              <AddDishDialog onAddDish={fetchDishes} />
+              <h2 className="text-lg font-semibold text-slate-800">Analisi Food Cost - Piatti e Ricette</h2>
+              <AddDishDialog onAddDish={fetchData} />
             </div>
           </div>
           
-          {filteredDishes.length === 0 ? (
+          {filteredItems.length === 0 ? (
             <div className="p-12 text-center">
               <DollarSign className="w-16 h-16 text-slate-300 mx-auto mb-4" />
-              <h3 className="text-xl font-semibold text-slate-600 mb-2">Nessun piatto trovato</h3>
+              <h3 className="text-xl font-semibold text-slate-600 mb-2">Nessun elemento trovato</h3>
               <p className="text-slate-500 mb-6">
-                {searchTerm 
+                {searchTerm || selectedCategory !== "all"
                   ? "Prova a modificare i termini di ricerca" 
-                  : "Inizia aggiungendo il tuo primo piatto"
+                  : "Inizia aggiungendo ricette e piatti"
                 }
               </p>
-              <AddDishDialog onAddDish={fetchDishes} />
             </div>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full">
                 <thead className="bg-slate-50">
                   <tr>
-                    <th className="text-left px-6 py-3 text-sm font-medium text-slate-500">Piatto</th>
+                    <th className="text-left px-6 py-3 text-sm font-medium text-slate-500">Nome</th>
+                    <th className="text-left px-6 py-3 text-sm font-medium text-slate-500">Tipo</th>
                     <th className="text-left px-6 py-3 text-sm font-medium text-slate-500">Categoria</th>
                     <th className="text-right px-6 py-3 text-sm font-medium text-slate-500">Prezzo Vendita</th>
                     <th className="text-right px-6 py-3 text-sm font-medium text-slate-500">Costo Ingredienti</th>
                     <th className="text-right px-6 py-3 text-sm font-medium text-slate-500">Food Cost %</th>
                     <th className="text-right px-6 py-3 text-sm font-medium text-slate-500">Margine</th>
                     <th className="text-center px-6 py-3 text-sm font-medium text-slate-500">Status</th>
+                    <th className="text-center px-6 py-3 text-sm font-medium text-slate-500">Azioni</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-stone-200">
-                  {filteredDishes.map((dish) => {
-                    const analysis = getDishAnalysis(dish);
-                    return (
-                      <tr key={dish.id} className="hover:bg-slate-50 transition-colors">
-                        <td className="px-6 py-4">
-                          <div className="font-medium text-slate-800">{dish.name}</div>
-                        </td>
-                        <td className="px-6 py-4 text-slate-600">{dish.category}</td>
-                        <td className="px-6 py-4 text-right font-medium text-slate-800">€{dish.selling_price.toFixed(2)}</td>
-                        <td className="px-6 py-4 text-right text-slate-600">€{analysis.foodCost.toFixed(2)}</td>
-                        <td className="px-6 py-4 text-right">
-                          <span className={`font-semibold ${analysis.foodCostPercentage > 40 ? 'text-red-600' : analysis.foodCostPercentage > 30 ? 'text-amber-600' : 'text-emerald-600'}`}>
-                            {analysis.foodCostPercentage.toFixed(1)}%
-                          </span>
-                        </td>
-                        <td className="px-6 py-4 text-right font-medium text-slate-800">€{analysis.margin.toFixed(2)}</td>
-                        <td className="px-6 py-4 text-center">
-                          <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full border ${getStatusColor(analysis.status)}`}>
-                            {analysis.status}
-                          </span>
-                        </td>
-                      </tr>
-                    );
+                  {filteredItems.map(({ type, item }) => {
+                    if (type === 'dish') {
+                      const dish = item as Dish;
+                      const analysis = getDishAnalysis(dish);
+                      return (
+                        <tr key={`dish-${dish.id}`} className="hover:bg-slate-50 transition-colors">
+                          <td className="px-6 py-4">
+                            <div className="font-medium text-slate-800">{dish.name}</div>
+                          </td>
+                          <td className="px-6 py-4">
+                            <span className="inline-flex px-2 py-1 text-xs font-medium rounded-full bg-green-100 text-green-800">
+                              Piatto
+                            </span>
+                          </td>
+                          <td className="px-6 py-4 text-slate-600">{dish.category}</td>
+                          <td className="px-6 py-4 text-right font-medium text-slate-800">€{dish.selling_price.toFixed(2)}</td>
+                          <td className="px-6 py-4 text-right text-slate-600">€{analysis.foodCost.toFixed(2)}</td>
+                          <td className="px-6 py-4 text-right">
+                            <span className={`font-semibold ${analysis.foodCostPercentage > 40 ? 'text-red-600' : analysis.foodCostPercentage > 30 ? 'text-amber-600' : 'text-emerald-600'}`}>
+                              {analysis.foodCostPercentage.toFixed(1)}%
+                            </span>
+                          </td>
+                          <td className="px-6 py-4 text-right font-medium text-slate-800">€{analysis.margin.toFixed(2)}</td>
+                          <td className="px-6 py-4 text-center">
+                            <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full border ${getStatusColor(analysis.status)}`}>
+                              {analysis.status}
+                            </span>
+                          </td>
+                          <td className="px-6 py-4 text-center">
+                            {dish.recipes && (
+                              <Button
+                                onClick={() => setEditingRecipe(dish.recipes!)}
+                                size="sm"
+                                variant="outline"
+                                className="mr-2"
+                              >
+                                <Edit className="w-4 h-4" />
+                              </Button>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    } else {
+                      const recipe = item as Recipe;
+                      const analysis = getRecipeAnalysis(recipe);
+                      return (
+                        <tr key={`recipe-${recipe.id}`} className="hover:bg-slate-50 transition-colors">
+                          <td className="px-6 py-4">
+                            <div className="font-medium text-slate-800">{recipe.name}</div>
+                          </td>
+                          <td className="px-6 py-4">
+                            <span className="inline-flex px-2 py-1 text-xs font-medium rounded-full bg-purple-100 text-purple-800">
+                              Ricetta
+                            </span>
+                          </td>
+                          <td className="px-6 py-4 text-slate-600">{recipe.category}</td>
+                          <td className="px-6 py-4 text-right text-slate-500 italic">
+                            €{analysis.assumedPrice.toFixed(2)} (stimato)
+                          </td>
+                          <td className="px-6 py-4 text-right text-slate-600">€{analysis.foodCost.toFixed(2)}</td>
+                          <td className="px-6 py-4 text-right">
+                            <span className={`font-semibold ${analysis.foodCostPercentage > 40 ? 'text-red-600' : analysis.foodCostPercentage > 30 ? 'text-amber-600' : 'text-emerald-600'}`}>
+                              {analysis.foodCostPercentage.toFixed(1)}%
+                            </span>
+                          </td>
+                          <td className="px-6 py-4 text-right font-medium text-slate-800">€{analysis.margin.toFixed(2)}</td>
+                          <td className="px-6 py-4 text-center">
+                            <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full border ${getStatusColor(analysis.status)}`}>
+                              {analysis.status}
+                            </span>
+                          </td>
+                          <td className="px-6 py-4 text-center">
+                            <div className="flex items-center justify-center space-x-1">
+                              <Button
+                                onClick={() => setEditingRecipe(recipe)}
+                                size="sm"
+                                variant="outline"
+                              >
+                                <Edit className="w-4 h-4" />
+                              </Button>
+                              <Button
+                                onClick={() => createDishFromRecipe(recipe)}
+                                size="sm"
+                                variant="default"
+                                className="bg-emerald-600 hover:bg-emerald-700"
+                              >
+                                Crea Piatto
+                              </Button>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    }
                   })}
                 </tbody>
               </table>
@@ -294,6 +518,15 @@ const FoodCost = () => {
           )}
         </div>
       </main>
+
+      {/* Edit Recipe Dialog */}
+      {editingRecipe && (
+        <EditRecipeDialog
+          recipe={editingRecipe}
+          onClose={() => setEditingRecipe(null)}
+          onRecipeUpdated={fetchData}
+        />
+      )}
     </div>
   );
 };

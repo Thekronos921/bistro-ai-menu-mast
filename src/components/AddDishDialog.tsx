@@ -71,7 +71,19 @@ const AddDishDialog = ({ onAddDish }: AddDishDialogProps) => {
         .order('name');
 
       if (error) throw error;
-      setRecipes(data || []);
+      
+      // Transform the data to match our Recipe interface
+      const transformedData = (data || []).map(recipe => ({
+        ...recipe,
+        recipe_ingredients: recipe.recipe_ingredients.map((ri: any) => ({
+          quantity: ri.quantity,
+          ingredients: {
+            cost_per_unit: ri.ingredients.cost_per_unit
+          }
+        }))
+      }));
+      
+      setRecipes(transformedData);
     } catch (error) {
       console.error('Error fetching recipes:', error);
       toast({

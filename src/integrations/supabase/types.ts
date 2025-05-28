@@ -91,6 +91,7 @@ export type Database = {
           created_at: string
           id: string
           ingredient_id: string | null
+          is_semilavorato: boolean | null
           quantity: number
           recipe_id: string | null
         }
@@ -98,6 +99,7 @@ export type Database = {
           created_at?: string
           id?: string
           ingredient_id?: string | null
+          is_semilavorato?: boolean | null
           quantity: number
           recipe_id?: string | null
         }
@@ -105,6 +107,7 @@ export type Database = {
           created_at?: string
           id?: string
           ingredient_id?: string | null
+          is_semilavorato?: boolean | null
           quantity?: number
           recipe_id?: string | null
         }
@@ -168,10 +171,13 @@ export type Database = {
           difficulty: string
           fat: number | null
           id: string
+          is_semilavorato: boolean | null
           name: string
+          notes_chef: string | null
           portions: number
           preparation_time: number
           protein: number | null
+          selling_price: number | null
           updated_at: string
         }
         Insert: {
@@ -184,10 +190,13 @@ export type Database = {
           difficulty: string
           fat?: number | null
           id?: string
+          is_semilavorato?: boolean | null
           name: string
+          notes_chef?: string | null
           portions: number
           preparation_time: number
           protein?: number | null
+          selling_price?: number | null
           updated_at?: string
         }
         Update: {
@@ -200,10 +209,13 @@ export type Database = {
           difficulty?: string
           fat?: number | null
           id?: string
+          is_semilavorato?: boolean | null
           name?: string
+          notes_chef?: string | null
           portions?: number
           preparation_time?: number
           protein?: number | null
+          selling_price?: number | null
           updated_at?: string
         }
         Relationships: []

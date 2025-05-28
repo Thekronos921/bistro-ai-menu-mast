@@ -61,6 +61,9 @@ export interface Database {
           protein: number | null;
           carbs: number | null;
           fat: number | null;
+          is_semilavorato: boolean | null;
+          notes_chef: string | null;
+          selling_price: number | null;
           created_at: string;
           updated_at: string;
         };
@@ -77,6 +80,9 @@ export interface Database {
           protein?: number | null;
           carbs?: number | null;
           fat?: number | null;
+          is_semilavorato?: boolean | null;
+          notes_chef?: string | null;
+          selling_price?: number | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -93,6 +99,9 @@ export interface Database {
           protein?: number | null;
           carbs?: number | null;
           fat?: number | null;
+          is_semilavorato?: boolean | null;
+          notes_chef?: string | null;
+          selling_price?: number | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -103,6 +112,7 @@ export interface Database {
           recipe_id: string | null;
           ingredient_id: string | null;
           quantity: number;
+          is_semilavorato: boolean | null;
           created_at: string;
         };
         Insert: {
@@ -110,6 +120,7 @@ export interface Database {
           recipe_id?: string | null;
           ingredient_id?: string | null;
           quantity: number;
+          is_semilavorato?: boolean | null;
           created_at?: string;
         };
         Update: {
@@ -117,6 +128,7 @@ export interface Database {
           recipe_id?: string | null;
           ingredient_id?: string | null;
           quantity?: number;
+          is_semilavorato?: boolean | null;
           created_at?: string;
         };
       };

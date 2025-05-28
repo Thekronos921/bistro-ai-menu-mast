@@ -54,6 +54,20 @@ interface Recipe {
   recipe_instructions?: RecipeInstruction[];
 }
 
+// Simplified Recipe interface for dialogs
+interface SimpleRecipe {
+  id: string;
+  name: string;
+  category: string;
+  is_semilavorato?: boolean;
+  recipe_ingredients: {
+    ingredients: {
+      cost_per_unit: number;
+    };
+    quantity: number;
+  }[];
+}
+
 interface Dish {
   id: string;
   name: string;
@@ -251,6 +265,36 @@ const FoodCost = () => {
     return recipeIngredients.reduce((total, ri) => {
       return total + (ri.ingredients.cost_per_unit * ri.quantity);
     }, 0);
+  };
+
+  // Convert Recipe to SimpleRecipe for dialog components
+  const convertToSimpleRecipe = (recipe: Recipe): SimpleRecipe => {
+    return {
+      id: recipe.id,
+      name: recipe.name,
+      category: recipe.category,
+      is_semilavorato: recipe.is_semilavorato,
+      recipe_ingredients: recipe.recipe_ingredients.map(ri => ({
+        ingredients: {
+          cost_per_unit: ri.ingredients.cost_per_unit
+        },
+        quantity: ri.quantity
+      }))
+    };
+  };
+
+  const handleEditRecipe = (recipe: Recipe) => {
+    setEditingRecipe(recipe);
+  };
+
+  const handleEditRecipeFromDialog = (simpleRecipe: SimpleRecipe) => {
+    // Find the full recipe data
+    const fullRecipe = recipes.find(r => r.id === simpleRecipe.id) || 
+                      dishes.find(d => d.recipes?.id === simpleRecipe.id)?.recipes;
+    
+    if (fullRecipe) {
+      setEditingRecipe(fullRecipe);
+    }
   };
 
   const getMenuEngineeringCategory = (dish: Dish): MenuCategory => {
@@ -471,7 +515,7 @@ const FoodCost = () => {
             <div className="flex items-center space-x-3">
               <PeriodSelector selectedPeriod={selectedPeriod} onPeriodChange={setSelectedPeriod} />
               <SettingsDialog settings={settings} onSaveSettings={saveSettings} />
-              <AddDishDialog onAddDish={fetchData} onEditRecipe={(recipe) => setEditingRecipe(recipe)} />
+              <AddDishDialog onAddDish={fetchData} onEditRecipe={handleEditRecipeFromDialog} />
             </div>
           </div>
         </div>
@@ -733,7 +777,7 @@ const FoodCost = () => {
           dish={editingDish}
           onClose={() => setEditingDish(null)}
           onDishUpdated={fetchData}
-          onEditRecipe={(recipe) => setEditingRecipe(recipe)}
+          onEditRecipe={handleEditRecipeFromDialog}
         />
       )}
     </div>

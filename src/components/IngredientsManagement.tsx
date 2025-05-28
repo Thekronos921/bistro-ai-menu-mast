@@ -7,6 +7,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import AddIngredientDialog from "./AddIngredientDialog";
 import EditIngredientDialog from "./EditIngredientDialog";
+import InventoryKPIs from "./InventoryKPIs";
+import StockStatusBadge, { StockStatus } from "./StockStatusBadge";
 
 interface Ingredient {
   id: string;
@@ -46,6 +48,25 @@ const IngredientsManagement = () => {
     }
   };
 
+  const updateReorderPoint = async (id: string, reorderPoint: number) => {
+    try {
+      const { error } = await supabase
+        .from('ingredients')
+        .update({ min_stock_threshold: reorderPoint })
+        .eq('id', id);
+
+      if (error) throw error;
+      
+      fetchIngredients();
+    } catch (error) {
+      toast({
+        title: "Errore",
+        description: "Errore durante l'aggiornamento del punto di riordino",
+        variant: "destructive"
+      });
+    }
+  };
+
   const deleteIngredient = async (id: string) => {
     if (!confirm("Sei sicuro di voler eliminare questo ingrediente?")) return;
 
@@ -71,6 +92,14 @@ const IngredientsManagement = () => {
     }
   };
 
+  const getStockStatus = (currentStock: number, minThreshold: number): StockStatus => {
+    if (minThreshold <= 0) return "ok";
+    if (currentStock <= 0) return "critical";
+    if (currentStock <= minThreshold) return "critical";
+    if (currentStock <= minThreshold * 1.5) return "low";
+    return "ok";
+  };
+
   useEffect(() => {
     fetchIngredients();
   }, []);
@@ -90,6 +119,9 @@ const IngredientsManagement = () => {
 
   return (
     <div className="space-y-6">
+      {/* KPIs */}
+      <InventoryKPIs ingredients={ingredients} />
+
       {/* Header */}
       <div className="flex items-center justify-between">
         <h2 className="text-2xl font-bold text-slate-800">Gestione Ingredienti</h2>
@@ -138,43 +170,61 @@ const IngredientsManagement = () => {
                 <th className="text-right px-6 py-3 text-sm font-medium text-slate-500">Costo/Unità</th>
                 <th className="text-left px-6 py-3 text-sm font-medium text-slate-500">Unità</th>
                 <th className="text-right px-6 py-3 text-sm font-medium text-slate-500">Scorte</th>
+                <th className="text-right px-6 py-3 text-sm font-medium text-slate-500">Punto Riordino</th>
+                <th className="text-center px-6 py-3 text-sm font-medium text-slate-500">Stato</th>
                 <th className="text-left px-6 py-3 text-sm font-medium text-slate-500">Fornitore</th>
                 <th className="text-center px-6 py-3 text-sm font-medium text-slate-500">Azioni</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-stone-200">
-              {filteredIngredients.map((ingredient) => (
-                <tr key={ingredient.id} className="hover:bg-slate-50">
-                  <td className="px-6 py-4 font-medium text-slate-800">{ingredient.name}</td>
-                  <td className="px-6 py-4 text-slate-600">{ingredient.category}</td>
-                  <td className="px-6 py-4 text-right font-medium">€{ingredient.cost_per_unit.toFixed(2)}</td>
-                  <td className="px-6 py-4 text-slate-600">{ingredient.unit}</td>
-                  <td className="px-6 py-4 text-right">
-                    <span className={ingredient.current_stock <= ingredient.min_stock_threshold && ingredient.min_stock_threshold > 0 ? 'text-red-600 font-semibold' : 'text-slate-800'}>
-                      {ingredient.current_stock} {ingredient.unit}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 text-slate-600">{ingredient.supplier || '-'}</td>
-                  <td className="px-6 py-4 text-center">
-                    <div className="flex justify-center space-x-2">
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => setEditingIngredient(ingredient)}
-                      >
-                        <Edit className="w-4 h-4" />
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => deleteIngredient(ingredient.id)}
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </Button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
+              {filteredIngredients.map((ingredient) => {
+                const stockStatus = getStockStatus(ingredient.current_stock, ingredient.min_stock_threshold);
+                return (
+                  <tr key={ingredient.id} className="hover:bg-slate-50">
+                    <td className="px-6 py-4 font-medium text-slate-800">{ingredient.name}</td>
+                    <td className="px-6 py-4 text-slate-600">{ingredient.category}</td>
+                    <td className="px-6 py-4 text-right font-medium">€{ingredient.cost_per_unit.toFixed(2)}</td>
+                    <td className="px-6 py-4 text-slate-600">{ingredient.unit}</td>
+                    <td className="px-6 py-4 text-right">
+                      <span className={ingredient.current_stock <= ingredient.min_stock_threshold && ingredient.min_stock_threshold > 0 ? 'text-red-600 font-semibold' : 'text-slate-800'}>
+                        {ingredient.current_stock} {ingredient.unit}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 text-right">
+                      <Input
+                        type="number"
+                        value={ingredient.min_stock_threshold || 0}
+                        onChange={(e) => updateReorderPoint(ingredient.id, parseFloat(e.target.value) || 0)}
+                        className="w-20 text-right text-sm"
+                        min="0"
+                        step="0.1"
+                      />
+                    </td>
+                    <td className="px-6 py-4 text-center">
+                      <StockStatusBadge status={stockStatus} />
+                    </td>
+                    <td className="px-6 py-4 text-slate-600">{ingredient.supplier || '-'}</td>
+                    <td className="px-6 py-4 text-center">
+                      <div className="flex justify-center space-x-2">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => setEditingIngredient(ingredient)}
+                        >
+                          <Edit className="w-4 h-4" />
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => deleteIngredient(ingredient.id)}
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>

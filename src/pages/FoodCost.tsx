@@ -1,59 +1,105 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { ArrowLeft, Search, DollarSign, TrendingUp, TrendingDown } from "lucide-react";
 import { Link } from "react-router-dom";
 import AddDishDialog from "@/components/AddDishDialog";
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
+
+interface Dish {
+  id: string;
+  name: string;
+  category: string;
+  selling_price: number;
+  recipe_id?: string;
+  recipes?: {
+    id: string;
+    recipe_ingredients: Array<{
+      quantity: number;
+      ingredients: {
+        cost_per_unit: number;
+      };
+    }>;
+  };
+}
 
 const FoodCost = () => {
   const [searchTerm, setSearchTerm] = useState("");
-  const [dishes, setDishes] = useState([
-    {
-      id: 1,
-      name: "Risotto ai Porcini",
-      category: "Primi Piatti",
-      sellingPrice: 18.00,
-      foodCost: 4.85,
-      foodCostPercentage: 26.9,
-      margin: 13.15,
-      status: "ottimo",
-      trend: "down"
-    },
-    {
-      id: 2,
-      name: "Branzino in Crosta",
-      category: "Secondi Piatti",
-      sellingPrice: 24.00,
-      foodCost: 8.20,
-      foodCostPercentage: 34.2,
-      margin: 15.80,
-      status: "buono",
-      trend: "up"
-    },
-    {
-      id: 3,
-      name: "Tiramisù della Casa",
-      category: "Dolci",
-      sellingPrice: 8.00,
-      foodCost: 2.10,
-      foodCostPercentage: 26.3,
-      margin: 5.90,
-      status: "ottimo",
-      trend: "stable"
-    },
-    {
-      id: 4,
-      name: "Tagliata di Manzo",
-      category: "Secondi Piatti",
-      sellingPrice: 28.00,
-      foodCost: 12.50,
-      foodCostPercentage: 44.6,
-      margin: 15.50,
-      status: "critico",
-      trend: "up"
-    }
-  ]);
+  const [dishes, setDishes] = useState<Dish[]>([]);
+  const [loading, setLoading] = useState(true);
+  const { toast } = useToast();
 
-  const handleAddDish = (newDish: any) => {
-    setDishes([...dishes, newDish]);
+  const fetchDishes = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('dishes')
+        .select(`
+          *,
+          recipes (
+            id,
+            recipe_ingredients (
+              quantity,
+              ingredients (
+                cost_per_unit
+              )
+            )
+          )
+        `)
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      setDishes(data || []);
+    } catch (error) {
+      toast({
+        title: "Errore",
+        description: "Errore nel caricamento dei piatti",
+        variant: "destructive"
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchDishes();
+
+    // Real-time updates
+    const channel = supabase
+      .channel('dishes-changes')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'dishes' }, () => {
+        fetchDishes();
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'ingredients' }, () => {
+        fetchDishes(); // Aggiorna quando cambiano i costi degli ingredienti
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, []);
+
+  const calculateFoodCost = (dish: Dish) => {
+    if (!dish.recipes?.recipe_ingredients) return 0;
+    return dish.recipes.recipe_ingredients.reduce((total, ri) => {
+      return total + (ri.ingredients.cost_per_unit * ri.quantity);
+    }, 0);
+  };
+
+  const getDishAnalysis = (dish: Dish) => {
+    const foodCost = calculateFoodCost(dish);
+    const foodCostPercentage = dish.selling_price > 0 ? (foodCost / dish.selling_price) * 100 : 0;
+    const margin = dish.selling_price - foodCost;
+    
+    let status = "ottimo";
+    if (foodCostPercentage > 40) status = "critico";
+    else if (foodCostPercentage > 30) status = "buono";
+
+    return {
+      foodCost,
+      foodCostPercentage,
+      margin,
+      status
+    };
   };
 
   const getStatusColor = (status: string) => {
@@ -65,18 +111,34 @@ const FoodCost = () => {
     }
   };
 
-  const getTrendIcon = (trend: string) => {
-    switch (trend) {
-      case "up": return <TrendingUp className="w-4 h-4 text-red-500" />;
-      case "down": return <TrendingDown className="w-4 h-4 text-emerald-500" />;
-      default: return <div className="w-4 h-4 bg-gray-400 rounded-full"></div>;
-    }
-  };
-
   const filteredDishes = dishes.filter(dish =>
     dish.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     dish.category.toLowerCase().includes(searchTerm.toLowerCase())
   );
+
+  // Calcola statistiche aggregate
+  const avgFoodCostPercentage = dishes.length > 0 
+    ? dishes.reduce((sum, dish) => sum + getDishAnalysis(dish).foodCostPercentage, 0) / dishes.length 
+    : 0;
+
+  const totalMargin = dishes.reduce((sum, dish) => sum + getDishAnalysis(dish).margin, 0);
+
+  const criticalDishes = dishes.filter(dish => getDishAnalysis(dish).foodCostPercentage > 40).length;
+
+  const targetReached = dishes.length > 0 
+    ? (dishes.filter(dish => getDishAnalysis(dish).foodCostPercentage < 35).length / dishes.length) * 100 
+    : 0;
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-stone-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-emerald-600 mx-auto mb-4"></div>
+          <p className="text-slate-600">Caricamento analisi food cost...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-stone-50">
@@ -98,7 +160,7 @@ const FoodCost = () => {
                 </div>
               </div>
             </div>
-            <AddDishDialog onAddDish={handleAddDish} />
+            <AddDishDialog onAddDish={fetchDishes} />
           </div>
         </div>
       </header>
@@ -108,31 +170,31 @@ const FoodCost = () => {
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
           <div className="bg-white rounded-2xl p-6 border border-stone-200">
             <h3 className="text-sm font-medium text-slate-500 mb-2">Food Cost Medio</h3>
-            <p className="text-3xl font-bold text-slate-800">32.8%</p>
+            <p className="text-3xl font-bold text-slate-800">{avgFoodCostPercentage.toFixed(1)}%</p>
             <div className="flex items-center mt-2">
               <TrendingDown className="w-4 h-4 text-emerald-500 mr-1" />
-              <span className="text-sm text-emerald-600">-1.2% vs target</span>
+              <span className="text-sm text-emerald-600">Aggiornato in tempo reale</span>
             </div>
           </div>
           
           <div className="bg-white rounded-2xl p-6 border border-stone-200">
             <h3 className="text-sm font-medium text-slate-500 mb-2">Margine Totale</h3>
-            <p className="text-3xl font-bold text-slate-800">€1,247</p>
+            <p className="text-3xl font-bold text-slate-800">€{totalMargin.toFixed(0)}</p>
             <div className="flex items-center mt-2">
               <TrendingUp className="w-4 h-4 text-emerald-500 mr-1" />
-              <span className="text-sm text-emerald-600">+8.5% vs ieri</span>
+              <span className="text-sm text-emerald-600">Calcolato live</span>
             </div>
           </div>
           
           <div className="bg-white rounded-2xl p-6 border border-stone-200">
             <h3 className="text-sm font-medium text-slate-500 mb-2">Piatti Critici</h3>
-            <p className="text-3xl font-bold text-red-600">3</p>
+            <p className="text-3xl font-bold text-red-600">{criticalDishes}</p>
             <span className="text-sm text-slate-500">Food cost &gt; 40%</span>
           </div>
           
           <div className="bg-white rounded-2xl p-6 border border-stone-200">
             <h3 className="text-sm font-medium text-slate-500 mb-2">Target Raggiunto</h3>
-            <p className="text-3xl font-bold text-emerald-600">78%</p>
+            <p className="text-3xl font-bold text-emerald-600">{targetReached.toFixed(0)}%</p>
             <span className="text-sm text-slate-500">dei piatti sotto il 35%</span>
           </div>
         </div>
@@ -169,50 +231,67 @@ const FoodCost = () => {
         {/* Dishes Table */}
         <div className="bg-white rounded-2xl border border-stone-200 overflow-hidden">
           <div className="px-6 py-4 border-b border-stone-200">
-            <h2 className="text-lg font-semibold text-slate-800">Analisi Food Cost per Piatto</h2>
+            <div className="flex items-center justify-between">
+              <h2 className="text-lg font-semibold text-slate-800">Analisi Food Cost per Piatto</h2>
+              <AddDishDialog onAddDish={fetchDishes} />
+            </div>
           </div>
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead className="bg-slate-50">
-                <tr>
-                  <th className="text-left px-6 py-3 text-sm font-medium text-slate-500">Piatto</th>
-                  <th className="text-left px-6 py-3 text-sm font-medium text-slate-500">Categoria</th>
-                  <th className="text-right px-6 py-3 text-sm font-medium text-slate-500">Prezzo Vendita</th>
-                  <th className="text-right px-6 py-3 text-sm font-medium text-slate-500">Costo Ingredienti</th>
-                  <th className="text-right px-6 py-3 text-sm font-medium text-slate-500">Food Cost %</th>
-                  <th className="text-right px-6 py-3 text-sm font-medium text-slate-500">Margine</th>
-                  <th className="text-center px-6 py-3 text-sm font-medium text-slate-500">Trend</th>
-                  <th className="text-center px-6 py-3 text-sm font-medium text-slate-500">Status</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-stone-200">
-                {filteredDishes.map((dish) => (
-                  <tr key={dish.id} className="hover:bg-slate-50 transition-colors">
-                    <td className="px-6 py-4">
-                      <div className="font-medium text-slate-800">{dish.name}</div>
-                    </td>
-                    <td className="px-6 py-4 text-slate-600">{dish.category}</td>
-                    <td className="px-6 py-4 text-right font-medium text-slate-800">€{dish.sellingPrice.toFixed(2)}</td>
-                    <td className="px-6 py-4 text-right text-slate-600">€{dish.foodCost.toFixed(2)}</td>
-                    <td className="px-6 py-4 text-right">
-                      <span className={`font-semibold ${dish.foodCostPercentage > 35 ? 'text-red-600' : dish.foodCostPercentage > 30 ? 'text-amber-600' : 'text-emerald-600'}`}>
-                        {dish.foodCostPercentage.toFixed(1)}%
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 text-right font-medium text-slate-800">€{dish.margin.toFixed(2)}</td>
-                    <td className="px-6 py-4 text-center">
-                      {getTrendIcon(dish.trend)}
-                    </td>
-                    <td className="px-6 py-4 text-center">
-                      <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full border ${getStatusColor(dish.status)}`}>
-                        {dish.status}
-                      </span>
-                    </td>
+          
+          {filteredDishes.length === 0 ? (
+            <div className="p-12 text-center">
+              <DollarSign className="w-16 h-16 text-slate-300 mx-auto mb-4" />
+              <h3 className="text-xl font-semibold text-slate-600 mb-2">Nessun piatto trovato</h3>
+              <p className="text-slate-500 mb-6">
+                {searchTerm 
+                  ? "Prova a modificare i termini di ricerca" 
+                  : "Inizia aggiungendo il tuo primo piatto"
+                }
+              </p>
+              <AddDishDialog onAddDish={fetchDishes} />
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead className="bg-slate-50">
+                  <tr>
+                    <th className="text-left px-6 py-3 text-sm font-medium text-slate-500">Piatto</th>
+                    <th className="text-left px-6 py-3 text-sm font-medium text-slate-500">Categoria</th>
+                    <th className="text-right px-6 py-3 text-sm font-medium text-slate-500">Prezzo Vendita</th>
+                    <th className="text-right px-6 py-3 text-sm font-medium text-slate-500">Costo Ingredienti</th>
+                    <th className="text-right px-6 py-3 text-sm font-medium text-slate-500">Food Cost %</th>
+                    <th className="text-right px-6 py-3 text-sm font-medium text-slate-500">Margine</th>
+                    <th className="text-center px-6 py-3 text-sm font-medium text-slate-500">Status</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody className="divide-y divide-stone-200">
+                  {filteredDishes.map((dish) => {
+                    const analysis = getDishAnalysis(dish);
+                    return (
+                      <tr key={dish.id} className="hover:bg-slate-50 transition-colors">
+                        <td className="px-6 py-4">
+                          <div className="font-medium text-slate-800">{dish.name}</div>
+                        </td>
+                        <td className="px-6 py-4 text-slate-600">{dish.category}</td>
+                        <td className="px-6 py-4 text-right font-medium text-slate-800">€{dish.selling_price.toFixed(2)}</td>
+                        <td className="px-6 py-4 text-right text-slate-600">€{analysis.foodCost.toFixed(2)}</td>
+                        <td className="px-6 py-4 text-right">
+                          <span className={`font-semibold ${analysis.foodCostPercentage > 40 ? 'text-red-600' : analysis.foodCostPercentage > 30 ? 'text-amber-600' : 'text-emerald-600'}`}>
+                            {analysis.foodCostPercentage.toFixed(1)}%
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 text-right font-medium text-slate-800">€{analysis.margin.toFixed(2)}</td>
+                        <td className="px-6 py-4 text-center">
+                          <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full border ${getStatusColor(analysis.status)}`}>
+                            {analysis.status}
+                          </span>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
       </main>
     </div>

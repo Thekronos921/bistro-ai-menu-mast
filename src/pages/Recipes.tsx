@@ -1,72 +1,102 @@
-import { useState } from "react";
+
+import { useState, useEffect } from "react";
 import { ArrowLeft, Search, ChefHat, Clock, Users } from "lucide-react";
 import { Link } from "react-router-dom";
 import AddRecipeDialog from "@/components/AddRecipeDialog";
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
+
+interface Recipe {
+  id: string;
+  name: string;
+  category: string;
+  preparation_time: number;
+  difficulty: string;
+  portions: number;
+  description: string;
+  allergens: string;
+  calories: number;
+  protein: number;
+  carbs: number;
+  fat: number;
+  recipe_ingredients?: Array<{
+    id: string;
+    quantity: number;
+    ingredients: {
+      id: string;
+      name: string;
+      unit: string;
+      cost_per_unit: number;
+    };
+  }>;
+  recipe_instructions?: Array<{
+    id: string;
+    step_number: number;
+    instruction: string;
+  }>;
+}
 
 const Recipes = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("all");
-  const [recipes, setRecipes] = useState([
-    {
-      id: 1,
-      name: "Risotto ai Porcini",
-      category: "Primi Piatti",
-      preparationTime: 25,
-      difficulty: "Media",
-      portions: 4,
-      ingredients: [
-        { name: "Riso Carnaroli", quantity: 320, unit: "g", cost: 1.20 },
-        { name: "Porcini freschi", quantity: 200, unit: "g", cost: 2.80 },
-        { name: "Brodo vegetale", quantity: 1, unit: "l", cost: 0.50 },
-        { name: "Vino bianco", quantity: 100, unit: "ml", cost: 0.35 }
-      ],
-      totalCost: 4.85,
-      instructions: [
-        "Pulire e tagliare i porcini",
-        "Tostare il riso con cipolla",
-        "Aggiungere vino e brodo gradualmente",
-        "Manteccare con burro e parmigiano"
-      ],
-      nutritionalInfo: {
-        calories: 380,
-        protein: 12,
-        carbs: 68,
-        fat: 8
-      }
-    },
-    {
-      id: 2,
-      name: "Branzino in Crosta",
-      category: "Secondi Piatti",
-      preparationTime: 45,
-      difficulty: "Alta",
-      portions: 2,
-      ingredients: [
-        { name: "Branzino intero", quantity: 800, unit: "g", cost: 6.40 },
-        { name: "Crosta di sale", quantity: 500, unit: "g", cost: 0.80 },
-        { name: "Erbe aromatiche", quantity: 50, unit: "g", cost: 1.00 }
-      ],
-      totalCost: 8.20,
-      instructions: [
-        "Pulire il branzino",
-        "Preparare la crosta di sale con erbe",
-        "Avvolgere il pesce nella crosta",
-        "Cuocere in forno a 180°C per 35 minuti"
-      ],
-      nutritionalInfo: {
-        calories: 220,
-        protein: 42,
-        carbs: 2,
-        fat: 6
-      }
-    }
-  ]);
+  const [recipes, setRecipes] = useState<Recipe[]>([]);
+  const [loading, setLoading] = useState(true);
+  const { toast } = useToast();
 
   const categories = ["all", "Antipasti", "Primi Piatti", "Secondi Piatti", "Dolci", "Contorni"];
 
-  const handleAddRecipe = (newRecipe: any) => {
-    setRecipes([...recipes, newRecipe]);
+  const fetchRecipes = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('recipes')
+        .select(`
+          *,
+          recipe_ingredients (
+            id,
+            quantity,
+            ingredients (
+              id,
+              name,
+              unit,
+              cost_per_unit
+            )
+          ),
+          recipe_instructions (
+            id,
+            step_number,
+            instruction
+          )
+        `)
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      setRecipes(data || []);
+    } catch (error) {
+      toast({
+        title: "Errore",
+        description: "Errore nel caricamento delle ricette",
+        variant: "destructive"
+      });
+    } finally {
+      setLoading(false);
+    }
   };
+
+  useEffect(() => {
+    fetchRecipes();
+    
+    // Real-time updates
+    const channel = supabase
+      .channel('recipes-changes')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'recipes' }, () => {
+        fetchRecipes();
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, []);
 
   const filteredRecipes = recipes.filter(recipe => {
     const matchesSearch = recipe.name.toLowerCase().includes(searchTerm.toLowerCase());
@@ -82,6 +112,24 @@ const Recipes = () => {
       default: return "bg-gray-100 text-gray-800";
     }
   };
+
+  const calculateTotalCost = (recipeIngredients: Recipe['recipe_ingredients']) => {
+    if (!recipeIngredients) return 0;
+    return recipeIngredients.reduce((total, ri) => {
+      return total + (ri.ingredients.cost_per_unit * ri.quantity);
+    }, 0);
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-stone-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600 mx-auto mb-4"></div>
+          <p className="text-slate-600">Caricamento ricette...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-stone-50">
@@ -103,7 +151,7 @@ const Recipes = () => {
                 </div>
               </div>
             </div>
-            <AddRecipeDialog onAddRecipe={handleAddRecipe} />
+            <AddRecipeDialog onAddRecipe={fetchRecipes} />
           </div>
         </div>
       </header>
@@ -141,91 +189,111 @@ const Recipes = () => {
         </div>
 
         {/* Recipes Grid */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {filteredRecipes.map((recipe) => (
-            <div key={recipe.id} className="bg-white rounded-2xl border border-stone-200 overflow-hidden hover:shadow-lg transition-shadow">
-              {/* Recipe Header */}
-              <div className="p-6 border-b border-stone-200">
-                <div className="flex items-start justify-between">
-                  <div>
-                    <h3 className="text-xl font-bold text-slate-800 mb-1">{recipe.name}</h3>
-                    <p className="text-sm text-slate-500">{recipe.category}</p>
-                  </div>
-                  <span className={`px-2 py-1 text-xs font-medium rounded-full ${getDifficultyColor(recipe.difficulty)}`}>
-                    {recipe.difficulty}
-                  </span>
-                </div>
-                
-                <div className="flex items-center space-x-6 mt-4 text-sm text-slate-600">
-                  <div className="flex items-center space-x-1">
-                    <Clock className="w-4 h-4" />
-                    <span>{recipe.preparationTime} min</span>
-                  </div>
-                  <div className="flex items-center space-x-1">
-                    <Users className="w-4 h-4" />
-                    <span>{recipe.portions} porzioni</span>
-                  </div>
-                  <div className="font-semibold text-purple-600">
-                    €{recipe.totalCost.toFixed(2)} totale
-                  </div>
-                </div>
-              </div>
-
-              {/* Ingredients */}
-              <div className="p-6 border-b border-stone-200">
-                <h4 className="font-semibold text-slate-800 mb-3">Ingredienti</h4>
-                <div className="space-y-2">
-                  {recipe.ingredients.map((ingredient, index) => (
-                    <div key={index} className="flex items-center justify-between text-sm">
-                      <span className="text-slate-700">
-                        {ingredient.name} - {ingredient.quantity}{ingredient.unit}
-                      </span>
-                      <span className="font-medium text-slate-800">€{ingredient.cost.toFixed(2)}</span>
+        {filteredRecipes.length === 0 ? (
+          <div className="bg-white rounded-2xl border border-stone-200 p-12 text-center">
+            <ChefHat className="w-16 h-16 text-slate-300 mx-auto mb-4" />
+            <h3 className="text-xl font-semibold text-slate-600 mb-2">Nessuna ricetta trovata</h3>
+            <p className="text-slate-500 mb-6">
+              {searchTerm || selectedCategory !== "all" 
+                ? "Prova a modificare i filtri di ricerca" 
+                : "Inizia creando la tua prima ricetta"
+              }
+            </p>
+            <AddRecipeDialog onAddRecipe={fetchRecipes} />
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {filteredRecipes.map((recipe) => (
+              <div key={recipe.id} className="bg-white rounded-2xl border border-stone-200 overflow-hidden hover:shadow-lg transition-shadow">
+                {/* Recipe Header */}
+                <div className="p-6 border-b border-stone-200">
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <h3 className="text-xl font-bold text-slate-800 mb-1">{recipe.name}</h3>
+                      <p className="text-sm text-slate-500">{recipe.category}</p>
                     </div>
-                  ))}
-                </div>
-              </div>
-
-              {/* Instructions */}
-              <div className="p-6 border-b border-stone-200">
-                <h4 className="font-semibold text-slate-800 mb-3">Preparazione</h4>
-                <ol className="space-y-2">
-                  {recipe.instructions.map((step, index) => (
-                    <li key={index} className="flex items-start space-x-3 text-sm text-slate-600">
-                      <span className="flex-shrink-0 w-6 h-6 bg-purple-100 text-purple-600 rounded-full flex items-center justify-center text-xs font-medium">
-                        {index + 1}
-                      </span>
-                      <span>{step}</span>
-                    </li>
-                  ))}
-                </ol>
-              </div>
-
-              {/* Nutritional Info */}
-              <div className="p-6 bg-stone-50">
-                <h4 className="font-semibold text-slate-800 mb-3">Valori Nutrizionali (per porzione)</h4>
-                <div className="grid grid-cols-4 gap-4 text-center">
-                  <div>
-                    <p className="text-2xl font-bold text-slate-800">{recipe.nutritionalInfo.calories}</p>
-                    <p className="text-xs text-slate-500">Calorie</p>
+                    <span className={`px-2 py-1 text-xs font-medium rounded-full ${getDifficultyColor(recipe.difficulty)}`}>
+                      {recipe.difficulty}
+                    </span>
                   </div>
-                  <div>
-                    <p className="text-2xl font-bold text-slate-800">{recipe.nutritionalInfo.protein}g</p>
-                    <p className="text-xs text-slate-500">Proteine</p>
-                  </div>
-                  <div>
-                    <p className="text-2xl font-bold text-slate-800">{recipe.nutritionalInfo.carbs}g</p>
-                    <p className="text-xs text-slate-500">Carboidrati</p>
-                  </div>
-                  <div>
-                    <p className="text-2xl font-bold text-slate-800">{recipe.nutritionalInfo.fat}g</p>
-                    <p className="text-xs text-slate-500">Grassi</p>
+                  
+                  <div className="flex items-center space-x-6 mt-4 text-sm text-slate-600">
+                    <div className="flex items-center space-x-1">
+                      <Clock className="w-4 h-4" />
+                      <span>{recipe.preparation_time} min</span>
+                    </div>
+                    <div className="flex items-center space-x-1">
+                      <Users className="w-4 h-4" />
+                      <span>{recipe.portions} porzioni</span>
+                    </div>
+                    <div className="font-semibold text-purple-600">
+                      €{calculateTotalCost(recipe.recipe_ingredients).toFixed(2)} totale
+                    </div>
                   </div>
                 </div>
+
+                {/* Ingredients */}
+                <div className="p-6 border-b border-stone-200">
+                  <h4 className="font-semibold text-slate-800 mb-3">Ingredienti</h4>
+                  <div className="space-y-2">
+                    {recipe.recipe_ingredients?.map((ri) => (
+                      <div key={ri.id} className="flex items-center justify-between text-sm">
+                        <span className="text-slate-700">
+                          {ri.ingredients.name} - {ri.quantity}{ri.ingredients.unit}
+                        </span>
+                        <span className="font-medium text-slate-800">
+                          €{(ri.ingredients.cost_per_unit * ri.quantity).toFixed(2)}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Instructions */}
+                {recipe.recipe_instructions && recipe.recipe_instructions.length > 0 && (
+                  <div className="p-6 border-b border-stone-200">
+                    <h4 className="font-semibold text-slate-800 mb-3">Preparazione</h4>
+                    <ol className="space-y-2">
+                      {recipe.recipe_instructions
+                        .sort((a, b) => a.step_number - b.step_number)
+                        .map((instruction) => (
+                        <li key={instruction.id} className="flex items-start space-x-3 text-sm text-slate-600">
+                          <span className="flex-shrink-0 w-6 h-6 bg-purple-100 text-purple-600 rounded-full flex items-center justify-center text-xs font-medium">
+                            {instruction.step_number}
+                          </span>
+                          <span>{instruction.instruction}</span>
+                        </li>
+                      ))}
+                    </ol>
+                  </div>
+                )}
+
+                {/* Nutritional Info */}
+                <div className="p-6 bg-stone-50">
+                  <h4 className="font-semibold text-slate-800 mb-3">Valori Nutrizionali (per porzione)</h4>
+                  <div className="grid grid-cols-4 gap-4 text-center">
+                    <div>
+                      <p className="text-2xl font-bold text-slate-800">{recipe.calories}</p>
+                      <p className="text-xs text-slate-500">Calorie</p>
+                    </div>
+                    <div>
+                      <p className="text-2xl font-bold text-slate-800">{recipe.protein}g</p>
+                      <p className="text-xs text-slate-500">Proteine</p>
+                    </div>
+                    <div>
+                      <p className="text-2xl font-bold text-slate-800">{recipe.carbs}g</p>
+                      <p className="text-xs text-slate-500">Carboidrati</p>
+                    </div>
+                    <div>
+                      <p className="text-2xl font-bold text-slate-800">{recipe.fat}g</p>
+                      <p className="text-xs text-slate-500">Grassi</p>
+                    </div>
+                  </div>
+                </div>
               </div>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        )}
       </main>
     </div>
   );

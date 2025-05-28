@@ -1,10 +1,17 @@
+
 import { useState, useEffect } from "react";
-import { ArrowLeft, Search, DollarSign, TrendingUp, TrendingDown, Edit } from "lucide-react";
+import { ArrowLeft, Search, DollarSign, TrendingUp, TrendingDown, Edit, Download, RefreshCw, Target, AlertTriangle } from "lucide-react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import AddDishDialog from "@/components/AddDishDialog";
 import EditRecipeDialog from "@/components/EditRecipeDialog";
 import EditDishDialog from "@/components/EditDishDialog";
+import KPICard from "@/components/KPICard";
+import PeriodSelector, { TimePeriod } from "@/components/PeriodSelector";
+import MenuEngineeringBadge, { MenuCategory } from "@/components/MenuEngineeringBadge";
+import AISuggestionTooltip from "@/components/AISuggestionTooltip";
+import AdvancedFilters, { FilterConfig } from "@/components/AdvancedFilters";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 
@@ -57,12 +64,20 @@ interface Dish {
 const FoodCost = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("all");
+  const [selectedPeriod, setSelectedPeriod] = useState<TimePeriod>("last30days");
   const [dishes, setDishes] = useState<Dish[]>([]);
   const [recipes, setRecipes] = useState<Recipe[]>([]);
   const [loading, setLoading] = useState(true);
   const [editingRecipe, setEditingRecipe] = useState<Recipe | null>(null);
   const [editingDish, setEditingDish] = useState<Dish | null>(null);
+  const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
+  const [advancedFilters, setAdvancedFilters] = useState<FilterConfig>({});
   const { toast } = useToast();
+
+  // Configurazioni utente (in futuro potrebbero venire da database/settings)
+  const [criticalThreshold, setCriticalThreshold] = useState(40);
+  const [targetThreshold, setTargetThreshold] = useState(35);
+  const [targetPercentage, setTargetPercentage] = useState(80);
 
   const categories = ["all", "Antipasti", "Primi Piatti", "Secondi Piatti", "Dolci", "Contorni"];
 
@@ -179,20 +194,35 @@ const FoodCost = () => {
     }, 0);
   };
 
+  const getMenuEngineeringCategory = (dish: Dish): MenuCategory => {
+    // Simuliamo la popolarità per ora (in futuro verrà dai dati di vendita reali)
+    const simulatedPopularity = Math.random() * 100;
+    const analysis = getDishAnalysis(dish);
+    
+    const highPopularity = simulatedPopularity > 50;
+    const highProfitability = analysis.foodCostPercentage < 35 && analysis.margin > 8;
+
+    if (highPopularity && highProfitability) return "star";
+    if (highPopularity && !highProfitability) return "plowhorse";
+    if (!highPopularity && highProfitability) return "puzzle";
+    return "dog";
+  };
+
   const getDishAnalysis = (dish: Dish) => {
     const foodCost = dish.recipes ? calculateRecipeCost(dish.recipes.recipe_ingredients) : 0;
     const foodCostPercentage = dish.selling_price > 0 ? (foodCost / dish.selling_price) * 100 : 0;
     const margin = dish.selling_price - foodCost;
     
     let status = "ottimo";
-    if (foodCostPercentage > 40) status = "critico";
+    if (foodCostPercentage > criticalThreshold) status = "critico";
     else if (foodCostPercentage > 30) status = "buono";
 
     return {
       foodCost,
       foodCostPercentage,
       margin,
-      status
+      status,
+      popularity: Math.floor(Math.random() * 100) + 1 // Simulato per ora
     };
   };
 
@@ -202,7 +232,7 @@ const FoodCost = () => {
     const margin = assumedPrice - foodCost;
     
     let status = "ottimo";
-    if (foodCostPercentage > 40) status = "critico";
+    if (foodCostPercentage > criticalThreshold) status = "critico";
     else if (foodCostPercentage > 30) status = "buono";
 
     return {
@@ -210,7 +240,8 @@ const FoodCost = () => {
       foodCostPercentage,
       margin,
       status,
-      assumedPrice
+      assumedPrice,
+      popularity: Math.floor(Math.random() * 50) + 1 // Simulato per ora
     };
   };
 
@@ -260,7 +291,9 @@ const FoodCost = () => {
       type: 'dish' as const, 
       item: dish, 
       name: dish.name, 
-      category: dish.category 
+      category: dish.category,
+      analysis: getDishAnalysis(dish),
+      menuCategory: getMenuEngineeringCategory(dish)
     })),
     ...recipes
       .filter(recipe => !dishes.some(dish => dish.recipe_id === recipe.id))
@@ -268,14 +301,25 @@ const FoodCost = () => {
         type: 'recipe' as const, 
         item: recipe, 
         name: recipe.name, 
-        category: recipe.category 
+        category: recipe.category,
+        analysis: getRecipeAnalysis(recipe),
+        menuCategory: "puzzle" as MenuCategory // Le ricette non associate sono sempre puzzle
       }))
   ];
 
-  const filteredItems = allItems.filter(({ name, category }) => {
+  const filteredItems = allItems.filter(({ name, category, analysis, menuCategory }) => {
     const matchesSearch = name.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesCategory = selectedCategory === "all" || category === selectedCategory;
-    return matchesSearch && matchesCategory;
+    
+    // Filtri avanzati
+    const matchesFoodCostMin = !advancedFilters.foodCostMin || analysis.foodCostPercentage >= advancedFilters.foodCostMin;
+    const matchesFoodCostMax = !advancedFilters.foodCostMax || analysis.foodCostPercentage <= advancedFilters.foodCostMax;
+    const matchesMarginMin = !advancedFilters.marginMin || analysis.margin >= advancedFilters.marginMin;
+    const matchesMarginMax = !advancedFilters.marginMax || analysis.margin <= advancedFilters.marginMax;
+    const matchesMenuCategory = !advancedFilters.menuCategory || menuCategory === advancedFilters.menuCategory;
+
+    return matchesSearch && matchesCategory && matchesFoodCostMin && matchesFoodCostMax && 
+           matchesMarginMin && matchesMarginMax && matchesMenuCategory;
   });
 
   // Calcola statistiche aggregate
@@ -285,10 +329,37 @@ const FoodCost = () => {
     : 0;
 
   const totalMargin = allDishAnalyses.reduce((sum, analysis) => sum + analysis.margin, 0);
-  const criticalDishes = allDishAnalyses.filter(analysis => analysis.foodCostPercentage > 40).length;
+  const criticalDishes = allDishAnalyses.filter(analysis => analysis.foodCostPercentage > criticalThreshold).length;
   const targetReached = allDishAnalyses.length > 0 
-    ? (allDishAnalyses.filter(analysis => analysis.foodCostPercentage < 35).length / allDishAnalyses.length) * 100 
+    ? (allDishAnalyses.filter(analysis => analysis.foodCostPercentage < targetThreshold).length / allDishAnalyses.length) * 100 
     : 0;
+
+  const exportToCSV = () => {
+    const csvData = filteredItems.map(({ type, item, analysis, menuCategory }) => ({
+      Nome: item.name,
+      Tipo: type === 'dish' ? 'Piatto' : 'Ricetta',
+      Categoria: item.category,
+      'Prezzo Vendita': type === 'dish' ? (item as Dish).selling_price : analysis.assumedPrice,
+      'Costo Ingredienti': analysis.foodCost.toFixed(2),
+      'Food Cost %': analysis.foodCostPercentage.toFixed(1),
+      'Margine €': analysis.margin.toFixed(2),
+      'Menu Engineering': menuCategory,
+      'Popolarità': analysis.popularity
+    }));
+
+    const csv = [
+      Object.keys(csvData[0]).join(','),
+      ...csvData.map(row => Object.values(row).join(','))
+    ].join('\n');
+
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `food-cost-analysis-${new Date().toISOString().split('T')[0]}.csv`;
+    a.click();
+    window.URL.revokeObjectURL(url);
+  };
 
   if (loading) {
     return (
@@ -316,54 +387,59 @@ const FoodCost = () => {
                   <DollarSign className="w-6 h-6 text-white" />
                 </div>
                 <div>
-                  <h1 className="text-2xl font-bold text-slate-800">Food Cost Analysis</h1>
-                  <p className="text-sm text-slate-500">Gestione costi e marginalità</p>
+                  <h1 className="text-2xl font-bold text-slate-800">Food Cost & Menu Engineering</h1>
+                  <p className="text-sm text-slate-500">Analisi completa di costi e performance</p>
                 </div>
               </div>
             </div>
-            <AddDishDialog onAddDish={fetchData} />
+            <div className="flex items-center space-x-3">
+              <PeriodSelector selectedPeriod={selectedPeriod} onPeriodChange={setSelectedPeriod} />
+              <AddDishDialog onAddDish={fetchData} />
+            </div>
           </div>
         </div>
       </header>
 
       <main className="max-w-7xl mx-auto px-6 py-8">
-        {/* Summary Cards */}
+        {/* KPI Cards */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-          <div className="bg-white rounded-2xl p-6 border border-stone-200">
-            <h3 className="text-sm font-medium text-slate-500 mb-2">Food Cost Medio</h3>
-            <p className="text-3xl font-bold text-slate-800">{avgFoodCostPercentage.toFixed(1)}%</p>
-            <div className="flex items-center mt-2">
-              <TrendingDown className="w-4 h-4 text-emerald-500 mr-1" />
-              <span className="text-sm text-emerald-600">Aggiornato in tempo reale</span>
-            </div>
-          </div>
+          <KPICard
+            title="Food Cost Medio"
+            value={`${avgFoodCostPercentage.toFixed(1)}%`}
+            subtitle="Aggiornato in tempo reale"
+            icon={TrendingDown}
+            trend={avgFoodCostPercentage < 30 ? "up" : avgFoodCostPercentage > 40 ? "down" : "neutral"}
+          />
           
-          <div className="bg-white rounded-2xl p-6 border border-stone-200">
-            <h3 className="text-sm font-medium text-slate-500 mb-2">Margine Totale</h3>
-            <p className="text-3xl font-bold text-slate-800">€{totalMargin.toFixed(0)}</p>
-            <div className="flex items-center mt-2">
-              <TrendingUp className="w-4 h-4 text-emerald-500 mr-1" />
-              <span className="text-sm text-emerald-600">Calcolato live</span>
-            </div>
-          </div>
+          <KPICard
+            title={`Margine Totale (${selectedPeriod})`}
+            value={`€${totalMargin.toFixed(0)}`}
+            subtitle="Calcolato live"
+            icon={DollarSign}
+            trend="up"
+          />
           
-          <div className="bg-white rounded-2xl p-6 border border-stone-200">
-            <h3 className="text-sm font-medium text-slate-500 mb-2">Piatti Critici</h3>
-            <p className="text-3xl font-bold text-red-600">{criticalDishes}</p>
-            <span className="text-sm text-slate-500">Food cost &gt; 40%</span>
-          </div>
+          <KPICard
+            title="Piatti Critici"
+            value={criticalDishes}
+            subtitle={`Food cost > ${criticalThreshold}%`}
+            icon={AlertTriangle}
+            trend={criticalDishes === 0 ? "up" : "down"}
+          />
           
-          <div className="bg-white rounded-2xl p-6 border border-stone-200">
-            <h3 className="text-sm font-medium text-slate-500 mb-2">Target Raggiunto</h3>
-            <p className="text-3xl font-bold text-emerald-600">{targetReached.toFixed(0)}%</p>
-            <span className="text-sm text-slate-500">dei piatti sotto il 35%</span>
-          </div>
+          <KPICard
+            title="Target Raggiunto"
+            value={`${targetReached.toFixed(0)}%`}
+            subtitle={`dei piatti sotto il ${targetThreshold}%`}
+            icon={Target}
+            progress={targetReached}
+          />
         </div>
 
-        {/* Search and Filters */}
-        <div className="bg-white rounded-2xl border border-stone-200 p-6 mb-6">
-          <div className="flex flex-col md:flex-row md:items-center space-y-4 md:space-y-0 md:space-x-4">
-            <div className="flex-1 relative">
+        {/* Search, Filters and Actions */}
+        <div className="bg-white rounded-2xl border border-stone-200 p-6 mb-6 space-y-4">
+          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between space-y-4 lg:space-y-0">
+            <div className="flex-1 relative max-w-md">
               <Search className="w-5 h-5 text-slate-400 absolute left-3 top-3" />
               <input
                 type="text"
@@ -373,30 +449,50 @@ const FoodCost = () => {
                 className="w-full pl-10 pr-4 py-2 border border-stone-200 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
               />
             </div>
-            <div className="flex space-x-2 overflow-x-auto">
-              {categories.map(category => (
-                <button
-                  key={category}
-                  onClick={() => setSelectedCategory(category)}
-                  className={`px-4 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-colors ${
-                    selectedCategory === category
-                      ? "bg-emerald-600 text-white"
-                      : "bg-stone-100 text-slate-600 hover:bg-stone-200"
-                  }`}
-                >
-                  {category === "all" ? "Tutte" : category}
-                </button>
-              ))}
+            
+            <div className="flex items-center space-x-3">
+              <Button variant="outline" onClick={exportToCSV}>
+                <Download className="w-4 h-4 mr-2" />
+                Esporta CSV
+              </Button>
+              <Button variant="outline" onClick={fetchData}>
+                <RefreshCw className="w-4 h-4 mr-2" />
+                Aggiorna
+              </Button>
             </div>
           </div>
+
+          <div className="flex flex-wrap gap-2">
+            {categories.map(category => (
+              <button
+                key={category}
+                onClick={() => setSelectedCategory(category)}
+                className={`px-4 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-colors ${
+                  selectedCategory === category
+                    ? "bg-emerald-600 text-white"
+                    : "bg-stone-100 text-slate-600 hover:bg-stone-200"
+                }`}
+              >
+                {category === "all" ? "Tutte" : category}
+              </button>
+            ))}
+          </div>
+
+          <AdvancedFilters
+            filters={advancedFilters}
+            onFiltersChange={setAdvancedFilters}
+            isOpen={showAdvancedFilters}
+            onToggle={() => setShowAdvancedFilters(!showAdvancedFilters)}
+          />
         </div>
 
         {/* Items Table */}
         <div className="bg-white rounded-2xl border border-stone-200 overflow-hidden">
           <div className="px-6 py-4 border-b border-stone-200">
             <div className="flex items-center justify-between">
-              <h2 className="text-lg font-semibold text-slate-800">Analisi Food Cost - Piatti e Ricette</h2>
-              <AddDishDialog onAddDish={fetchData} />
+              <h2 className="text-lg font-semibold text-slate-800">
+                Analisi Menu Engineering ({filteredItems.length} elementi)
+              </h2>
             </div>
           </div>
           
@@ -405,69 +501,93 @@ const FoodCost = () => {
               <DollarSign className="w-16 h-16 text-slate-300 mx-auto mb-4" />
               <h3 className="text-xl font-semibold text-slate-600 mb-2">Nessun elemento trovato</h3>
               <p className="text-slate-500 mb-6">
-                {searchTerm || selectedCategory !== "all"
-                  ? "Prova a modificare i termini di ricerca" 
+                {searchTerm || selectedCategory !== "all" || Object.keys(advancedFilters).length > 0
+                  ? "Prova a modificare i filtri di ricerca" 
                   : "Inizia aggiungendo ricette e piatti"
                 }
               </p>
             </div>
           ) : (
             <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead className="bg-slate-50">
-                  <tr>
-                    <th className="text-left px-6 py-3 text-sm font-medium text-slate-500">Nome</th>
-                    <th className="text-left px-6 py-3 text-sm font-medium text-slate-500">Tipo</th>
-                    <th className="text-left px-6 py-3 text-sm font-medium text-slate-500">Categoria</th>
-                    <th className="text-right px-6 py-3 text-sm font-medium text-slate-500">Prezzo Vendita</th>
-                    <th className="text-right px-6 py-3 text-sm font-medium text-slate-500">Costo Ingredienti</th>
-                    <th className="text-right px-6 py-3 text-sm font-medium text-slate-500">Food Cost %</th>
-                    <th className="text-right px-6 py-3 text-sm font-medium text-slate-500">Margine</th>
-                    <th className="text-center px-6 py-3 text-sm font-medium text-slate-500">Status</th>
-                    <th className="text-center px-6 py-3 text-sm font-medium text-slate-500">Azioni</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-stone-200">
-                  {filteredItems.map(({ type, item }) => {
-                    if (type === 'dish') {
-                      const dish = item as Dish;
-                      const analysis = getDishAnalysis(dish);
-                      return (
-                        <tr key={`dish-${dish.id}`} className="hover:bg-slate-50 transition-colors">
-                          <td className="px-6 py-4">
-                            <div className="font-medium text-slate-800">{dish.name}</div>
-                          </td>
-                          <td className="px-6 py-4">
-                            <span className="inline-flex px-2 py-1 text-xs font-medium rounded-full bg-green-100 text-green-800">
-                              Piatto
-                            </span>
-                          </td>
-                          <td className="px-6 py-4 text-slate-600">{dish.category}</td>
-                          <td className="px-6 py-4 text-right font-medium text-slate-800">€{dish.selling_price.toFixed(2)}</td>
-                          <td className="px-6 py-4 text-right text-slate-600">€{analysis.foodCost.toFixed(2)}</td>
-                          <td className="px-6 py-4 text-right">
-                            <span className={`font-semibold ${analysis.foodCostPercentage > 40 ? 'text-red-600' : analysis.foodCostPercentage > 30 ? 'text-amber-600' : 'text-emerald-600'}`}>
-                              {analysis.foodCostPercentage.toFixed(1)}%
-                            </span>
-                          </td>
-                          <td className="px-6 py-4 text-right font-medium text-slate-800">€{analysis.margin.toFixed(2)}</td>
-                          <td className="px-6 py-4 text-center">
-                            <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full border ${getStatusColor(analysis.status)}`}>
-                              {analysis.status}
-                            </span>
-                          </td>
-                          <td className="px-6 py-4 text-center">
-                            <div className="flex items-center justify-center space-x-1">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Nome</TableHead>
+                    <TableHead>Tipo</TableHead>
+                    <TableHead>Categoria</TableHead>
+                    <TableHead className="text-right">Popolarità</TableHead>
+                    <TableHead className="text-right">Prezzo Vendita</TableHead>
+                    <TableHead className="text-right">Costo Ingredienti</TableHead>
+                    <TableHead className="text-right">Food Cost %</TableHead>
+                    <TableHead className="text-right">Margine</TableHead>
+                    <TableHead className="text-center">Menu Engineering</TableHead>
+                    <TableHead className="text-center">AI Suggerimenti</TableHead>
+                    <TableHead className="text-center">Azioni</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {filteredItems.map(({ type, item, analysis, menuCategory }) => (
+                    <TableRow key={`${type}-${item.id}`}>
+                      <TableCell>
+                        <div className="font-medium text-slate-800">{item.name}</div>
+                      </TableCell>
+                      <TableCell>
+                        <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${
+                          type === 'dish' ? 'bg-green-100 text-green-800' : 'bg-purple-100 text-purple-800'
+                        }`}>
+                          {type === 'dish' ? 'Piatto' : 'Ricetta'}
+                        </span>
+                      </TableCell>
+                      <TableCell className="text-slate-600">{item.category}</TableCell>
+                      <TableCell className="text-right">
+                        <div className="flex items-center justify-end space-x-2">
+                          <span className="font-medium">{analysis.popularity}</span>
+                          <div className="w-16 bg-slate-200 rounded-full h-2">
+                            <div 
+                              className="bg-emerald-500 h-2 rounded-full" 
+                              style={{ width: `${analysis.popularity}%` }}
+                            />
+                          </div>
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-right font-medium text-slate-800">
+                        €{type === 'dish' ? (item as Dish).selling_price.toFixed(2) : analysis.assumedPrice.toFixed(2)}
+                        {type === 'recipe' && <span className="text-slate-500 text-xs ml-1">(stimato)</span>}
+                      </TableCell>
+                      <TableCell className="text-right text-slate-600">€{analysis.foodCost.toFixed(2)}</TableCell>
+                      <TableCell className="text-right">
+                        <span className={`font-semibold ${
+                          analysis.foodCostPercentage > criticalThreshold ? 'text-red-600' : 
+                          analysis.foodCostPercentage > 30 ? 'text-amber-600' : 'text-emerald-600'
+                        }`}>
+                          {analysis.foodCostPercentage.toFixed(1)}%
+                        </span>
+                      </TableCell>
+                      <TableCell className="text-right font-medium text-slate-800">€{analysis.margin.toFixed(2)}</TableCell>
+                      <TableCell className="text-center">
+                        <MenuEngineeringBadge category={menuCategory} />
+                      </TableCell>
+                      <TableCell className="text-center">
+                        <AISuggestionTooltip 
+                          category={menuCategory}
+                          foodCostPercentage={analysis.foodCostPercentage}
+                          margin={analysis.margin}
+                        />
+                      </TableCell>
+                      <TableCell className="text-center">
+                        <div className="flex items-center justify-center space-x-1">
+                          {type === 'dish' ? (
+                            <>
                               <Button
-                                onClick={() => setEditingDish(dish)}
+                                onClick={() => setEditingDish(item as Dish)}
                                 size="sm"
                                 variant="outline"
                               >
                                 <Edit className="w-4 h-4" />
                               </Button>
-                              {dish.recipes && (
+                              {(item as Dish).recipes && (
                                 <Button
-                                  onClick={() => setEditingRecipe(dish.recipes!)}
+                                  onClick={() => setEditingRecipe((item as Dish).recipes!)}
                                   size="sm"
                                   variant="outline"
                                   className="ml-1"
@@ -475,64 +595,32 @@ const FoodCost = () => {
                                   Modifica Ricetta
                                 </Button>
                               )}
-                            </div>
-                          </td>
-                        </tr>
-                      );
-                    } else {
-                      const recipe = item as Recipe;
-                      const analysis = getRecipeAnalysis(recipe);
-                      return (
-                        <tr key={`recipe-${recipe.id}`} className="hover:bg-slate-50 transition-colors">
-                          <td className="px-6 py-4">
-                            <div className="font-medium text-slate-800">{recipe.name}</div>
-                          </td>
-                          <td className="px-6 py-4">
-                            <span className="inline-flex px-2 py-1 text-xs font-medium rounded-full bg-purple-100 text-purple-800">
-                              Ricetta
-                            </span>
-                          </td>
-                          <td className="px-6 py-4 text-slate-600">{recipe.category}</td>
-                          <td className="px-6 py-4 text-right text-slate-500 italic">
-                            €{analysis.assumedPrice.toFixed(2)} (stimato)
-                          </td>
-                          <td className="px-6 py-4 text-right text-slate-600">€{analysis.foodCost.toFixed(2)}</td>
-                          <td className="px-6 py-4 text-right">
-                            <span className={`font-semibold ${analysis.foodCostPercentage > 40 ? 'text-red-600' : analysis.foodCostPercentage > 30 ? 'text-amber-600' : 'text-emerald-600'}`}>
-                              {analysis.foodCostPercentage.toFixed(1)}%
-                            </span>
-                          </td>
-                          <td className="px-6 py-4 text-right font-medium text-slate-800">€{analysis.margin.toFixed(2)}</td>
-                          <td className="px-6 py-4 text-center">
-                            <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full border ${getStatusColor(analysis.status)}`}>
-                              {analysis.status}
-                            </span>
-                          </td>
-                          <td className="px-6 py-4 text-center">
-                            <div className="flex items-center justify-center space-x-1">
+                            </>
+                          ) : (
+                            <>
                               <Button
-                                onClick={() => setEditingRecipe(recipe)}
+                                onClick={() => setEditingRecipe(item as Recipe)}
                                 size="sm"
                                 variant="outline"
                               >
                                 <Edit className="w-4 h-4" />
                               </Button>
                               <Button
-                                onClick={() => createDishFromRecipe(recipe)}
+                                onClick={() => createDishFromRecipe(item as Recipe)}
                                 size="sm"
                                 variant="default"
                                 className="bg-emerald-600 hover:bg-emerald-700"
                               >
                                 Crea Piatto
                               </Button>
-                            </div>
-                          </td>
-                        </tr>
-                      );
-                    }
-                  })}
-                </tbody>
-              </table>
+                            </>
+                          )}
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
             </div>
           )}
         </div>

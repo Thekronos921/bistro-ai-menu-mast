@@ -1,12 +1,15 @@
+
 import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, X, Clock, Users, ChefHat } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Plus, X, Clock, Users, ChefHat, Info } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 interface Ingredient {
   id: string;
@@ -15,10 +18,18 @@ interface Ingredient {
   cost_per_unit: number;
 }
 
+interface Semilavorato {
+  id: string;
+  name: string;
+  cost_per_portion: number;
+  portions: number;
+}
+
 interface RecipeIngredient {
   id: string;
   ingredient_id: string;
   quantity: number;
+  is_semilavorato?: boolean;
   ingredients: Ingredient;
 }
 
@@ -41,6 +52,8 @@ interface Recipe {
   protein: number;
   carbs: number;
   fat: number;
+  is_semilavorato?: boolean;
+  notes_chef?: string;
   recipe_ingredients: RecipeIngredient[];
   recipe_instructions: RecipeInstruction[];
 }
@@ -54,6 +67,7 @@ interface EditRecipeDialogProps {
 const EditRecipeDialog = ({ recipe, onClose, onRecipeUpdated }: EditRecipeDialogProps) => {
   const [loading, setLoading] = useState(false);
   const [ingredients, setIngredients] = useState<Ingredient[]>([]);
+  const [semilavorati, setSemilavorati] = useState<Semilavorato[]>([]);
   const { toast } = useToast();
   
   const [formData, setFormData] = useState({
@@ -63,7 +77,9 @@ const EditRecipeDialog = ({ recipe, onClose, onRecipeUpdated }: EditRecipeDialog
     difficulty: recipe.difficulty,
     portions: recipe.portions,
     description: recipe.description || "",
-    allergens: recipe.allergens || ""
+    allergens: recipe.allergens || "",
+    isSemilavorato: recipe.is_semilavorato || false,
+    notesChef: recipe.notes_chef || ""
   });
   
   const [recipeIngredients, setRecipeIngredients] = useState(
@@ -71,6 +87,7 @@ const EditRecipeDialog = ({ recipe, onClose, onRecipeUpdated }: EditRecipeDialog
       id: ri.id,
       ingredient_id: ri.ingredient_id,
       quantity: ri.quantity,
+      is_semilavorato: ri.is_semilavorato || false,
       ingredient: ri.ingredients
     }))
   );
@@ -88,22 +105,54 @@ const EditRecipeDialog = ({ recipe, onClose, onRecipeUpdated }: EditRecipeDialog
     fat: recipe.fat || 0
   });
 
-  const categories = ["Antipasti", "Primi Piatti", "Secondi Piatti", "Dolci", "Contorni"];
+  const categories = ["Antipasti", "Primi Piatti", "Secondi Piatti", "Dolci", "Contorni", "Semilavorati", "Salse", "Preparazioni Base"];
   const difficulties = ["Bassa", "Media", "Alta"];
 
   useEffect(() => {
-    fetchIngredients();
+    fetchIngredientsAndSemilavorati();
   }, []);
 
-  const fetchIngredients = async () => {
+  const fetchIngredientsAndSemilavorati = async () => {
     try {
-      const { data, error } = await supabase
+      // Fetch ingredients
+      const { data: ingredientsData, error: ingredientsError } = await supabase
         .from('ingredients')
         .select('id, name, unit, cost_per_unit')
         .order('name');
 
-      if (error) throw error;
-      setIngredients(data || []);
+      if (ingredientsError) throw ingredientsError;
+      setIngredients(ingredientsData || []);
+
+      // Fetch semilavorati (recipes marked as semilavorati)
+      const { data: semilavoratiData, error: semilavoratiError } = await supabase
+        .from('recipes')
+        .select('id, name, portions')
+        .eq('is_semilavorato', true)
+        .neq('id', recipe.id) // Exclude current recipe
+        .order('name');
+
+      if (semilavoratiError) throw semilavoratiError;
+      
+      // Calculate cost per portion for each semilavorato
+      const semilavoratiWithCosts = await Promise.all((semilavoratiData || []).map(async (sem) => {
+        const { data: ingredientsData } = await supabase
+          .from('recipe_ingredients')
+          .select(`
+            quantity,
+            ingredients(cost_per_unit)
+          `)
+          .eq('recipe_id', sem.id);
+
+        const totalCost = (ingredientsData || []).reduce((sum, ri) => 
+          sum + (ri.quantity * ri.ingredients.cost_per_unit), 0);
+        
+        return {
+          ...sem,
+          cost_per_portion: sem.portions > 0 ? totalCost / sem.portions : 0
+        };
+      }));
+
+      setSemilavorati(semilavoratiWithCosts);
     } catch (error) {
       toast({
         title: "Errore",
@@ -118,6 +167,7 @@ const EditRecipeDialog = ({ recipe, onClose, onRecipeUpdated }: EditRecipeDialog
       id: crypto.randomUUID(), 
       ingredient_id: "", 
       quantity: 0, 
+      is_semilavorato: false,
       ingredient: null 
     }]);
   };
@@ -126,13 +176,33 @@ const EditRecipeDialog = ({ recipe, onClose, onRecipeUpdated }: EditRecipeDialog
     setRecipeIngredients(recipeIngredients.filter((_, i) => i !== index));
   };
 
-  const updateIngredient = (index: number, field: string, value: string | number) => {
+  const updateIngredient = (index: number, field: string, value: string | number | boolean) => {
     const updated = recipeIngredients.map((ing, i) => {
       if (i === index) {
         const updatedIng = { ...ing, [field]: value };
-        if (field === 'ingredient_id') {
-          updatedIng.ingredient = ingredients.find(ingredient => ingredient.id === value) || null;
+        
+        if (field === 'is_semilavorato') {
+          updatedIng.ingredient_id = "";
+          updatedIng.quantity = 0;
+          updatedIng.ingredient = null;
         }
+        
+        if (field === 'ingredient_id') {
+          if (updatedIng.is_semilavorato) {
+            const semilavorato = semilavorati.find(s => s.id === value);
+            if (semilavorato) {
+              updatedIng.ingredient = {
+                id: semilavorato.id,
+                name: semilavorato.name,
+                unit: 'porzione',
+                cost_per_unit: semilavorato.cost_per_portion
+              };
+            }
+          } else {
+            updatedIng.ingredient = ingredients.find(ingredient => ingredient.id === value) || null;
+          }
+        }
+        
         return updatedIng;
       }
       return ing;
@@ -199,7 +269,9 @@ const EditRecipeDialog = ({ recipe, onClose, onRecipeUpdated }: EditRecipeDialog
           calories: nutritionalInfo.calories,
           protein: nutritionalInfo.protein,
           carbs: nutritionalInfo.carbs,
-          fat: nutritionalInfo.fat
+          fat: nutritionalInfo.fat,
+          is_semilavorato: formData.isSemilavorato,
+          notes_chef: formData.notesChef
         })
         .eq('id', recipe.id);
 
@@ -215,7 +287,8 @@ const EditRecipeDialog = ({ recipe, onClose, onRecipeUpdated }: EditRecipeDialog
       const ingredientsData = validIngredients.map(ing => ({
         recipe_id: recipe.id,
         ingredient_id: ing.ingredient_id,
-        quantity: ing.quantity
+        quantity: ing.quantity,
+        is_semilavorato: ing.is_semilavorato || false
       }));
 
       const { error: ingredientsError } = await supabase
@@ -265,258 +338,320 @@ const EditRecipeDialog = ({ recipe, onClose, onRecipeUpdated }: EditRecipeDialog
   };
 
   return (
-    <Dialog open={true} onOpenChange={onClose}>
-      <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle className="flex items-center space-x-2">
-            <ChefHat className="w-5 h-5" />
-            <span>Modifica Ricetta: {recipe.name}</span>
-          </DialogTitle>
-        </DialogHeader>
-        
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <div className="space-y-4">
-            <h3 className="font-semibold text-lg">Informazioni Base</h3>
-            
-            <div>
-              <label className="block text-sm font-medium mb-1">Nome Ricetta</label>
-              <Input
-                value={formData.name}
-                onChange={(e) => setFormData({...formData, name: e.target.value})}
-                placeholder="Es. Risotto ai Porcini"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium mb-1">Categoria</label>
-              <Select value={formData.category} onValueChange={(value) => setFormData({...formData, category: value})}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Seleziona categoria" />
-                </SelectTrigger>
-                <SelectContent>
-                  {categories.map(cat => (
-                    <SelectItem key={cat} value={cat}>{cat}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="grid grid-cols-2 gap-2">
+    <TooltipProvider>
+      <Dialog open={true} onOpenChange={onClose}>
+        <DialogContent className="max-w-7xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center space-x-2">
+              <ChefHat className="w-5 h-5" />
+              <span>Modifica Ricetta: {recipe.name}</span>
+            </DialogTitle>
+          </DialogHeader>
+          
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div className="space-y-4">
+              <h3 className="font-semibold text-lg">Informazioni Base</h3>
+              
               <div>
-                <label className="block text-sm font-medium mb-1">
-                  <Clock className="w-4 h-4 inline mr-1" />
-                  Tempo (min)
-                </label>
+                <label className="block text-sm font-medium mb-1">Nome Ricetta</label>
                 <Input
-                  type="number"
-                  value={formData.preparationTime}
-                  onChange={(e) => setFormData({...formData, preparationTime: parseInt(e.target.value) || 0})}
+                  value={formData.name}
+                  onChange={(e) => setFormData({...formData, name: e.target.value})}
+                  placeholder="Es. Risotto ai Porcini"
                 />
               </div>
+
               <div>
-                <label className="block text-sm font-medium mb-1">
-                  <Users className="w-4 h-4 inline mr-1" />
-                  Porzioni
-                </label>
-                <Input
-                  type="number"
-                  value={formData.portions}
-                  onChange={(e) => setFormData({...formData, portions: parseInt(e.target.value) || 1})}
-                />
+                <label className="block text-sm font-medium mb-1">Categoria</label>
+                <Select value={formData.category} onValueChange={(value) => setFormData({...formData, category: value})}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Seleziona categoria" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {categories.map(cat => (
+                      <SelectItem key={cat} value={cat}>{cat}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
-            </div>
 
-            <div>
-              <label className="block text-sm font-medium mb-1">Difficoltà</label>
-              <Select value={formData.difficulty} onValueChange={(value) => setFormData({...formData, difficulty: value})}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {difficulties.map(diff => (
-                    <SelectItem key={diff} value={diff}>{diff}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium mb-1">Descrizione</label>
-              <Textarea
-                value={formData.description}
-                onChange={(e) => setFormData({...formData, description: e.target.value})}
-                placeholder="Descrizione della ricetta..."
-                rows={3}
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium mb-1">Allergeni</label>
-              <Input
-                value={formData.allergens}
-                onChange={(e) => setFormData({...formData, allergens: e.target.value})}
-                placeholder="Es. Glutine, Latticini, Uova"
-              />
-            </div>
-
-            <div className="space-y-3">
-              <h4 className="font-medium">Valori Nutrizionali (per porzione)</h4>
               <div className="grid grid-cols-2 gap-2">
                 <div>
-                  <label className="block text-xs text-slate-500 mb-1">Calorie</label>
+                  <label className="block text-sm font-medium mb-1">
+                    <Clock className="w-4 h-4 inline mr-1" />
+                    Tempo (min)
+                  </label>
                   <Input
                     type="number"
-                    value={nutritionalInfo.calories}
-                    onChange={(e) => setNutritionalInfo({...nutritionalInfo, calories: parseInt(e.target.value) || 0})}
+                    value={formData.preparationTime}
+                    onChange={(e) => setFormData({...formData, preparationTime: parseInt(e.target.value) || 0})}
                   />
                 </div>
                 <div>
-                  <label className="block text-xs text-slate-500 mb-1">Proteine (g)</label>
+                  <label className="block text-sm font-medium mb-1">
+                    <Users className="w-4 h-4 inline mr-1" />
+                    Porzioni
+                  </label>
                   <Input
                     type="number"
-                    value={nutritionalInfo.protein}
-                    onChange={(e) => setNutritionalInfo({...nutritionalInfo, protein: parseInt(e.target.value) || 0})}
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs text-slate-500 mb-1">Carboidrati (g)</label>
-                  <Input
-                    type="number"
-                    value={nutritionalInfo.carbs}
-                    onChange={(e) => setNutritionalInfo({...nutritionalInfo, carbs: parseInt(e.target.value) || 0})}
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs text-slate-500 mb-1">Grassi (g)</label>
-                  <Input
-                    type="number"
-                    value={nutritionalInfo.fat}
-                    onChange={(e) => setNutritionalInfo({...nutritionalInfo, fat: parseInt(e.target.value) || 0})}
+                    value={formData.portions}
+                    onChange={(e) => setFormData({...formData, portions: parseInt(e.target.value) || 1})}
                   />
                 </div>
               </div>
-            </div>
-          </div>
 
-          <div className="space-y-4">
-            <div className="flex justify-between items-center">
-              <h3 className="font-semibold text-lg">Ingredienti</h3>
-              <Button onClick={addIngredient} size="sm" variant="outline">
-                <Plus className="w-4 h-4 mr-1" />
-                Aggiungi
-              </Button>
+              <div>
+                <label className="block text-sm font-medium mb-1">Difficoltà</label>
+                <Select value={formData.difficulty} onValueChange={(value) => setFormData({...formData, difficulty: value})}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {difficulties.map(diff => (
+                      <SelectItem key={diff} value={diff}>{diff}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium mb-1">Descrizione</label>
+                <Textarea
+                  value={formData.description}
+                  onChange={(e) => setFormData({...formData, description: e.target.value})}
+                  placeholder="Descrizione della ricetta..."
+                  rows={3}
+                />
+              </div>
+
+              <div className="flex items-center space-x-2">
+                <Checkbox 
+                  id="semilavorato"
+                  checked={formData.isSemilavorato}
+                  onCheckedChange={(checked) => setFormData({...formData, isSemilavorato: !!checked})}
+                />
+                <label htmlFor="semilavorato" className="text-sm font-medium flex items-center">
+                  È un semilavorato
+                  <Tooltip>
+                    <TooltipTrigger>
+                      <Info className="w-4 h-4 ml-1 text-slate-400" />
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      Seleziona se questa ricetta è un componente usato in altre preparazioni e non un piatto venduto direttamente.
+                    </TooltipContent>
+                  </Tooltip>
+                </label>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium mb-1">Allergeni</label>
+                <Input
+                  value={formData.allergens}
+                  onChange={(e) => setFormData({...formData, allergens: e.target.value})}
+                  placeholder="Es. Glutine, Latticini, Uova"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium mb-1">Note Addizionali / Consigli dello Chef</label>
+                <Textarea
+                  value={formData.notesChef}
+                  onChange={(e) => setFormData({...formData, notesChef: e.target.value})}
+                  placeholder="Consigli, varianti, note tecniche..."
+                  rows={2}
+                />
+              </div>
+
+              <div className="space-y-3">
+                <h4 className="font-medium">Valori Nutrizionali (per porzione)</h4>
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="block text-xs text-slate-500 mb-1">Calorie (kcal)</label>
+                    <Input
+                      type="number"
+                      value={nutritionalInfo.calories}
+                      onChange={(e) => setNutritionalInfo({...nutritionalInfo, calories: parseInt(e.target.value) || 0})}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs text-slate-500 mb-1">Proteine (g)</label>
+                    <Input
+                      type="number"
+                      value={nutritionalInfo.protein}
+                      onChange={(e) => setNutritionalInfo({...nutritionalInfo, protein: parseInt(e.target.value) || 0})}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs text-slate-500 mb-1">Carboidrati (g)</label>
+                    <Input
+                      type="number"
+                      value={nutritionalInfo.carbs}
+                      onChange={(e) => setNutritionalInfo({...nutritionalInfo, carbs: parseInt(e.target.value) || 0})}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs text-slate-500 mb-1">Grassi (g)</label>
+                    <Input
+                      type="number"
+                      value={nutritionalInfo.fat}
+                      onChange={(e) => setNutritionalInfo({...nutritionalInfo, fat: parseInt(e.target.value) || 0})}
+                    />
+                  </div>
+                </div>
+              </div>
             </div>
 
-            <div className="space-y-3 max-h-96 overflow-y-auto">
-              {recipeIngredients.map((recipeIngredient, index) => {
-                const cost = recipeIngredient.ingredient 
-                  ? recipeIngredient.ingredient.cost_per_unit * recipeIngredient.quantity 
-                  : 0;
-                
-                return (
-                  <div key={recipeIngredient.id} className="space-y-2 p-3 border rounded-lg">
+            <div className="space-y-4">
+              <div className="flex justify-between items-center">
+                <h3 className="font-semibold text-lg">Ingredienti</h3>
+                <Button onClick={addIngredient} size="sm" variant="outline">
+                  <Plus className="w-4 h-4 mr-1" />
+                  Aggiungi
+                </Button>
+              </div>
+
+              <div className="space-y-3 max-h-96 overflow-y-auto">
+                {recipeIngredients.map((recipeIngredient, index) => {
+                  const cost = recipeIngredient.ingredient 
+                    ? recipeIngredient.ingredient.cost_per_unit * recipeIngredient.quantity 
+                    : 0;
+                  
+                  return (
+                    <div key={recipeIngredient.id} className="space-y-2 p-3 border rounded-lg">
+                      <div className="flex justify-between items-center">
+                        <span className="text-sm font-medium">Ingrediente {index + 1}</span>
+                        {recipeIngredients.length > 1 && (
+                          <Button onClick={() => removeIngredient(index)} size="sm" variant="outline">
+                            <X className="w-4 h-4" />
+                          </Button>
+                        )}
+                      </div>
+                      
+                      <div className="flex items-center space-x-2">
+                        <Checkbox 
+                          checked={recipeIngredient.is_semilavorato}
+                          onCheckedChange={(checked) => updateIngredient(index, 'is_semilavorato', !!checked)}
+                        />
+                        <label className="text-xs">È semilavorato</label>
+                      </div>
+                      
+                      <Select 
+                        value={recipeIngredient.ingredient_id} 
+                        onValueChange={(value) => updateIngredient(index, 'ingredient_id', value)}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder={
+                            recipeIngredient.is_semilavorato 
+                              ? "Seleziona semilavorato" 
+                              : "Seleziona ingrediente"
+                          } />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {recipeIngredient.is_semilavorato 
+                            ? semilavorati.map(sem => (
+                                <SelectItem key={sem.id} value={sem.id}>
+                                  [S] {sem.name} (€{sem.cost_per_portion.toFixed(2)}/porzione)
+                                </SelectItem>
+                              ))
+                            : ingredients.map(ingredient => (
+                                <SelectItem key={ingredient.id} value={ingredient.id}>
+                                  {ingredient.name} (€{ingredient.cost_per_unit.toFixed(2)}/{ingredient.unit})
+                                </SelectItem>
+                              ))
+                          }
+                        </SelectContent>
+                      </Select>
+                      
+                      <div className="grid grid-cols-2 gap-2">
+                        <div>
+                          <Input
+                            type="number"
+                            step="0.1"
+                            placeholder={
+                              recipeIngredient.is_semilavorato 
+                                ? "Quantità (porzioni)" 
+                                : `Quantità ${recipeIngredient.ingredient?.unit ? `(${recipeIngredient.ingredient.unit})` : ''}`
+                            }
+                            value={recipeIngredient.quantity}
+                            onChange={(e) => updateIngredient(index, 'quantity', parseFloat(e.target.value) || 0)}
+                          />
+                        </div>
+                        <div className="text-right flex items-center">
+                          <span className="text-sm font-medium">€{cost.toFixed(2)}</span>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              <div className="bg-slate-50 p-3 rounded-lg space-y-2">
+                <div className="flex justify-between">
+                  <span className="font-medium">Costo Produzione Totale:</span>
+                  <span className="font-bold text-purple-600">€{calculateTotalCost().toFixed(2)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="font-medium">Costo per Porzione:</span>
+                  <span className="font-bold text-purple-600">
+                    €{formData.portions > 0 ? (calculateTotalCost() / formData.portions).toFixed(2) : '0.00'}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            <div className="space-y-4">
+              <div className="flex justify-between items-center">
+                <h3 className="font-semibold text-lg">Preparazione</h3>
+                <Button onClick={addInstruction} size="sm" variant="outline">
+                  <Plus className="w-4 h-4 mr-1" />
+                  Step
+                </Button>
+              </div>
+
+              <div className="space-y-3 max-h-96 overflow-y-auto">
+                {instructions.map((instruction, index) => (
+                  <div key={instruction.id} className="space-y-2">
                     <div className="flex justify-between items-center">
-                      <span className="text-sm font-medium">Ingrediente {index + 1}</span>
-                      {recipeIngredients.length > 1 && (
-                        <Button onClick={() => removeIngredient(index)} size="sm" variant="outline">
+                      <span className="text-sm font-medium flex items-center">
+                        <span className="w-6 h-6 bg-purple-100 text-purple-600 rounded-full flex items-center justify-center text-xs font-medium mr-2">
+                          {index + 1}
+                        </span>
+                        Step {index + 1}
+                      </span>
+                      {instructions.length > 1 && (
+                        <Button onClick={() => removeInstruction(index)} size="sm" variant="outline">
                           <X className="w-4 h-4" />
                         </Button>
                       )}
                     </div>
-                    
-                    <Select 
-                      value={recipeIngredient.ingredient_id} 
-                      onValueChange={(value) => updateIngredient(index, 'ingredient_id', value)}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Seleziona ingrediente" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {ingredients.map(ingredient => (
-                          <SelectItem key={ingredient.id} value={ingredient.id}>
-                            {ingredient.name} (€{ingredient.cost_per_unit.toFixed(2)}/{ingredient.unit})
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    
-                    <div className="grid grid-cols-2 gap-2">
-                      <div>
-                        <Input
-                          type="number"
-                          step="0.1"
-                          placeholder="Quantità"
-                          value={recipeIngredient.quantity}
-                          onChange={(e) => updateIngredient(index, 'quantity', parseFloat(e.target.value) || 0)}
-                        />
-                        {recipeIngredient.ingredient && (
-                          <span className="text-xs text-slate-500">{recipeIngredient.ingredient.unit}</span>
-                        )}
-                      </div>
-                      <div className="text-right">
-                        <span className="text-sm font-medium">€{cost.toFixed(2)}</span>
-                      </div>
-                    </div>
+                    <Textarea
+                      placeholder="Descrivi questo passaggio..."
+                      value={instruction.instruction}
+                      onChange={(e) => updateInstruction(index, e.target.value)}
+                      rows={3}
+                    />
                   </div>
-                );
-              })}
-            </div>
-
-            <div className="bg-slate-50 p-3 rounded-lg">
-              <div className="flex justify-between">
-                <span className="font-medium">Costo Totale:</span>
-                <span className="font-bold text-purple-600">€{calculateTotalCost().toFixed(2)}</span>
+                ))}
               </div>
             </div>
           </div>
 
-          <div className="space-y-4">
-            <div className="flex justify-between items-center">
-              <h3 className="font-semibold text-lg">Preparazione</h3>
-              <Button onClick={addInstruction} size="sm" variant="outline">
-                <Plus className="w-4 h-4 mr-1" />
-                Step
+          <div className="flex justify-between items-center pt-4 border-t">
+            <p className="text-xs text-slate-500">
+              Costi ingredienti aggiornati al: {new Date().toLocaleString('it-IT')}
+            </p>
+            <div className="flex space-x-2">
+              <Button variant="outline" onClick={onClose}>
+                Annulla
+              </Button>
+              <Button onClick={handleSubmit} disabled={loading}>
+                {loading ? "Aggiornamento..." : "Aggiorna Ricetta"}
               </Button>
             </div>
-
-            <div className="space-y-3 max-h-96 overflow-y-auto">
-              {instructions.map((instruction, index) => (
-                <div key={instruction.id} className="space-y-2">
-                  <div className="flex justify-between items-center">
-                    <span className="text-sm font-medium flex items-center">
-                      <span className="w-6 h-6 bg-purple-100 text-purple-600 rounded-full flex items-center justify-center text-xs font-medium mr-2">
-                        {index + 1}
-                      </span>
-                      Step {index + 1}
-                    </span>
-                    {instructions.length > 1 && (
-                      <Button onClick={() => removeInstruction(index)} size="sm" variant="outline">
-                        <X className="w-4 h-4" />
-                      </Button>
-                    )}
-                  </div>
-                  <Textarea
-                    placeholder="Descrivi questo passaggio..."
-                    value={instruction.instruction}
-                    onChange={(e) => updateInstruction(index, e.target.value)}
-                    rows={3}
-                  />
-                </div>
-              ))}
-            </div>
           </div>
-        </div>
-
-        <div className="flex justify-end space-x-2 pt-4 border-t">
-          <Button variant="outline" onClick={onClose}>
-            Annulla
-          </Button>
-          <Button onClick={handleSubmit} disabled={loading}>
-            {loading ? "Aggiornamento..." : "Aggiorna Ricetta"}
-          </Button>
-        </div>
-      </DialogContent>
-    </Dialog>
+        </DialogContent>
+      </Dialog>
+    </TooltipProvider>
   );
 };
 

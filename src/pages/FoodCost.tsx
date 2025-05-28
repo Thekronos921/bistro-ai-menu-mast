@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { ArrowLeft, Search, DollarSign, TrendingUp, TrendingDown, Edit, Download, RefreshCw, Target, AlertTriangle, Settings, Upload } from "lucide-react";
 import { Link } from "react-router-dom";
@@ -815,7 +814,20 @@ const FoodCost = () => {
       {/* Edit Recipe Dialog */}
       {editingRecipe && (
         <EditRecipeDialog
-          recipe={editingRecipe}
+          recipe={{
+            ...editingRecipe,
+            preparation_time: editingRecipe.preparation_time || 0,
+            difficulty: editingRecipe.difficulty || 'Facile',
+            portions: editingRecipe.portions || 1,
+            description: editingRecipe.description || '',
+            allergens: editingRecipe.allergens || '',
+            calories: editingRecipe.calories || 0,
+            protein: editingRecipe.protein || 0,
+            carbs: editingRecipe.carbs || 0,
+            fat: editingRecipe.fat || 0,
+            is_semilavorato: editingRecipe.is_semilavorato || false,
+            recipe_instructions: editingRecipe.recipe_instructions || []
+          }}
           onClose={() => setEditingRecipe(null)}
           onRecipeUpdated={fetchData}
         />

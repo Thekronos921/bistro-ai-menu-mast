@@ -40,9 +40,9 @@ interface Recipe {
   id: string;
   name: string;
   category: string;
-  preparation_time?: number;
-  difficulty?: string;
-  portions?: number;
+  preparation_time: number;
+  difficulty: string;
+  portions: number;
   description?: string;
   allergens?: string;
   calories?: number;
@@ -293,7 +293,14 @@ const FoodCost = () => {
                       dishes.find(d => d.recipes?.id === simpleRecipe.id)?.recipes;
     
     if (fullRecipe) {
-      setEditingRecipe(fullRecipe);
+      // Ensure all required fields are present
+      const completeRecipe: Recipe = {
+        ...fullRecipe,
+        preparation_time: fullRecipe.preparation_time || 0,
+        difficulty: fullRecipe.difficulty || 'Facile',
+        portions: fullRecipe.portions || 1,
+      };
+      setEditingRecipe(completeRecipe);
     }
   };
 
@@ -686,7 +693,7 @@ const FoodCost = () => {
                           )}
                         </TableCell>
                         <TableCell className="text-right font-medium text-slate-800">
-                          €{type === 'dish' ? (item as Dish).selling_price.toFixed(2) : analysis.assumedPrice.toFixed(2)}
+                          €{type === 'dish' ? (item as Dish).selling_price : analysis.assumedPrice.toFixed(2)}
                           {type === 'recipe' && <span className="text-slate-500 text-xs ml-1">(stimato)</span>}
                         </TableCell>
                         <TableCell className="text-right text-slate-600">€{analysis.foodCost.toFixed(2)}</TableCell>

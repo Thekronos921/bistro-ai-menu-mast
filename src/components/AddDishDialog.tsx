@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
-import { Plus, DollarSign, Calculator } from "lucide-react";
+import { Plus, DollarSign, Calculator, ExternalLink, AlertTriangle, CheckCircle, Zap } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 
@@ -25,9 +25,10 @@ interface Recipe {
 
 interface AddDishDialogProps {
   onAddDish: () => void;
+  onEditRecipe?: (recipe: Recipe) => void;
 }
 
-const AddDishDialog = ({ onAddDish }: AddDishDialogProps) => {
+const AddDishDialog = ({ onAddDish, onEditRecipe }: AddDishDialogProps) => {
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [recipes, setRecipes] = useState<Recipe[]>([]);
@@ -119,11 +120,36 @@ const AddDishDialog = ({ onAddDish }: AddDishDialogProps) => {
     return formData.selling_price - recipeCost;
   };
 
-  const getFoodCostColor = () => {
+  const getFoodCostAlert = () => {
     const fcPercentage = getFoodCostPercentage();
-    if (fcPercentage > 40) return "text-red-600";
-    if (fcPercentage > 30) return "text-amber-600";
-    return "text-emerald-600";
+    if (fcPercentage > 40) {
+      return {
+        type: "critical",
+        message: "Food Cost elevato - considerare ottimizzazione",
+        icon: AlertTriangle,
+        color: "text-red-600"
+      };
+    }
+    if (fcPercentage <= 30) {
+      return {
+        type: "optimal",
+        message: "Food Cost ottimale",
+        icon: CheckCircle,
+        color: "text-emerald-600"
+      };
+    }
+    return {
+      type: "acceptable",
+      message: "Food Cost accettabile",
+      icon: Zap,
+      color: "text-amber-600"
+    };
+  };
+
+  const handleEditRecipe = () => {
+    if (selectedRecipe && onEditRecipe) {
+      onEditRecipe(selectedRecipe);
+    }
   };
 
   const handleSubmit = async () => {
@@ -179,6 +205,9 @@ const AddDishDialog = ({ onAddDish }: AddDishDialogProps) => {
     }
   };
 
+  const alert = getFoodCostAlert();
+  const AlertIcon = alert.icon;
+
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
@@ -187,152 +216,185 @@ const AddDishDialog = ({ onAddDish }: AddDishDialogProps) => {
           Nuovo Piatto
         </Button>
       </DialogTrigger>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Aggiungi Nuovo Piatto</DialogTitle>
+          <DialogTitle className="flex items-center space-x-2">
+            <Plus className="w-5 h-5" />
+            <span>Aggiungi Nuovo Piatto</span>
+          </DialogTitle>
         </DialogHeader>
         
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {/* Informazioni Base */}
-          <div className="space-y-4">
-            <h3 className="font-semibold text-lg">Informazioni Base</h3>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+          {/* Colonna Sinistra - Informazioni Base */}
+          <div className="space-y-6">
+            <h3 className="font-semibold text-lg border-b pb-2">Informazioni Base</h3>
             
-            <div>
-              <label className="block text-sm font-medium mb-1">Nome Piatto *</label>
-              <Input
-                value={formData.name}
-                onChange={(e) => setFormData({...formData, name: e.target.value})}
-                placeholder="Es. Risotto ai Porcini"
-              />
-            </div>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium mb-2">Nome Piatto *</label>
+                <Input
+                  value={formData.name}
+                  onChange={(e) => setFormData({...formData, name: e.target.value})}
+                  placeholder="Es. Risotto ai Porcini"
+                />
+              </div>
 
-            <div>
-              <label className="block text-sm font-medium mb-1">Categoria *</label>
-              <Select value={formData.category} onValueChange={(value) => setFormData({...formData, category: value})}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Seleziona categoria" />
-                </SelectTrigger>
-                <SelectContent>
-                  {categories.map(cat => (
-                    <SelectItem key={cat} value={cat}>{cat}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+              <div>
+                <label className="block text-sm font-medium mb-2">Categoria Piatto *</label>
+                <Select value={formData.category} onValueChange={(value) => setFormData({...formData, category: value})}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Seleziona categoria" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {categories.map(cat => (
+                      <SelectItem key={cat} value={cat}>{cat}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
 
-            <div>
-              <label className="block text-sm font-medium mb-1">
-                <DollarSign className="w-4 h-4 inline mr-1" />
-                Prezzo di Vendita (€) *
-              </label>
-              <Input
-                type="number"
-                step="0.01"
-                min="0"
-                value={formData.selling_price}
-                onChange={(e) => setFormData({...formData, selling_price: parseFloat(e.target.value) || 0})}
-                placeholder="25.00"
-              />
-            </div>
+              <div>
+                <label className="block text-sm font-medium mb-2">
+                  <DollarSign className="w-4 h-4 inline mr-1" />
+                  Prezzo di Vendita (€) *
+                </label>
+                <Input
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  value={formData.selling_price}
+                  onChange={(e) => setFormData({...formData, selling_price: parseFloat(e.target.value) || 0})}
+                  placeholder="25.00"
+                />
+              </div>
 
-            <div>
-              <label className="block text-sm font-medium mb-1">Ricetta Associata *</label>
-              <Select value={formData.recipe_id} onValueChange={handleRecipeChange}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Seleziona ricetta" />
-                </SelectTrigger>
-                <SelectContent>
-                  {recipes.map(recipe => {
-                    const cost = calculateRecipeCost(recipe);
-                    return (
-                      <SelectItem key={recipe.id} value={recipe.id}>
-                        {recipe.name} (€{cost.toFixed(2)})
-                      </SelectItem>
-                    );
-                  })}
-                </SelectContent>
-              </Select>
-              <p className="text-xs text-slate-500 mt-1">
-                Solo ricette non marcate come semilavorato
-              </p>
-            </div>
+              <div>
+                <label className="block text-sm font-medium mb-2">Ricetta Associata *</label>
+                <Select value={formData.recipe_id} onValueChange={handleRecipeChange}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Seleziona ricetta" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {recipes.map(recipe => {
+                      const cost = calculateRecipeCost(recipe);
+                      return (
+                        <SelectItem key={recipe.id} value={recipe.id}>
+                          {recipe.name} (€{cost.toFixed(2)})
+                        </SelectItem>
+                      );
+                    })}
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-slate-500 mt-1">
+                  Solo ricette non marcate come semilavorato
+                </p>
+              </div>
 
-            <div>
-              <label className="block text-sm font-medium mb-1">Descrizione Piatto</label>
-              <Textarea
-                value={formData.description}
-                onChange={(e) => setFormData({...formData, description: e.target.value})}
-                placeholder="Descrizione per il menu cliente..."
-                rows={3}
-              />
-            </div>
+              <div>
+                <label className="block text-sm font-medium mb-2">Descrizione Piatto (per menu cliente)</label>
+                <Textarea
+                  value={formData.description}
+                  onChange={(e) => setFormData({...formData, description: e.target.value})}
+                  placeholder="Descrizione per il menu cliente..."
+                  rows={3}
+                />
+              </div>
 
-            <div className="flex items-center space-x-2">
-              <Switch
-                checked={formData.is_active}
-                onCheckedChange={(checked) => setFormData({...formData, is_active: checked})}
-              />
-              <label className="text-sm font-medium">Attivo nel Menu</label>
+              <div className="flex items-center space-x-3 p-3 bg-slate-50 rounded-lg">
+                <Switch
+                  checked={formData.is_active}
+                  onCheckedChange={(checked) => setFormData({...formData, is_active: checked})}
+                />
+                <label className="text-sm font-medium">Attivo nel Menu</label>
+              </div>
             </div>
           </div>
 
-          {/* Calcoli e Preview */}
-          <div className="space-y-4">
-            <h3 className="font-semibold text-lg flex items-center">
+          {/* Colonna Destra - Analisi Costi */}
+          <div className="space-y-6">
+            <h3 className="font-semibold text-lg border-b pb-2 flex items-center">
               <Calculator className="w-5 h-5 mr-2" />
               Analisi Costi
             </h3>
 
-            {selectedRecipe && (
-              <div className="bg-slate-50 p-4 rounded-lg space-y-3">
-                <div className="flex justify-between items-center">
-                  <span className="text-sm font-medium">Ricetta Selezionata:</span>
-                  <span className="text-sm text-slate-600">{selectedRecipe.name}</span>
-                </div>
-                
-                <div className="flex justify-between items-center">
-                  <span className="text-sm">Costo Ricetta:</span>
-                  <span className="font-semibold">€{calculateRecipeCost(selectedRecipe).toFixed(2)}</span>
-                </div>
-                
-                <div className="flex justify-between items-center">
-                  <span className="text-sm">Food Cost %:</span>
-                  <span className={`font-semibold ${getFoodCostColor()}`}>
-                    {getFoodCostPercentage().toFixed(1)}%
-                  </span>
-                </div>
-                
-                <div className="flex justify-between items-center">
-                  <span className="text-sm">Margine:</span>
-                  <span className="font-semibold">€{getMargin().toFixed(2)}</span>
-                </div>
+            {selectedRecipe ? (
+              <div className="space-y-4">
+                <div className="bg-white border border-slate-200 rounded-xl p-5 space-y-4">
+                  <div className="flex justify-between items-center border-b border-slate-100 pb-3">
+                    <span className="text-sm font-medium text-slate-600">Ricetta Corrente:</span>
+                    <div className="flex items-center space-x-2">
+                      <span className="text-sm font-semibold text-slate-800">{selectedRecipe.name}</span>
+                      {onEditRecipe && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={handleEditRecipe}
+                          className="p-1 h-6 w-6"
+                        >
+                          <ExternalLink className="w-3 h-3" />
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                  
+                  <div className="grid grid-cols-1 gap-3">
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm text-slate-600">Costo Ricetta:</span>
+                      <span className="font-semibold text-lg">€{calculateRecipeCost(selectedRecipe).toFixed(2)}</span>
+                    </div>
+                    
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm text-slate-600">Food Cost %:</span>
+                      <span className={`font-bold text-lg ${
+                        getFoodCostPercentage() > 40 ? 'text-red-600' : 
+                        getFoodCostPercentage() > 30 ? 'text-amber-600' : 'text-emerald-600'
+                      }`}>
+                        {getFoodCostPercentage().toFixed(1)}%
+                      </span>
+                    </div>
+                    
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm text-slate-600">Margine:</span>
+                      <span className="font-semibold text-lg">€{getMargin().toFixed(2)}</span>
+                    </div>
+                  </div>
 
-                <div className="pt-2 border-t border-slate-200">
-                  <div className="text-xs text-slate-600">
-                    {getFoodCostPercentage() > 40 && (
-                      <p className="text-red-600 font-medium">⚠️ Food Cost elevato - considerare ottimizzazione</p>
-                    )}
-                    {getFoodCostPercentage() <= 30 && (
-                      <p className="text-emerald-600 font-medium">✓ Food Cost ottimale</p>
-                    )}
-                    {getFoodCostPercentage() > 30 && getFoodCostPercentage() <= 40 && (
-                      <p className="text-amber-600 font-medium">⚡ Food Cost accettabile</p>
-                    )}
+                  <div className="pt-3 border-t border-slate-100">
+                    <div className={`flex items-center space-x-2 p-3 rounded-lg ${
+                      alert.type === 'critical' ? 'bg-red-50 border border-red-200' :
+                      alert.type === 'optimal' ? 'bg-emerald-50 border border-emerald-200' :
+                      'bg-amber-50 border border-amber-200'
+                    }`}>
+                      <AlertIcon className={`w-4 h-4 ${alert.color}`} />
+                      <p className={`text-sm font-medium ${alert.color}`}>
+                        {alert.message}
+                      </p>
+                    </div>
                   </div>
                 </div>
-              </div>
-            )}
 
-            {!selectedRecipe && (
-              <div className="bg-slate-100 p-4 rounded-lg text-center text-slate-500">
-                <Calculator className="w-8 h-8 mx-auto mb-2 opacity-50" />
+                {onEditRecipe && (
+                  <Button
+                    variant="outline"
+                    onClick={handleEditRecipe}
+                    className="w-full flex items-center justify-center space-x-2"
+                  >
+                    <Edit className="w-4 h-4" />
+                    <span>Modifica Ricetta Selezionata</span>
+                    <ExternalLink className="w-4 h-4" />
+                  </Button>
+                )}
+              </div>
+            ) : (
+              <div className="bg-slate-100 p-8 rounded-lg text-center text-slate-500">
+                <Calculator className="w-12 h-12 mx-auto mb-3 opacity-50" />
                 <p className="text-sm">Seleziona una ricetta per vedere l'analisi dei costi</p>
               </div>
             )}
           </div>
         </div>
 
-        <div className="flex justify-end space-x-2 pt-4 border-t">
+        <div className="flex justify-end space-x-3 pt-6 border-t border-slate-200">
           <Button variant="outline" onClick={() => setOpen(false)}>
             Annulla
           </Button>

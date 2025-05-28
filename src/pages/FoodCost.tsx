@@ -470,7 +470,7 @@ const FoodCost = () => {
             <div className="flex items-center space-x-3">
               <PeriodSelector selectedPeriod={selectedPeriod} onPeriodChange={setSelectedPeriod} />
               <SettingsDialog settings={settings} onSaveSettings={saveSettings} />
-              <AddDishDialog onAddDish={fetchData} />
+              <AddDishDialog onAddDish={fetchData} onEditRecipe={setEditingRecipe} />
             </div>
           </div>
         </div>
@@ -732,6 +732,7 @@ const FoodCost = () => {
           dish={editingDish}
           onClose={() => setEditingDish(null)}
           onDishUpdated={fetchData}
+          onEditRecipe={setEditingRecipe}
         />
       )}
     </div>

@@ -1,13 +1,12 @@
-
 import { useState } from "react";
-import { ArrowLeft, Plus, Search, ChefHat, Clock, Users } from "lucide-react";
+import { ArrowLeft, Search, ChefHat, Clock, Users } from "lucide-react";
 import { Link } from "react-router-dom";
+import AddRecipeDialog from "@/components/AddRecipeDialog";
 
 const Recipes = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("all");
-
-  const recipes = [
+  const [recipes, setRecipes] = useState([
     {
       id: 1,
       name: "Risotto ai Porcini",
@@ -61,9 +60,13 @@ const Recipes = () => {
         fat: 6
       }
     }
-  ];
+  ]);
 
   const categories = ["all", "Antipasti", "Primi Piatti", "Secondi Piatti", "Dolci", "Contorni"];
+
+  const handleAddRecipe = (newRecipe: any) => {
+    setRecipes([...recipes, newRecipe]);
+  };
 
   const filteredRecipes = recipes.filter(recipe => {
     const matchesSearch = recipe.name.toLowerCase().includes(searchTerm.toLowerCase());
@@ -100,10 +103,7 @@ const Recipes = () => {
                 </div>
               </div>
             </div>
-            <button className="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg flex items-center space-x-2 transition-colors">
-              <Plus className="w-4 h-4" />
-              <span>Nuova Ricetta</span>
-            </button>
+            <AddRecipeDialog onAddRecipe={handleAddRecipe} />
           </div>
         </div>
       </header>

@@ -1,12 +1,11 @@
-
 import { useState } from "react";
-import { ArrowLeft, Plus, Search, DollarSign, TrendingUp, TrendingDown } from "lucide-react";
+import { ArrowLeft, Search, DollarSign, TrendingUp, TrendingDown } from "lucide-react";
 import { Link } from "react-router-dom";
+import AddDishDialog from "@/components/AddDishDialog";
 
 const FoodCost = () => {
   const [searchTerm, setSearchTerm] = useState("");
-  
-  const dishes = [
+  const [dishes, setDishes] = useState([
     {
       id: 1,
       name: "Risotto ai Porcini",
@@ -51,7 +50,11 @@ const FoodCost = () => {
       status: "critico",
       trend: "up"
     }
-  ];
+  ]);
+
+  const handleAddDish = (newDish: any) => {
+    setDishes([...dishes, newDish]);
+  };
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -95,10 +98,7 @@ const FoodCost = () => {
                 </div>
               </div>
             </div>
-            <button className="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg flex items-center space-x-2 transition-colors">
-              <Plus className="w-4 h-4" />
-              <span>Nuovo Piatto</span>
-            </button>
+            <AddDishDialog onAddDish={handleAddDish} />
           </div>
         </div>
       </header>

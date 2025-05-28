@@ -40,17 +40,18 @@ interface Recipe {
   id: string;
   name: string;
   category: string;
-  preparation_time: number;
-  difficulty: string;
-  portions: number;
-  description: string;
-  allergens: string;
-  calories: number;
-  protein: number;
-  carbs: number;
-  fat: number;
+  preparation_time?: number;
+  difficulty?: string;
+  portions?: number;
+  description?: string;
+  allergens?: string;
+  calories?: number;
+  protein?: number;
+  carbs?: number;
+  fat?: number;
+  is_semilavorato?: boolean;
   recipe_ingredients: RecipeIngredient[];
-  recipe_instructions: RecipeInstruction[];
+  recipe_instructions?: RecipeInstruction[];
 }
 
 interface Dish {
@@ -470,7 +471,7 @@ const FoodCost = () => {
             <div className="flex items-center space-x-3">
               <PeriodSelector selectedPeriod={selectedPeriod} onPeriodChange={setSelectedPeriod} />
               <SettingsDialog settings={settings} onSaveSettings={saveSettings} />
-              <AddDishDialog onAddDish={fetchData} onEditRecipe={setEditingRecipe} />
+              <AddDishDialog onAddDish={fetchData} onEditRecipe={(recipe) => setEditingRecipe(recipe)} />
             </div>
           </div>
         </div>
@@ -732,7 +733,7 @@ const FoodCost = () => {
           dish={editingDish}
           onClose={() => setEditingDish(null)}
           onDishUpdated={fetchData}
-          onEditRecipe={setEditingRecipe}
+          onEditRecipe={(recipe) => setEditingRecipe(recipe)}
         />
       )}
     </div>

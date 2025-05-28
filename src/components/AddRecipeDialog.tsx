@@ -135,12 +135,18 @@ const AddRecipeDialog = ({ onAddRecipe }: AddRecipeDialogProps) => {
           .from('recipe_ingredients')
           .select(`
             quantity,
-            ingredients(cost_per_unit)
+            is_semilavorato,
+            ingredients!inner(cost_per_unit)
           `)
           .eq('recipe_id', sem.id);
 
-        const totalCost = (recipeIngredientsData || []).reduce((sum, ri) => 
-          sum + (ri.quantity * ri.ingredients.cost_per_unit), 0);
+        const totalCost = (recipeIngredientsData || []).reduce((sum, ri) => {
+          // Handle the case where ingredients might be an array or object
+          const ingredientCost = Array.isArray(ri.ingredients) 
+            ? ri.ingredients[0]?.cost_per_unit || 0
+            : ri.ingredients?.cost_per_unit || 0;
+          return sum + (ri.quantity * ingredientCost);
+        }, 0);
         
         return {
           ...sem,

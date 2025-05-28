@@ -135,7 +135,7 @@ const EditRecipeDialog = ({ recipe, onClose, onRecipeUpdated }: EditRecipeDialog
       
       // Calculate cost per portion for each semilavorato
       const semilavoratiWithCosts = await Promise.all((semilavoratiData || []).map(async (sem) => {
-        const { data: ingredientsData } = await supabase
+        const { data: recipeIngredientsData } = await supabase
           .from('recipe_ingredients')
           .select(`
             quantity,
@@ -143,7 +143,7 @@ const EditRecipeDialog = ({ recipe, onClose, onRecipeUpdated }: EditRecipeDialog
           `)
           .eq('recipe_id', sem.id);
 
-        const totalCost = (ingredientsData || []).reduce((sum, ri) => 
+        const totalCost = (recipeIngredientsData || []).reduce((sum, ri) => 
           sum + (ri.quantity * ri.ingredients.cost_per_unit), 0);
         
         return {

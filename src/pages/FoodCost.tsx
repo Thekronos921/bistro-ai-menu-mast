@@ -1,12 +1,13 @@
-
 import { useState, useEffect } from "react";
-import { ArrowLeft, Search, DollarSign, TrendingUp, TrendingDown, Edit, Download, RefreshCw, Target, AlertTriangle } from "lucide-react";
+import { ArrowLeft, Search, DollarSign, TrendingUp, TrendingDown, Edit, Download, RefreshCw, Target, AlertTriangle, Settings, Upload } from "lucide-react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import AddDishDialog from "@/components/AddDishDialog";
 import EditRecipeDialog from "@/components/EditRecipeDialog";
 import EditDishDialog from "@/components/EditDishDialog";
+import SettingsDialog from "@/components/SettingsDialog";
+import SalesDataImportDialog from "@/components/SalesDataImportDialog";
 import KPICard from "@/components/KPICard";
 import PeriodSelector, { TimePeriod } from "@/components/PeriodSelector";
 import MenuEngineeringBadge, { MenuCategory } from "@/components/MenuEngineeringBadge";
@@ -61,12 +62,25 @@ interface Dish {
   recipes?: Recipe;
 }
 
+interface SalesData {
+  dishName: string;
+  unitsSold: number;
+  period: string;
+}
+
+interface SettingsConfig {
+  criticalThreshold: number;
+  targetThreshold: number;
+  targetPercentage: number;
+}
+
 const FoodCost = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("all");
   const [selectedPeriod, setSelectedPeriod] = useState<TimePeriod>("last30days");
   const [dishes, setDishes] = useState<Dish[]>([]);
   const [recipes, setRecipes] = useState<Recipe[]>([]);
+  const [salesData, setSalesData] = useState<SalesData[]>([]);
   const [loading, setLoading] = useState(true);
   const [editingRecipe, setEditingRecipe] = useState<Recipe | null>(null);
   const [editingDish, setEditingDish] = useState<Dish | null>(null);
@@ -74,12 +88,56 @@ const FoodCost = () => {
   const [advancedFilters, setAdvancedFilters] = useState<FilterConfig>({});
   const { toast } = useToast();
 
-  // Configurazioni utente (in futuro potrebbero venire da database/settings)
-  const [criticalThreshold, setCriticalThreshold] = useState(40);
-  const [targetThreshold, setTargetThreshold] = useState(35);
-  const [targetPercentage, setTargetPercentage] = useState(80);
+  // Configurazioni utente (persistenti nel localStorage)
+  const [settings, setSettings] = useState<SettingsConfig>(() => {
+    const saved = localStorage.getItem('foodCostSettings');
+    return saved ? JSON.parse(saved) : {
+      criticalThreshold: 40,
+      targetThreshold: 35,
+      targetPercentage: 80
+    };
+  });
 
   const categories = ["all", "Antipasti", "Primi Piatti", "Secondi Piatti", "Dolci", "Contorni"];
+
+  const saveSettings = (newSettings: SettingsConfig) => {
+    setSettings(newSettings);
+    localStorage.setItem('foodCostSettings', JSON.stringify(newSettings));
+  };
+
+  const handleSalesImport = (importedSales: SalesData[]) => {
+    // Aggiorna i dati di vendita per il periodo selezionato
+    setSalesData(prev => {
+      const filtered = prev.filter(s => s.period !== selectedPeriod);
+      return [...filtered, ...importedSales];
+    });
+    
+    console.log('Sales data imported:', importedSales);
+  };
+
+  const getDishSalesData = (dishName: string) => {
+    return salesData.find(s => s.dishName.toLowerCase() === dishName.toLowerCase() && s.period === selectedPeriod);
+  };
+
+  const getTotalSalesForPeriod = () => {
+    return salesData
+      .filter(s => s.period === selectedPeriod)
+      .reduce((total, s) => total + s.unitsSold, 0);
+  };
+
+  const getSalesMixPercentage = (dishName: string) => {
+    const dishSales = getDishSalesData(dishName);
+    const totalSales = getTotalSalesForPeriod();
+    
+    if (!dishSales || totalSales === 0) return 0;
+    return (dishSales.unitsSold / totalSales) * 100;
+  };
+
+  const getPopularityScore = (dishName: string) => {
+    const salesMix = getSalesMixPercentage(dishName);
+    // Normalizza in scala 1-100 per la visualizzazione
+    return Math.min(100, Math.max(1, salesMix * 10));
+  };
 
   const fetchData = async () => {
     try {
@@ -195,12 +253,20 @@ const FoodCost = () => {
   };
 
   const getMenuEngineeringCategory = (dish: Dish): MenuCategory => {
-    // Simuliamo la popolarità per ora (in futuro verrà dai dati di vendita reali)
-    const simulatedPopularity = Math.random() * 100;
     const analysis = getDishAnalysis(dish);
+    const salesMix = getSalesMixPercentage(dish.name);
     
-    const highPopularity = simulatedPopularity > 50;
-    const highProfitability = analysis.foodCostPercentage < 35 && analysis.margin > 8;
+    // Metodo BCG migliorato con dati di vendita reali
+    const totalDishes = dishes.length;
+    const hurdleRate = (100 / totalDishes) * 0.70; // Soglia di popolarità
+    
+    const avgMargin = dishes.reduce((sum, d) => {
+      const dAnalysis = getDishAnalysis(d);
+      return sum + dAnalysis.margin;
+    }, 0) / dishes.length;
+
+    const highPopularity = salesMix > hurdleRate;
+    const highProfitability = analysis.margin > avgMargin;
 
     if (highPopularity && highProfitability) return "star";
     if (highPopularity && !highProfitability) return "plowhorse";
@@ -214,15 +280,17 @@ const FoodCost = () => {
     const margin = dish.selling_price - foodCost;
     
     let status = "ottimo";
-    if (foodCostPercentage > criticalThreshold) status = "critico";
+    if (foodCostPercentage > settings.criticalThreshold) status = "critico";
     else if (foodCostPercentage > 30) status = "buono";
+
+    const popularity = getPopularityScore(dish.name);
 
     return {
       foodCost,
       foodCostPercentage,
       margin,
       status,
-      popularity: Math.floor(Math.random() * 100) + 1 // Simulato per ora
+      popularity
     };
   };
 
@@ -232,7 +300,7 @@ const FoodCost = () => {
     const margin = assumedPrice - foodCost;
     
     let status = "ottimo";
-    if (foodCostPercentage > criticalThreshold) status = "critico";
+    if (foodCostPercentage > settings.criticalThreshold) status = "critico";
     else if (foodCostPercentage > 30) status = "buono";
 
     return {
@@ -241,7 +309,7 @@ const FoodCost = () => {
       margin,
       status,
       assumedPrice,
-      popularity: Math.floor(Math.random() * 50) + 1 // Simulato per ora
+      popularity: Math.floor(Math.random() * 50) + 1 // Simulato per ricette
     };
   };
 
@@ -328,10 +396,15 @@ const FoodCost = () => {
     ? allDishAnalyses.reduce((sum, analysis) => sum + analysis.foodCostPercentage, 0) / allDishAnalyses.length 
     : 0;
 
-  const totalMargin = allDishAnalyses.reduce((sum, analysis) => sum + analysis.margin, 0);
-  const criticalDishes = allDishAnalyses.filter(analysis => analysis.foodCostPercentage > criticalThreshold).length;
+  const totalMargin = allDishAnalyses.reduce((sum, analysis) => {
+    const dishSales = getDishSalesData(dishes.find(d => getDishAnalysis(d) === analysis)?.name || "");
+    const soldUnits = dishSales?.unitsSold || 0;
+    return sum + (analysis.margin * soldUnits);
+  }, 0);
+
+  const criticalDishes = allDishAnalyses.filter(analysis => analysis.foodCostPercentage > settings.criticalThreshold).length;
   const targetReached = allDishAnalyses.length > 0 
-    ? (allDishAnalyses.filter(analysis => analysis.foodCostPercentage < targetThreshold).length / allDishAnalyses.length) * 100 
+    ? (allDishAnalyses.filter(analysis => analysis.foodCostPercentage < settings.targetThreshold).length / allDishAnalyses.length) * 100 
     : 0;
 
   const exportToCSV = () => {
@@ -339,12 +412,14 @@ const FoodCost = () => {
       Nome: item.name,
       Tipo: type === 'dish' ? 'Piatto' : 'Ricetta',
       Categoria: item.category,
+      'Popolarità %': type === 'dish' ? getSalesMixPercentage(item.name).toFixed(2) : 'N/A',
+      'Unità Vendute': type === 'dish' ? (getDishSalesData(item.name)?.unitsSold || 0) : 'N/A',
       'Prezzo Vendita': type === 'dish' ? (item as Dish).selling_price : analysis.assumedPrice,
       'Costo Ingredienti': analysis.foodCost.toFixed(2),
       'Food Cost %': analysis.foodCostPercentage.toFixed(1),
       'Margine €': analysis.margin.toFixed(2),
       'Menu Engineering': menuCategory,
-      'Popolarità': analysis.popularity
+      'Popolarità Score': analysis.popularity
     }));
 
     const csv = [
@@ -394,6 +469,7 @@ const FoodCost = () => {
             </div>
             <div className="flex items-center space-x-3">
               <PeriodSelector selectedPeriod={selectedPeriod} onPeriodChange={setSelectedPeriod} />
+              <SettingsDialog settings={settings} onSaveSettings={saveSettings} />
               <AddDishDialog onAddDish={fetchData} />
             </div>
           </div>
@@ -408,13 +484,13 @@ const FoodCost = () => {
             value={`${avgFoodCostPercentage.toFixed(1)}%`}
             subtitle="Aggiornato in tempo reale"
             icon={TrendingDown}
-            trend={avgFoodCostPercentage < 30 ? "up" : avgFoodCostPercentage > 40 ? "down" : "neutral"}
+            trend={avgFoodCostPercentage < 30 ? "up" : avgFoodCostPercentage > settings.criticalThreshold ? "down" : "neutral"}
           />
           
           <KPICard
             title={`Margine Totale (${selectedPeriod})`}
             value={`€${totalMargin.toFixed(0)}`}
-            subtitle="Calcolato live"
+            subtitle="Calcolato su vendite reali"
             icon={DollarSign}
             trend="up"
           />
@@ -422,7 +498,7 @@ const FoodCost = () => {
           <KPICard
             title="Piatti Critici"
             value={criticalDishes}
-            subtitle={`Food cost > ${criticalThreshold}%`}
+            subtitle={`Food cost > ${settings.criticalThreshold}%`}
             icon={AlertTriangle}
             trend={criticalDishes === 0 ? "up" : "down"}
           />
@@ -430,7 +506,7 @@ const FoodCost = () => {
           <KPICard
             title="Target Raggiunto"
             value={`${targetReached.toFixed(0)}%`}
-            subtitle={`dei piatti sotto il ${targetThreshold}%`}
+            subtitle={`dei piatti sotto il ${settings.targetThreshold}%`}
             icon={Target}
             progress={targetReached}
           />
@@ -451,6 +527,7 @@ const FoodCost = () => {
             </div>
             
             <div className="flex items-center space-x-3">
+              <SalesDataImportDialog onImportSales={handleSalesImport} />
               <Button variant="outline" onClick={exportToCSV}>
                 <Download className="w-4 h-4 mr-2" />
                 Esporta CSV
@@ -493,6 +570,11 @@ const FoodCost = () => {
               <h2 className="text-lg font-semibold text-slate-800">
                 Analisi Menu Engineering ({filteredItems.length} elementi)
               </h2>
+              {getTotalSalesForPeriod() > 0 && (
+                <p className="text-sm text-slate-500">
+                  Vendite totali periodo: {getTotalSalesForPeriod()} unità
+                </p>
+              )}
             </div>
           </div>
           
@@ -515,7 +597,8 @@ const FoodCost = () => {
                     <TableHead>Nome</TableHead>
                     <TableHead>Tipo</TableHead>
                     <TableHead>Categoria</TableHead>
-                    <TableHead className="text-right">Popolarità</TableHead>
+                    <TableHead className="text-right">Sales Mix %</TableHead>
+                    <TableHead className="text-right">Unità Vendute</TableHead>
                     <TableHead className="text-right">Prezzo Vendita</TableHead>
                     <TableHead className="text-right">Costo Ingredienti</TableHead>
                     <TableHead className="text-right">Food Cost %</TableHead>
@@ -526,99 +609,107 @@ const FoodCost = () => {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {filteredItems.map(({ type, item, analysis, menuCategory }) => (
-                    <TableRow key={`${type}-${item.id}`}>
-                      <TableCell>
-                        <div className="font-medium text-slate-800">{item.name}</div>
-                      </TableCell>
-                      <TableCell>
-                        <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${
-                          type === 'dish' ? 'bg-green-100 text-green-800' : 'bg-purple-100 text-purple-800'
-                        }`}>
-                          {type === 'dish' ? 'Piatto' : 'Ricetta'}
-                        </span>
-                      </TableCell>
-                      <TableCell className="text-slate-600">{item.category}</TableCell>
-                      <TableCell className="text-right">
-                        <div className="flex items-center justify-end space-x-2">
-                          <span className="font-medium">{analysis.popularity}</span>
-                          <div className="w-16 bg-slate-200 rounded-full h-2">
-                            <div 
-                              className="bg-emerald-500 h-2 rounded-full" 
-                              style={{ width: `${analysis.popularity}%` }}
-                            />
-                          </div>
-                        </div>
-                      </TableCell>
-                      <TableCell className="text-right font-medium text-slate-800">
-                        €{type === 'dish' ? (item as Dish).selling_price.toFixed(2) : analysis.assumedPrice.toFixed(2)}
-                        {type === 'recipe' && <span className="text-slate-500 text-xs ml-1">(stimato)</span>}
-                      </TableCell>
-                      <TableCell className="text-right text-slate-600">€{analysis.foodCost.toFixed(2)}</TableCell>
-                      <TableCell className="text-right">
-                        <span className={`font-semibold ${
-                          analysis.foodCostPercentage > criticalThreshold ? 'text-red-600' : 
-                          analysis.foodCostPercentage > 30 ? 'text-amber-600' : 'text-emerald-600'
-                        }`}>
-                          {analysis.foodCostPercentage.toFixed(1)}%
-                        </span>
-                      </TableCell>
-                      <TableCell className="text-right font-medium text-slate-800">€{analysis.margin.toFixed(2)}</TableCell>
-                      <TableCell className="text-center">
-                        <MenuEngineeringBadge category={menuCategory} />
-                      </TableCell>
-                      <TableCell className="text-center">
-                        <AISuggestionTooltip 
-                          category={menuCategory}
-                          foodCostPercentage={analysis.foodCostPercentage}
-                          margin={analysis.margin}
-                        />
-                      </TableCell>
-                      <TableCell className="text-center">
-                        <div className="flex items-center justify-center space-x-1">
+                  {filteredItems.map(({ type, item, analysis, menuCategory }) => {
+                    const dishSales = type === 'dish' ? getDishSalesData(item.name) : null;
+                    const salesMix = type === 'dish' ? getSalesMixPercentage(item.name) : 0;
+                    
+                    return (
+                      <TableRow key={`${type}-${item.id}`}>
+                        <TableCell>
+                          <div className="font-medium text-slate-800">{item.name}</div>
+                        </TableCell>
+                        <TableCell>
+                          <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${
+                            type === 'dish' ? 'bg-green-100 text-green-800' : 'bg-purple-100 text-purple-800'
+                          }`}>
+                            {type === 'dish' ? 'Piatto' : 'Ricetta'}
+                          </span>
+                        </TableCell>
+                        <TableCell className="text-slate-600">{item.category}</TableCell>
+                        <TableCell className="text-right">
                           {type === 'dish' ? (
-                            <>
-                              <Button
-                                onClick={() => setEditingDish(item as Dish)}
-                                size="sm"
-                                variant="outline"
-                              >
-                                <Edit className="w-4 h-4" />
-                              </Button>
-                              {(item as Dish).recipes && (
+                            <span className="font-medium">{salesMix.toFixed(2)}%</span>
+                          ) : (
+                            <span className="text-slate-400">N/A</span>
+                          )}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          {type === 'dish' ? (
+                            <span className="font-medium">{dishSales?.unitsSold || 0}</span>
+                          ) : (
+                            <span className="text-slate-400">N/A</span>
+                          )}
+                        </TableCell>
+                        <TableCell className="text-right font-medium text-slate-800">
+                          €{type === 'dish' ? (item as Dish).selling_price.toFixed(2) : analysis.assumedPrice.toFixed(2)}
+                          {type === 'recipe' && <span className="text-slate-500 text-xs ml-1">(stimato)</span>}
+                        </TableCell>
+                        <TableCell className="text-right text-slate-600">€{analysis.foodCost.toFixed(2)}</TableCell>
+                        <TableCell className="text-right">
+                          <span className={`font-semibold ${
+                            analysis.foodCostPercentage > settings.criticalThreshold ? 'text-red-600' : 
+                            analysis.foodCostPercentage > 30 ? 'text-amber-600' : 'text-emerald-600'
+                          }`}>
+                            {analysis.foodCostPercentage.toFixed(1)}%
+                          </span>
+                        </TableCell>
+                        <TableCell className="text-right font-medium text-slate-800">€{analysis.margin.toFixed(2)}</TableCell>
+                        <TableCell className="text-center">
+                          <MenuEngineeringBadge category={menuCategory} />
+                        </TableCell>
+                        <TableCell className="text-center">
+                          <AISuggestionTooltip 
+                            category={menuCategory}
+                            foodCostPercentage={analysis.foodCostPercentage}
+                            margin={analysis.margin}
+                          />
+                        </TableCell>
+                        <TableCell className="text-center">
+                          <div className="flex items-center justify-center space-x-1">
+                            {type === 'dish' ? (
+                              <>
                                 <Button
-                                  onClick={() => setEditingRecipe((item as Dish).recipes!)}
+                                  onClick={() => setEditingDish(item as Dish)}
                                   size="sm"
                                   variant="outline"
-                                  className="ml-1"
                                 >
-                                  Modifica Ricetta
+                                  <Edit className="w-4 h-4" />
                                 </Button>
-                              )}
-                            </>
-                          ) : (
-                            <>
-                              <Button
-                                onClick={() => setEditingRecipe(item as Recipe)}
-                                size="sm"
-                                variant="outline"
-                              >
-                                <Edit className="w-4 h-4" />
-                              </Button>
-                              <Button
-                                onClick={() => createDishFromRecipe(item as Recipe)}
-                                size="sm"
-                                variant="default"
-                                className="bg-emerald-600 hover:bg-emerald-700"
-                              >
-                                Crea Piatto
-                              </Button>
-                            </>
-                          )}
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))}
+                                {(item as Dish).recipes && (
+                                  <Button
+                                    onClick={() => setEditingRecipe((item as Dish).recipes!)}
+                                    size="sm"
+                                    variant="outline"
+                                    className="ml-1"
+                                  >
+                                    Modifica Ricetta
+                                  </Button>
+                                )}
+                              </>
+                            ) : (
+                              <>
+                                <Button
+                                  onClick={() => setEditingRecipe(item as Recipe)}
+                                  size="sm"
+                                  variant="outline"
+                                >
+                                  <Edit className="w-4 h-4" />
+                                </Button>
+                                <Button
+                                  onClick={() => createDishFromRecipe(item as Recipe)}
+                                  size="sm"
+                                  variant="default"
+                                  className="bg-emerald-600 hover:bg-emerald-700"
+                                >
+                                  Crea Piatto
+                                </Button>
+                              </>
+                            )}
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
                 </TableBody>
               </Table>
             </div>

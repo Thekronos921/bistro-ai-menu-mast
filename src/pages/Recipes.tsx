@@ -52,8 +52,8 @@ interface Recipe {
   protein: number;
   carbs: number;
   fat: number;
-  recipe_ingredients?: RecipeIngredient[];
-  recipe_instructions?: RecipeInstruction[];
+  recipe_ingredients: RecipeIngredient[];
+  recipe_instructions: RecipeInstruction[];
 }
 
 const Recipes = () => {
@@ -95,7 +95,15 @@ const Recipes = () => {
         .order('created_at', { ascending: false });
 
       if (error) throw error;
-      setRecipes(data || []);
+      
+      // Ensure arrays are always present for type compatibility
+      const recipesWithDefaults = (data || []).map(recipe => ({
+        ...recipe,
+        recipe_ingredients: recipe.recipe_ingredients || [],
+        recipe_instructions: recipe.recipe_instructions || []
+      }));
+      
+      setRecipes(recipesWithDefaults);
     } catch (error) {
       toast({
         title: "Errore",

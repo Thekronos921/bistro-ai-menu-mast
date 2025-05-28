@@ -127,7 +127,7 @@ const FoodCost = () => {
           <div className="bg-white rounded-2xl p-6 border border-stone-200">
             <h3 className="text-sm font-medium text-slate-500 mb-2">Piatti Critici</h3>
             <p className="text-3xl font-bold text-red-600">3</p>
-            <span className="text-sm text-slate-500">Food cost > 40%</span>
+            <span className="text-sm text-slate-500">Food cost &gt; 40%</span>
           </div>
           
           <div className="bg-white rounded-2xl p-6 border border-stone-200">
@@ -159,9 +159,9 @@ const FoodCost = () => {
             </select>
             <select className="px-4 py-2 border border-stone-200 rounded-lg focus:ring-2 focus:ring-emerald-500">
               <option>Tutti gli stati</option>
-              <option>Ottimo (< 30%)</option>
+              <option>Ottimo (&lt; 30%)</option>
               <option>Buono (30-35%)</option>
-              <option>Critico (> 35%)</option>
+              <option>Critico (&gt; 35%)</option>
             </select>
           </div>
         </div>

@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { ArrowLeft, Search, ChefHat, Clock, Users, Edit, Copy, Trash2, Eye, Printer, Archive } from "lucide-react";
 import { Link } from "react-router-dom";
@@ -20,6 +19,26 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 
+interface RecipeIngredient {
+  id: string;
+  ingredient_id: string;
+  quantity: number;
+  ingredients: {
+    id: string;
+    name: string;
+    unit: string;
+    cost_per_unit: number;
+    current_stock?: number;
+    min_stock_threshold?: number;
+  };
+}
+
+interface RecipeInstruction {
+  id: string;
+  step_number: number;
+  instruction: string;
+}
+
 interface Recipe {
   id: string;
   name: string;
@@ -33,23 +52,8 @@ interface Recipe {
   protein: number;
   carbs: number;
   fat: number;
-  recipe_ingredients?: Array<{
-    id: string;
-    quantity: number;
-    ingredients: {
-      id: string;
-      name: string;
-      unit: string;
-      cost_per_unit: number;
-      current_stock?: number;
-      min_stock_threshold?: number;
-    };
-  }>;
-  recipe_instructions?: Array<{
-    id: string;
-    step_number: number;
-    instruction: string;
-  }>;
+  recipe_ingredients?: RecipeIngredient[];
+  recipe_instructions?: RecipeInstruction[];
 }
 
 const Recipes = () => {
@@ -71,6 +75,7 @@ const Recipes = () => {
           *,
           recipe_ingredients (
             id,
+            ingredient_id,
             quantity,
             ingredients (
               id,
@@ -188,7 +193,7 @@ const Recipes = () => {
       if (recipe.recipe_ingredients && recipe.recipe_ingredients.length > 0) {
         const ingredientsData = recipe.recipe_ingredients.map(ri => ({
           recipe_id: newRecipe.id,
-          ingredient_id: ri.ingredients.id,
+          ingredient_id: ri.ingredient_id,
           quantity: ri.quantity
         }));
 

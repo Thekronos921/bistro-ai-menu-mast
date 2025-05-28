@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { ArrowLeft, Search, DollarSign, TrendingUp, TrendingDown, Edit, Download, RefreshCw, Target, AlertTriangle, Settings, Upload } from "lucide-react";
 import { Link } from "react-router-dom";
@@ -293,12 +294,20 @@ const FoodCost = () => {
                       dishes.find(d => d.recipes?.id === simpleRecipe.id)?.recipes;
     
     if (fullRecipe) {
-      // Ensure all required fields are present
+      // Ensure all required fields are present with proper defaults
       const completeRecipe: Recipe = {
         ...fullRecipe,
         preparation_time: fullRecipe.preparation_time || 0,
         difficulty: fullRecipe.difficulty || 'Facile',
         portions: fullRecipe.portions || 1,
+        description: fullRecipe.description || undefined,
+        allergens: fullRecipe.allergens || undefined,
+        calories: fullRecipe.calories || undefined,
+        protein: fullRecipe.protein || undefined,
+        carbs: fullRecipe.carbs || undefined,
+        fat: fullRecipe.fat || undefined,
+        is_semilavorato: fullRecipe.is_semilavorato || false,
+        recipe_instructions: fullRecipe.recipe_instructions || []
       };
       setEditingRecipe(completeRecipe);
     }
@@ -729,7 +738,24 @@ const FoodCost = () => {
                                 </Button>
                                 {(item as Dish).recipes && (
                                   <Button
-                                    onClick={() => setEditingRecipe((item as Dish).recipes!)}
+                                    onClick={() => {
+                                      const recipe = (item as Dish).recipes!;
+                                      const completeRecipe: Recipe = {
+                                        ...recipe,
+                                        preparation_time: recipe.preparation_time || 0,
+                                        difficulty: recipe.difficulty || 'Facile',
+                                        portions: recipe.portions || 1,
+                                        description: recipe.description || undefined,
+                                        allergens: recipe.allergens || undefined,
+                                        calories: recipe.calories || undefined,
+                                        protein: recipe.protein || undefined,
+                                        carbs: recipe.carbs || undefined,
+                                        fat: recipe.fat || undefined,
+                                        is_semilavorato: recipe.is_semilavorato || false,
+                                        recipe_instructions: recipe.recipe_instructions || []
+                                      };
+                                      setEditingRecipe(completeRecipe);
+                                    }}
                                     size="sm"
                                     variant="outline"
                                     className="ml-1"
@@ -741,7 +767,24 @@ const FoodCost = () => {
                             ) : (
                               <>
                                 <Button
-                                  onClick={() => setEditingRecipe(item as Recipe)}
+                                  onClick={() => {
+                                    const recipe = item as Recipe;
+                                    const completeRecipe: Recipe = {
+                                      ...recipe,
+                                      preparation_time: recipe.preparation_time || 0,
+                                      difficulty: recipe.difficulty || 'Facile',
+                                      portions: recipe.portions || 1,
+                                      description: recipe.description || undefined,
+                                      allergens: recipe.allergens || undefined,
+                                      calories: recipe.calories || undefined,
+                                      protein: recipe.protein || undefined,
+                                      carbs: recipe.carbs || undefined,
+                                      fat: recipe.fat || undefined,
+                                      is_semilavorato: recipe.is_semilavorato || false,
+                                      recipe_instructions: recipe.recipe_instructions || []
+                                    };
+                                    setEditingRecipe(completeRecipe);
+                                  }}
                                   size="sm"
                                   variant="outline"
                                 >

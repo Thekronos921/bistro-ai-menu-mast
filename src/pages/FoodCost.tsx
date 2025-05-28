@@ -16,6 +16,7 @@ interface Ingredient {
 
 interface RecipeIngredient {
   id: string;
+  ingredient_id: string;
   quantity: number;
   ingredients: Ingredient;
 }
@@ -85,6 +86,7 @@ const FoodCost = () => {
             fat,
             recipe_ingredients (
               id,
+              ingredient_id,
               quantity,
               ingredients (
                 id,
@@ -111,6 +113,7 @@ const FoodCost = () => {
           *,
           recipe_ingredients (
             id,
+            ingredient_id,
             quantity,
             ingredients (
               id,

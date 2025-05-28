@@ -1,10 +1,24 @@
 
 import { useState, useEffect } from "react";
-import { ArrowLeft, Search, ChefHat, Clock, Users } from "lucide-react";
+import { ArrowLeft, Search, ChefHat, Clock, Users, Edit, Copy, Trash2, Eye, Printer, Archive } from "lucide-react";
 import { Link } from "react-router-dom";
 import AddRecipeDialog from "@/components/AddRecipeDialog";
+import EditRecipeDialog from "@/components/EditRecipeDialog";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import StockStatusBadge, { type StockStatus } from "@/components/StockStatusBadge";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 interface Recipe {
   id: string;
@@ -27,6 +41,8 @@ interface Recipe {
       name: string;
       unit: string;
       cost_per_unit: number;
+      current_stock?: number;
+      min_stock_threshold?: number;
     };
   }>;
   recipe_instructions?: Array<{
@@ -41,6 +57,8 @@ const Recipes = () => {
   const [selectedCategory, setSelectedCategory] = useState("all");
   const [recipes, setRecipes] = useState<Recipe[]>([]);
   const [loading, setLoading] = useState(true);
+  const [editingRecipe, setEditingRecipe] = useState<Recipe | null>(null);
+  const [deleteRecipeId, setDeleteRecipeId] = useState<string | null>(null);
   const { toast } = useToast();
 
   const categories = ["all", "Antipasti", "Primi Piatti", "Secondi Piatti", "Dolci", "Contorni"];
@@ -58,7 +76,9 @@ const Recipes = () => {
               id,
               name,
               unit,
-              cost_per_unit
+              cost_per_unit,
+              current_stock,
+              min_stock_threshold
             )
           ),
           recipe_instructions (
@@ -120,6 +140,182 @@ const Recipes = () => {
     }, 0);
   };
 
+  const calculateCostPerPortion = (recipeIngredients: Recipe['recipe_ingredients'], portions: number) => {
+    const totalCost = calculateTotalCost(recipeIngredients);
+    return portions > 0 ? totalCost / portions : 0;
+  };
+
+  const getFoodCostIndicator = (costPerPortion: number) => {
+    // Assumendo un prezzo medio di vendita di €15 per calcolare la percentuale
+    const averageSellingPrice = 15;
+    const foodCostPercentage = (costPerPortion / averageSellingPrice) * 100;
+    
+    if (foodCostPercentage <= 25) return { label: "FC Basso", color: "bg-green-100 text-green-800" };
+    if (foodCostPercentage <= 35) return { label: "FC Medio", color: "bg-yellow-100 text-yellow-800" };
+    return { label: "FC Alto", color: "bg-red-100 text-red-800" };
+  };
+
+  const getIngredientStockStatus = (ingredient: Recipe['recipe_ingredients'][0]['ingredients']): StockStatus => {
+    if (!ingredient.current_stock || !ingredient.min_stock_threshold) return "ok";
+    
+    if (ingredient.current_stock <= ingredient.min_stock_threshold * 0.5) return "critical";
+    if (ingredient.current_stock <= ingredient.min_stock_threshold) return "low";
+    return "ok";
+  };
+
+  const duplicateRecipe = async (recipe: Recipe) => {
+    try {
+      const { data: newRecipe, error: recipeError } = await supabase
+        .from('recipes')
+        .insert([{
+          name: `${recipe.name} (Copia)`,
+          category: recipe.category,
+          preparation_time: recipe.preparation_time,
+          difficulty: recipe.difficulty,
+          portions: recipe.portions,
+          description: recipe.description,
+          allergens: recipe.allergens,
+          calories: recipe.calories,
+          protein: recipe.protein,
+          carbs: recipe.carbs,
+          fat: recipe.fat
+        }])
+        .select()
+        .single();
+
+      if (recipeError) throw recipeError;
+
+      if (recipe.recipe_ingredients && recipe.recipe_ingredients.length > 0) {
+        const ingredientsData = recipe.recipe_ingredients.map(ri => ({
+          recipe_id: newRecipe.id,
+          ingredient_id: ri.ingredients.id,
+          quantity: ri.quantity
+        }));
+
+        const { error: ingredientsError } = await supabase
+          .from('recipe_ingredients')
+          .insert(ingredientsData);
+
+        if (ingredientsError) throw ingredientsError;
+      }
+
+      if (recipe.recipe_instructions && recipe.recipe_instructions.length > 0) {
+        const instructionsData = recipe.recipe_instructions.map(inst => ({
+          recipe_id: newRecipe.id,
+          step_number: inst.step_number,
+          instruction: inst.instruction
+        }));
+
+        const { error: instructionsError } = await supabase
+          .from('recipe_instructions')
+          .insert(instructionsData);
+
+        if (instructionsError) throw instructionsError;
+      }
+
+      toast({
+        title: "Successo",
+        description: "Ricetta duplicata con successo"
+      });
+
+      fetchRecipes();
+    } catch (error) {
+      toast({
+        title: "Errore",
+        description: "Errore durante la duplicazione della ricetta",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const deleteRecipe = async (recipeId: string) => {
+    try {
+      const { error } = await supabase
+        .from('recipes')
+        .delete()
+        .eq('id', recipeId);
+
+      if (error) throw error;
+
+      toast({
+        title: "Successo",
+        description: "Ricetta eliminata con successo"
+      });
+
+      fetchRecipes();
+    } catch (error) {
+      toast({
+        title: "Errore",
+        description: "Errore durante l'eliminazione della ricetta",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const printRecipe = (recipe: Recipe) => {
+    const printWindow = window.open('', '_blank');
+    if (printWindow) {
+      const totalCost = calculateTotalCost(recipe.recipe_ingredients);
+      const costPerPortion = calculateCostPerPortion(recipe.recipe_ingredients, recipe.portions);
+      
+      printWindow.document.write(`
+        <html>
+          <head>
+            <title>${recipe.name}</title>
+            <style>
+              body { font-family: Arial, sans-serif; margin: 20px; }
+              h1 { color: #333; border-bottom: 2px solid #333; }
+              .info { background: #f5f5f5; padding: 10px; margin: 10px 0; }
+              .ingredients, .instructions { margin: 20px 0; }
+              .cost-highlight { background: yellow; font-weight: bold; }
+            </style>
+          </head>
+          <body>
+            <h1>${recipe.name}</h1>
+            <div class="info">
+              <strong>Categoria:</strong> ${recipe.category}<br>
+              <strong>Tempo preparazione:</strong> ${recipe.preparation_time} minuti<br>
+              <strong>Porzioni:</strong> ${recipe.portions}<br>
+              <strong>Difficoltà:</strong> ${recipe.difficulty}<br>
+              <strong class="cost-highlight">Costo totale: €${totalCost.toFixed(2)}</strong><br>
+              <strong class="cost-highlight">Costo per porzione: €${costPerPortion.toFixed(2)}</strong>
+            </div>
+            
+            <div class="ingredients">
+              <h2>Ingredienti:</h2>
+              <ul>
+                ${recipe.recipe_ingredients?.map(ri => 
+                  `<li>${ri.ingredients.name} - ${ri.quantity}${ri.ingredients.unit} (€${(ri.ingredients.cost_per_unit * ri.quantity).toFixed(2)})</li>`
+                ).join('') || ''}
+              </ul>
+            </div>
+            
+            ${recipe.recipe_instructions && recipe.recipe_instructions.length > 0 ? `
+              <div class="instructions">
+                <h2>Preparazione:</h2>
+                <ol>
+                  ${recipe.recipe_instructions
+                    .sort((a, b) => a.step_number - b.step_number)
+                    .map(inst => `<li>${inst.instruction}</li>`)
+                    .join('')}
+                </ol>
+              </div>
+            ` : ''}
+            
+            ${recipe.description ? `
+              <div>
+                <h2>Descrizione:</h2>
+                <p>${recipe.description}</p>
+              </div>
+            ` : ''}
+          </body>
+        </html>
+      `);
+      printWindow.document.close();
+      printWindow.print();
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-stone-50 flex items-center justify-center">
@@ -147,7 +343,7 @@ const Recipes = () => {
                 </div>
                 <div>
                   <h1 className="text-2xl font-bold text-slate-800">Mapping Ricette</h1>
-                  <p className="text-sm text-slate-500">Gestione completa ricette e ingredienti</p>
+                  <p className="text-sm text-slate-500">Gestione completa ricette e calcolo costi di produzione</p>
                 </div>
               </div>
             </div>
@@ -203,98 +399,196 @@ const Recipes = () => {
           </div>
         ) : (
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {filteredRecipes.map((recipe) => (
-              <div key={recipe.id} className="bg-white rounded-2xl border border-stone-200 overflow-hidden hover:shadow-lg transition-shadow">
-                {/* Recipe Header */}
-                <div className="p-6 border-b border-stone-200">
-                  <div className="flex items-start justify-between">
-                    <div>
-                      <h3 className="text-xl font-bold text-slate-800 mb-1">{recipe.name}</h3>
-                      <p className="text-sm text-slate-500">{recipe.category}</p>
-                    </div>
-                    <span className={`px-2 py-1 text-xs font-medium rounded-full ${getDifficultyColor(recipe.difficulty)}`}>
-                      {recipe.difficulty}
-                    </span>
-                  </div>
-                  
-                  <div className="flex items-center space-x-6 mt-4 text-sm text-slate-600">
-                    <div className="flex items-center space-x-1">
-                      <Clock className="w-4 h-4" />
-                      <span>{recipe.preparation_time} min</span>
-                    </div>
-                    <div className="flex items-center space-x-1">
-                      <Users className="w-4 h-4" />
-                      <span>{recipe.portions} porzioni</span>
-                    </div>
-                    <div className="font-semibold text-purple-600">
-                      €{calculateTotalCost(recipe.recipe_ingredients).toFixed(2)} totale
-                    </div>
-                  </div>
-                </div>
-
-                {/* Ingredients */}
-                <div className="p-6 border-b border-stone-200">
-                  <h4 className="font-semibold text-slate-800 mb-3">Ingredienti</h4>
-                  <div className="space-y-2">
-                    {recipe.recipe_ingredients?.map((ri) => (
-                      <div key={ri.id} className="flex items-center justify-between text-sm">
-                        <span className="text-slate-700">
-                          {ri.ingredients.name} - {ri.quantity}{ri.ingredients.unit}
+            {filteredRecipes.map((recipe) => {
+              const totalCost = calculateTotalCost(recipe.recipe_ingredients);
+              const costPerPortion = calculateCostPerPortion(recipe.recipe_ingredients, recipe.portions);
+              const foodCostIndicator = getFoodCostIndicator(costPerPortion);
+              
+              return (
+                <Card key={recipe.id} className="overflow-hidden hover:shadow-lg transition-shadow">
+                  <CardHeader className="pb-4">
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1">
+                        <CardTitle className="text-xl mb-1">{recipe.name}</CardTitle>
+                        <p className="text-sm text-slate-500">{recipe.category}</p>
+                      </div>
+                      <div className="flex space-x-2">
+                        <span className={`px-2 py-1 text-xs font-medium rounded-full ${getDifficultyColor(recipe.difficulty)}`}>
+                          {recipe.difficulty}
                         </span>
-                        <span className="font-medium text-slate-800">
-                          €{(ri.ingredients.cost_per_unit * ri.quantity).toFixed(2)}
+                        <span className={`px-2 py-1 text-xs font-medium rounded-full ${foodCostIndicator.color}`}>
+                          {foodCostIndicator.label}
                         </span>
                       </div>
-                    ))}
-                  </div>
-                </div>
+                    </div>
+                    
+                    <div className="flex items-center space-x-6 mt-4 text-sm text-slate-600">
+                      <div className="flex items-center space-x-1">
+                        <Clock className="w-4 h-4" />
+                        <span>{recipe.preparation_time} min</span>
+                      </div>
+                      <div className="flex items-center space-x-1">
+                        <Users className="w-4 h-4" />
+                        <span>{recipe.portions} porzioni</span>
+                      </div>
+                    </div>
 
-                {/* Instructions */}
-                {recipe.recipe_instructions && recipe.recipe_instructions.length > 0 && (
-                  <div className="p-6 border-b border-stone-200">
-                    <h4 className="font-semibold text-slate-800 mb-3">Preparazione</h4>
-                    <ol className="space-y-2">
-                      {recipe.recipe_instructions
-                        .sort((a, b) => a.step_number - b.step_number)
-                        .map((instruction) => (
-                        <li key={instruction.id} className="flex items-start space-x-3 text-sm text-slate-600">
-                          <span className="flex-shrink-0 w-6 h-6 bg-purple-100 text-purple-600 rounded-full flex items-center justify-center text-xs font-medium">
-                            {instruction.step_number}
-                          </span>
-                          <span>{instruction.instruction}</span>
-                        </li>
-                      ))}
-                    </ol>
-                  </div>
-                )}
+                    {/* Cost Information */}
+                    <div className="mt-4 p-3 bg-purple-50 rounded-lg">
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <p className="text-xs text-slate-500 mb-1">Costo Produzione Totale</p>
+                          <p className="text-lg font-bold text-purple-700">€{totalCost.toFixed(2)}</p>
+                        </div>
+                        <div>
+                          <p className="text-xs text-slate-500 mb-1">Costo per Porzione</p>
+                          <p className="text-lg font-bold text-purple-700">€{costPerPortion.toFixed(2)}</p>
+                        </div>
+                      </div>
+                    </div>
+                  </CardHeader>
 
-                {/* Nutritional Info */}
-                <div className="p-6 bg-stone-50">
-                  <h4 className="font-semibold text-slate-800 mb-3">Valori Nutrizionali (per porzione)</h4>
-                  <div className="grid grid-cols-4 gap-4 text-center">
+                  <CardContent className="space-y-4">
+                    {/* Ingredients */}
                     <div>
-                      <p className="text-2xl font-bold text-slate-800">{recipe.calories}</p>
-                      <p className="text-xs text-slate-500">Calorie</p>
+                      <h4 className="font-semibold text-slate-800 mb-3">Ingredienti</h4>
+                      <div className="space-y-2">
+                        {recipe.recipe_ingredients?.map((ri) => {
+                          const stockStatus = getIngredientStockStatus(ri.ingredients);
+                          return (
+                            <div key={ri.id} className="flex items-center justify-between text-sm group">
+                              <div className="flex items-center space-x-2">
+                                <span className="text-slate-700">
+                                  {ri.ingredients.name} - {ri.quantity}{ri.ingredients.unit}
+                                </span>
+                                {stockStatus !== "ok" && (
+                                  <StockStatusBadge status={stockStatus} className="scale-75" />
+                                )}
+                              </div>
+                              <span className="font-medium text-slate-800">
+                                €{(ri.ingredients.cost_per_unit * ri.quantity).toFixed(2)}
+                              </span>
+                            </div>
+                          );
+                        })}
+                      </div>
                     </div>
-                    <div>
-                      <p className="text-2xl font-bold text-slate-800">{recipe.protein}g</p>
-                      <p className="text-xs text-slate-500">Proteine</p>
+
+                    {/* Actions */}
+                    <div className="flex items-center justify-between pt-4 border-t border-stone-200">
+                      <div className="flex space-x-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setEditingRecipe(recipe)}
+                        >
+                          <Edit className="w-4 h-4 mr-1" />
+                          Modifica
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => duplicateRecipe(recipe)}
+                        >
+                          <Copy className="w-4 h-4 mr-1" />
+                          Duplica
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => printRecipe(recipe)}
+                        >
+                          <Printer className="w-4 h-4 mr-1" />
+                          Stampa
+                        </Button>
+                      </div>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setDeleteRecipeId(recipe.id)}
+                        className="text-red-600 hover:bg-red-50"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </Button>
                     </div>
-                    <div>
-                      <p className="text-2xl font-bold text-slate-800">{recipe.carbs}g</p>
-                      <p className="text-xs text-slate-500">Carboidrati</p>
-                    </div>
-                    <div>
-                      <p className="text-2xl font-bold text-slate-800">{recipe.fat}g</p>
-                      <p className="text-xs text-slate-500">Grassi</p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            ))}
+
+                    {/* Nutritional Info */}
+                    {(recipe.calories > 0 || recipe.protein > 0 || recipe.carbs > 0 || recipe.fat > 0) && (
+                      <div className="pt-4 border-t border-stone-200">
+                        <h4 className="font-semibold text-slate-800 mb-3">Valori Nutrizionali (per porzione)</h4>
+                        <div className="grid grid-cols-4 gap-2 text-center text-xs">
+                          <div>
+                            <p className="font-bold text-slate-800">{recipe.calories}</p>
+                            <p className="text-slate-500">Calorie</p>
+                          </div>
+                          <div>
+                            <p className="font-bold text-slate-800">{recipe.protein}g</p>
+                            <p className="text-slate-500">Proteine</p>
+                          </div>
+                          <div>
+                            <p className="font-bold text-slate-800">{recipe.carbs}g</p>
+                            <p className="text-slate-500">Carboidrati</p>
+                          </div>
+                          <div>
+                            <p className="font-bold text-slate-800">{recipe.fat}g</p>
+                            <p className="text-slate-500">Grassi</p>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {recipe.allergens && (
+                      <div className="pt-2">
+                        <p className="text-xs text-orange-600">
+                          <strong>Allergeni:</strong> {recipe.allergens}
+                        </p>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              );
+            })}
           </div>
         )}
       </main>
+
+      {/* Edit Recipe Dialog */}
+      {editingRecipe && (
+        <EditRecipeDialog
+          recipe={editingRecipe}
+          onClose={() => setEditingRecipe(null)}
+          onRecipeUpdated={() => {
+            fetchRecipes();
+            setEditingRecipe(null);
+          }}
+        />
+      )}
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={!!deleteRecipeId} onOpenChange={() => setDeleteRecipeId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Conferma eliminazione</AlertDialogTitle>
+            <AlertDialogDescription>
+              Sei sicuro di voler eliminare questa ricetta? Questa azione non può essere annullata.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Annulla</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                if (deleteRecipeId) {
+                  deleteRecipe(deleteRecipeId);
+                  setDeleteRecipeId(null);
+                }
+              }}
+              className="bg-red-600 hover:bg-red-700"
+            >
+              Elimina
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };

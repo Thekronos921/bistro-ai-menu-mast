@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -145,10 +144,9 @@ const EditRecipeDialog = ({ recipe, onClose, onRecipeUpdated }: EditRecipeDialog
           .eq('recipe_id', sem.id);
 
         const totalCost = (recipeIngredientsData || []).reduce((sum, ri) => {
-          // Handle the case where ingredients might be an array or object
-          const ingredientCost = Array.isArray(ri.ingredients) 
-            ? ri.ingredients[0]?.cost_per_unit || 0
-            : ri.ingredients?.cost_per_unit || 0;
+          // Safely access the cost_per_unit from the ingredients relation
+          const ingredients = ri.ingredients as any;
+          const ingredientCost = ingredients?.cost_per_unit || 0;
           return sum + (ri.quantity * ingredientCost);
         }, 0);
         

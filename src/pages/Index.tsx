@@ -1,196 +1,303 @@
-import React from 'react';
-import { useAuth } from '@/contexts/AuthContext';
-import PostRegistrationSetup from '@/components/PostRegistrationSetup';
-import { Link } from 'react-router-dom';
-import { Rocket, BarChartBig, ListChecks, Users, TrendingUp, MessageSquare, LayoutDashboard } from 'lucide-react';
+
+import { ArrowRight, BarChart3, Calculator, ChefHat, Package, TrendingUp, Users, Utensils, PieChart, Calendar, Target, Zap } from "lucide-react";
+import { Link } from "react-router-dom";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 
 const Index = () => {
-  const { user, userProfile, loading } = useAuth();
-
-  // Show loading spinner while checking auth state
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-orange-600"></div>
-      </div>
-    );
-  }
-
-  // If user is authenticated but has no profile, check if they need to complete setup
-  if (user && !userProfile) {
-    const pendingRegistration = localStorage.getItem('pendingRegistration');
-    if (pendingRegistration) {
-      return <PostRegistrationSetup />;
-    }
-  }
-
-  // If not authenticated, show a landing page
-  if (!user) {
-    return (
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-24">
-        <div className="text-center">
-          <h1 className="text-4xl font-extrabold text-gray-900 sm:text-5xl lg:text-6xl">
-            <span className="block">Gestisci il tuo Ristorante</span>
-            <span className="block text-orange-600">con l'Intelligenza Artificiale</span>
-          </h1>
-          <p className="mt-3 max-w-md mx-auto text-base text-gray-500 sm:text-lg md:mt-5 md:text-xl md:max-w-3xl">
-            Ottimizza costi, ricette e inventario con l'intelligenza artificiale.
-            La piattaforma completa per la gestione moderna del food service.
-          </p>
-          <div className="mt-8 sm:flex sm:justify-center lg:justify-start">
-            <div className="rounded-md shadow">
-              <Link
-                to="/register"
-                className="w-full flex items-center justify-center px-8 py-3 border border-transparent text-base font-medium rounded-md text-white bg-orange-600 hover:bg-orange-700 md:py-4 md:text-lg md:px-10"
-              >
-                Inizia Ora
-              </Link>
-            </div>
-            <div className="mt-3 sm:mt-0 sm:ml-3">
-              <Link
-                to="/login"
-                className="w-full flex items-center justify-center px-8 py-3 border border-transparent text-base font-medium rounded-md text-orange-700 bg-orange-100 hover:bg-orange-200 md:py-4 md:text-lg md:px-10"
-              >
-                Accedi
-              </Link>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  // If authenticated, show the main dashboard
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-      <div className="text-center mb-12">
-        <h1 className="text-4xl font-bold text-gray-900 mb-4">
-          Gestisci il tuo Ristorante con l'AI
-        </h1>
-        <p className="text-xl text-gray-600 max-w-3xl mx-auto">
-          Ottimizza costi, ricette e inventario con l'intelligenza artificiale. 
-          La piattaforma completa per la gestione moderna del food service.
-        </p>
-      </div>
-
-      {/* Feature Cards Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 mb-12">
-        {/* Food Cost Analysis */}
-        <Link to="/food-cost" className="bg-white rounded-lg shadow-lg p-6 hover:shadow-xl transition-shadow duration-300">
-          <div className="flex items-center mb-4">
-            <BarChartBig className="h-6 w-6 text-orange-600 mr-2" />
-            <h3 className="text-xl font-semibold text-gray-900">Analisi dei Costi Alimentari</h3>
-          </div>
-          <p className="text-gray-700">
-            Monitora e ottimizza i costi degli ingredienti per massimizzare i profitti.
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-stone-50">
+      {/* Main Content */}
+      <main className="max-w-7xl mx-auto px-6 py-8">
+        {/* Hero Section */}
+        <div className="text-center mb-12">
+          <h2 className="text-4xl font-bold text-slate-800 mb-4">
+            Gestione Intelligente del Ristorante
+          </h2>
+          <p className="text-xl text-slate-600 max-w-3xl mx-auto">
+            Ottimizza costi, ricette e operazioni con la nostra piattaforma all-in-one
           </p>
-        </Link>
+        </div>
 
-        {/* Menu Engineering */}
-        <Link to="/menu-engineering" className="bg-white rounded-lg shadow-lg p-6 hover:shadow-xl transition-shadow duration-300">
-          <div className="flex items-center mb-4">
-            <TrendingUp className="h-6 w-6 text-orange-600 mr-2" />
-            <h3 className="text-xl font-semibold text-gray-900">Menu Engineering</h3>
-          </div>
-          <p className="text-gray-700">
-            Progetta un menu strategico basato sui dati di vendita e sui margini di profitto.
-          </p>
-        </Link>
+        {/* Main Features Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-12">
+          {/* Food Cost Analysis */}
+          <Link to="/food-cost">
+            <Card className="group hover:shadow-xl transition-all duration-300 hover:scale-105 cursor-pointer bg-white border-0 shadow-lg">
+              <CardHeader className="pb-4">
+                <div className="flex items-center justify-between">
+                  <div className="w-12 h-12 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-xl flex items-center justify-center">
+                    <Calculator className="w-6 h-6 text-white" />
+                  </div>
+                  <ArrowRight className="w-5 h-5 text-slate-400 group-hover:text-emerald-600 transition-colors" />
+                </div>
+                <CardTitle className="text-xl group-hover:text-emerald-600 transition-colors">
+                  Food Cost Analysis
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-slate-600 mb-4">
+                  Analizza i costi di produzione e ottimizza la redditività dei tuoi piatti
+                </p>
+                <div className="flex space-x-2">
+                  <Badge variant="secondary" className="bg-emerald-50 text-emerald-700">
+                    Analisi Costi
+                  </Badge>
+                  <Badge variant="secondary" className="bg-blue-50 text-blue-700">
+                    ROI
+                  </Badge>
+                </div>
+              </CardContent>
+            </Card>
+          </Link>
 
-        {/* Recipe Management */}
-        <Link to="/recipes" className="bg-white rounded-lg shadow-lg p-6 hover:shadow-xl transition-shadow duration-300">
-          <div className="flex items-center mb-4">
-            <ListChecks className="h-6 w-6 text-orange-600 mr-2" />
-            <h3 className="text-xl font-semibold text-gray-900">Gestione Ricette</h3>
-          </div>
-          <p className="text-gray-700">
-            Organizza e standardizza le tue ricette per garantire qualità e coerenza.
-          </p>
-        </Link>
+          {/* Menu Engineering */}
+          <Link to="/menu-engineering">
+            <Card className="group hover:shadow-xl transition-all duration-300 hover:scale-105 cursor-pointer bg-white border-0 shadow-lg">
+              <CardHeader className="pb-4">
+                <div className="flex items-center justify-between">
+                  <div className="w-12 h-12 bg-gradient-to-br from-orange-500 to-red-600 rounded-xl flex items-center justify-center">
+                    <PieChart className="w-6 h-6 text-white" />
+                  </div>
+                  <ArrowRight className="w-5 h-5 text-slate-400 group-hover:text-orange-600 transition-colors" />
+                </div>
+                <CardTitle className="text-xl group-hover:text-orange-600 transition-colors">
+                  Menu Engineering
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-slate-600 mb-4">
+                  Ottimizza il menu con analisi delle performance e marginalità
+                </p>
+                <div className="flex space-x-2">
+                  <Badge variant="secondary" className="bg-orange-50 text-orange-700">
+                    Performance
+                  </Badge>
+                  <Badge variant="secondary" className="bg-purple-50 text-purple-700">
+                    Margini
+                  </Badge>
+                </div>
+              </CardContent>
+            </Card>
+          </Link>
 
-        {/* Inventory Management */}
-        <Link to="/inventory" className="bg-white rounded-lg shadow-lg p-6 hover:shadow-xl transition-shadow duration-300">
-          <div className="flex items-center mb-4">
-            <Rocket className="h-6 w-6 text-orange-600 mr-2" />
-            <h3 className="text-xl font-semibold text-gray-900">Gestione Inventario</h3>
-          </div>
-          <p className="text-gray-700">
-            Traccia l'inventario in tempo reale per ridurre gli sprechi e ottimizzare gli acquisti.
-          </p>
-        </Link>
+          {/* Recipe Management */}
+          <Link to="/recipes">
+            <Card className="group hover:shadow-xl transition-all duration-300 hover:scale-105 cursor-pointer bg-white border-0 shadow-lg">
+              <CardHeader className="pb-4">
+                <div className="flex items-center justify-between">
+                  <div className="w-12 h-12 bg-gradient-to-br from-purple-500 to-violet-600 rounded-xl flex items-center justify-center">
+                    <ChefHat className="w-6 h-6 text-white" />
+                  </div>
+                  <ArrowRight className="w-5 h-5 text-slate-400 group-hover:text-purple-600 transition-colors" />
+                </div>
+                <CardTitle className="text-xl group-hover:text-purple-600 transition-colors">
+                  Mapping Ricette
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-slate-600 mb-4">
+                  Gestisci ricette, ingredienti e calcola i costi di produzione
+                </p>
+                <div className="flex space-x-2">
+                  <Badge variant="secondary" className="bg-purple-50 text-purple-700">
+                    Ricette
+                  </Badge>
+                  <Badge variant="secondary" className="bg-green-50 text-green-700">
+                    Costi
+                  </Badge>
+                </div>
+              </CardContent>
+            </Card>
+          </Link>
 
-        {/* Demand Forecasting */}
-        <Link to="/demand-forecast" className="bg-white rounded-lg shadow-lg p-6 hover:shadow-xl transition-shadow duration-300">
-          <div className="flex items-center mb-4">
-            <LayoutDashboard className="h-6 w-6 text-orange-600 mr-2" />
-            <h3 className="text-xl font-semibold text-gray-900">Previsione della Domanda</h3>
-          </div>
-          <p className="text-gray-700">
-            Prevedi la domanda futura per pianificare la produzione e ridurre le scorte in eccesso.
-          </p>
-        </Link>
+          {/* Inventory Management */}
+          <Link to="/inventory">
+            <Card className="group hover:shadow-xl transition-all duration-300 hover:scale-105 cursor-pointer bg-white border-0 shadow-lg">
+              <CardHeader className="pb-4">
+                <div className="flex items-center justify-between">
+                  <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-cyan-600 rounded-xl flex items-center justify-center">
+                    <Package className="w-6 h-6 text-white" />
+                  </div>
+                  <ArrowRight className="w-5 h-5 text-slate-400 group-hover:text-blue-600 transition-colors" />
+                </div>
+                <CardTitle className="text-xl group-hover:text-blue-600 transition-colors">
+                  Inventario Ingredienti
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-slate-600 mb-4">
+                  Monitora scorte, fornitori e soglie di riordino in tempo reale
+                </p>
+                <div className="flex space-x-2">
+                  <Badge variant="secondary" className="bg-blue-50 text-blue-700">
+                    Scorte
+                  </Badge>
+                  <Badge variant="secondary" className="bg-yellow-50 text-yellow-700">
+                    Fornitori
+                  </Badge>
+                </div>
+              </CardContent>
+            </Card>
+          </Link>
 
-        {/* Customer Analysis */}
-        <Link to="/customer-analysis" className="bg-white rounded-lg shadow-lg p-6 hover:shadow-xl transition-shadow duration-300">
-          <div className="flex items-center mb-4">
-            <Users className="h-6 w-6 text-orange-600 mr-2" />
-            <h3 className="text-xl font-semibold text-gray-900">Analisi dei Clienti</h3>
-          </div>
-          <p className="text-gray-700">
-            Comprendi meglio i tuoi clienti per personalizzare l'offerta e aumentare la fidelizzazione.
-          </p>
-        </Link>
-      </div>
+          {/* Demand Forecast */}
+          <Link to="/demand-forecast">
+            <Card className="group hover:shadow-xl transition-all duration-300 hover:scale-105 cursor-pointer bg-white border-0 shadow-lg">
+              <CardHeader className="pb-4">
+                <div className="flex items-center justify-between">
+                  <div className="w-12 h-12 bg-gradient-to-br from-indigo-500 to-blue-600 rounded-xl flex items-center justify-center">
+                    <TrendingUp className="w-6 h-6 text-white" />
+                  </div>
+                  <ArrowRight className="w-5 h-5 text-slate-400 group-hover:text-indigo-600 transition-colors" />
+                </div>
+                <CardTitle className="text-xl group-hover:text-indigo-600 transition-colors">
+                  Previsione Domanda
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-slate-600 mb-4">
+                  Prevedi la domanda futura per ottimizzare acquisti e preparazioni
+                </p>
+                <div className="flex space-x-2">
+                  <Badge variant="secondary" className="bg-indigo-50 text-indigo-700">
+                    Previsioni
+                  </Badge>
+                  <Badge variant="secondary" className="bg-green-50 text-green-700">
+                    AI
+                  </Badge>
+                </div>
+              </CardContent>
+            </Card>
+          </Link>
 
-      {/* Quick Stats */}
-      <div className="bg-white rounded-lg shadow-lg p-8 mb-12">
-        <h2 className="text-2xl font-bold text-gray-900 mb-6 text-center">
-          Dashboard Rapida
-        </h2>
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-          {/* Total Revenue */}
-          <div className="text-center">
-            <p className="text-gray-500 uppercase tracking-wider text-sm">Ricavi Totali</p>
-            <p className="text-3xl font-bold text-green-600">$125,000</p>
-          </div>
+          {/* Customer Analysis */}
+          <Link to="/customer-analysis">
+            <Card className="group hover:shadow-xl transition-all duration-300 hover:scale-105 cursor-pointer bg-white border-0 shadow-lg">
+              <CardHeader className="pb-4">
+                <div className="flex items-center justify-between">
+                  <div className="w-12 h-12 bg-gradient-to-br from-pink-500 to-rose-600 rounded-xl flex items-center justify-center">
+                    <Users className="w-6 h-6 text-white" />
+                  </div>
+                  <ArrowRight className="w-5 h-5 text-slate-400 group-hover:text-pink-600 transition-colors" />
+                </div>
+                <CardTitle className="text-xl group-hover:text-pink-600 transition-colors">
+                  Analisi Clienti
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-slate-600 mb-4">
+                  Comprendi i comportamenti dei clienti e personalizza l'offerta
+                </p>
+                <div className="flex space-x-2">
+                  <Badge variant="secondary" className="bg-pink-50 text-pink-700">
+                    Clienti
+                  </Badge>
+                  <Badge variant="secondary" className="bg-blue-50 text-blue-700">
+                    Insights
+                  </Badge>
+                </div>
+              </CardContent>
+            </Card>
+          </Link>
+        </div>
 
-          {/* Food Cost Percentage */}
-          <div className="text-center">
-            <p className="text-gray-500 uppercase tracking-wider text-sm">Costo Materie Prime</p>
-            <p className="text-3xl font-bold text-red-600">28%</p>
-          </div>
+        {/* Quick Actions Section */}
+        <div className="bg-white rounded-3xl border border-stone-200 p-8 mb-12 shadow-lg">
+          <h3 className="text-2xl font-bold text-slate-800 mb-6">Azioni Rapide</h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <Link to="/production-planning">
+              <Card className="group hover:shadow-lg transition-all duration-300 hover:scale-105 cursor-pointer border-0 bg-gradient-to-br from-teal-50 to-cyan-50">
+                <CardContent className="p-4 text-center">
+                  <Calendar className="w-8 h-8 text-teal-600 mx-auto mb-2" />
+                  <h4 className="font-semibold text-slate-800 group-hover:text-teal-600 transition-colors">
+                    Planning Produzione
+                  </h4>
+                </CardContent>
+              </Card>
+            </Link>
 
-          {/* Customer Satisfaction */}
-          <div className="text-center">
-            <p className="text-gray-500 uppercase tracking-wider text-sm">Soddisfazione Clienti</p>
-            <p className="text-3xl font-bold text-blue-600">92%</p>
-          </div>
+            <Link to="/staff-dashboard">
+              <Card className="group hover:shadow-lg transition-all duration-300 hover:scale-105 cursor-pointer border-0 bg-gradient-to-br from-amber-50 to-orange-50">
+                <CardContent className="p-4 text-center">
+                  <Utensils className="w-8 h-8 text-amber-600 mx-auto mb-2" />
+                  <h4 className="font-semibold text-slate-800 group-hover:text-amber-600 transition-colors">
+                    Dashboard Staff
+                  </h4>
+                </CardContent>
+              </Card>
+            </Link>
 
-          {/* Inventory Turnover */}
-          <div className="text-center">
-            <p className="text-gray-500 uppercase tracking-wider text-sm">Rotazione Inventario</p>
-            <p className="text-3xl font-bold text-orange-600">12x</p>
+            <Card className="group hover:shadow-lg transition-all duration-300 hover:scale-105 cursor-pointer border-0 bg-gradient-to-br from-green-50 to-emerald-50">
+              <CardContent className="p-4 text-center">
+                <Target className="w-8 h-8 text-green-600 mx-auto mb-2" />
+                <h4 className="font-semibold text-slate-800 group-hover:text-green-600 transition-colors">
+                  Target & KPI
+                </h4>
+              </CardContent>
+            </Card>
+
+            <Card className="group hover:shadow-lg transition-all duration-300 hover:scale-105 cursor-pointer border-0 bg-gradient-to-br from-violet-50 to-purple-50">
+              <CardContent className="p-4 text-center">
+                <Zap className="w-8 h-8 text-violet-600 mx-auto mb-2" />
+                <h4 className="font-semibold text-slate-800 group-hover:text-violet-600 transition-colors">
+                  Automazioni
+                </h4>
+              </CardContent>
+            </Card>
           </div>
         </div>
-      </div>
 
-      {/* Call to Action */}
-      <div className="bg-gradient-to-r from-orange-500 to-red-600 rounded-lg shadow-lg p-8 text-center text-white">
-        <h2 className="text-3xl font-bold mb-4">
-          Inizia a Ottimizzare il tuo Ristorante
-        </h2>
-        <p className="text-xl mb-6 opacity-90">
-          Scopri come l'AI può trasformare la gestione del tuo locale
-        </p>
-        <div className="flex justify-center gap-4">
-          <Link to="/food-cost" className="bg-white text-orange-600 font-bold py-3 px-6 rounded-md hover:bg-orange-100 transition-colors">
-            Analisi Costi
-          </Link>
-          <Link to="/recipes" className="bg-white text-orange-600 font-bold py-3 px-6 rounded-md hover:bg-orange-100 transition-colors">
-            Gestione Ricette
-          </Link>
+        {/* KPI Dashboard */}
+        <div className="bg-white rounded-3xl border border-stone-200 p-8 shadow-lg">
+          <h3 className="text-2xl font-bold text-slate-800 mb-6">Dashboard KPI</h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            <Card className="border-0 bg-gradient-to-br from-emerald-50 to-green-50">
+              <CardContent className="p-6">
+                <div className="flex items-center justify-between mb-4">
+                  <BarChart3 className="w-8 h-8 text-emerald-600" />
+                  <Badge className="bg-emerald-600">+12%</Badge>
+                </div>
+                <h4 className="text-2xl font-bold text-slate-800">28.5%</h4>
+                <p className="text-sm text-slate-600">Food Cost Medio</p>
+              </CardContent>
+            </Card>
+
+            <Card className="border-0 bg-gradient-to-br from-blue-50 to-cyan-50">
+              <CardContent className="p-6">
+                <div className="flex items-center justify-between mb-4">
+                  <TrendingUp className="w-8 h-8 text-blue-600" />
+                  <Badge className="bg-blue-600">+8%</Badge>
+                </div>
+                <h4 className="text-2xl font-bold text-slate-800">€142</h4>
+                <p className="text-sm text-slate-600">Scontrino Medio</p>
+              </CardContent>
+            </Card>
+
+            <Card className="border-0 bg-gradient-to-br from-purple-50 to-violet-50">
+              <CardContent className="p-6">
+                <div className="flex items-center justify-between mb-4">
+                  <ChefHat className="w-8 h-8 text-purple-600" />
+                  <Badge className="bg-purple-600">+5%</Badge>
+                </div>
+                <h4 className="text-2xl font-bold text-slate-800">87</h4>
+                <p className="text-sm text-slate-600">Ricette Attive</p>
+              </CardContent>
+            </Card>
+
+            <Card className="border-0 bg-gradient-to-br from-orange-50 to-red-50">
+              <CardContent className="p-6">
+                <div className="flex items-center justify-between mb-4">
+                  <Package className="w-8 h-8 text-orange-600" />
+                  <Badge variant="destructive">-3%</Badge>
+                </div>
+                <h4 className="text-2xl font-bold text-slate-800">94%</h4>
+                <p className="text-sm text-slate-600">Disponibilità Stock</p>
+              </CardContent>
+            </Card>
+          </div>
         </div>
-      </div>
+      </main>
     </div>
   );
 };

@@ -1,49 +1,73 @@
-
-import { useState } from "react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, Package } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
-import { useToast } from "@/hooks/use-toast";
+import React, { useState } from 'react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Plus } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
+import { useToast } from '@/hooks/use-toast';
+import { useRestaurant } from '@/hooks/useRestaurant';
 
 interface AddIngredientDialogProps {
-  onIngredientAdded: () => void;
+  onAddIngredient: () => void;
 }
 
-const AddIngredientDialog = ({ onIngredientAdded }: AddIngredientDialogProps) => {
+const AddIngredientDialog: React.FC<AddIngredientDialogProps> = ({ onAddIngredient }) => {
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
+  const { withRestaurantId } = useRestaurant();
+
   const [formData, setFormData] = useState({
-    name: "",
-    unit: "g",
-    cost_per_unit: 0,
-    supplier: "",
-    current_stock: 0,
-    min_stock_threshold: 0,
-    category: ""
+    name: '',
+    unit: 'kg',
+    costPerUnit: 0,
+    supplier: '',
+    currentStock: 0,
+    minStockThreshold: 0,
+    category: ''
   });
 
-  const units = ["g", "kg", "ml", "l", "pz", "cucchiai", "cucchiaini", "tazze"];
-  const categories = ["Carni", "Pesce", "Verdure", "Frutta", "Cereali", "Latticini", "Spezie", "Condimenti", "Altro"];
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+    const { name, value } = e.target;
+    setFormData(prevData => ({
+      ...prevData,
+      [name]: value
+    }));
+  };
 
-  const handleSubmit = async () => {
-    if (!formData.name || formData.cost_per_unit <= 0) {
-      toast({
-        title: "Errore",
-        description: "Nome e costo per unità sono obbligatori",
-        variant: "destructive"
-      });
-      return;
-    }
+  const resetForm = () => {
+    setFormData({
+      name: '',
+      unit: 'kg',
+      costPerUnit: 0,
+      supplier: '',
+      currentStock: 0,
+      minStockThreshold: 0,
+      category: ''
+    });
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!formData.name.trim()) return;
 
     setLoading(true);
     try {
+      const ingredientData = withRestaurantId({
+        name: formData.name,
+        unit: formData.unit,
+        cost_per_unit: parseFloat(formData.costPerUnit.toString()),
+        supplier: formData.supplier || null,
+        current_stock: parseFloat(formData.currentStock.toString()) || 0,
+        min_stock_threshold: parseFloat(formData.minStockThreshold.toString()) || 0,
+        category: formData.category || null
+      });
+
       const { error } = await supabase
         .from('ingredients')
-        .insert([formData]);
+        .insert([ingredientData]);
 
       if (error) throw error;
 
@@ -52,21 +76,14 @@ const AddIngredientDialog = ({ onIngredientAdded }: AddIngredientDialogProps) =>
         description: "Ingrediente aggiunto con successo"
       });
 
+      onAddIngredient();
       setOpen(false);
-      setFormData({
-        name: "",
-        unit: "g",
-        cost_per_unit: 0,
-        supplier: "",
-        current_stock: 0,
-        min_stock_threshold: 0,
-        category: ""
-      });
-      onIngredientAdded();
-    } catch (error) {
+      resetForm();
+    } catch (error: any) {
+      console.error('Error adding ingredient:', error);
       toast({
         title: "Errore",
-        description: "Errore durante l'aggiunta dell'ingrediente",
+        description: error.message || "Errore durante l'aggiunta dell'ingrediente",
         variant: "destructive"
       });
     } finally {
@@ -77,108 +94,120 @@ const AddIngredientDialog = ({ onIngredientAdded }: AddIngredientDialogProps) =>
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button className="bg-green-600 hover:bg-green-700 text-white">
-          <Plus className="w-4 h-4 mr-2" />
-          Nuovo Ingrediente
+        <Button variant="outline">
+          <Plus className="mr-2 h-4 w-4" />
+          Aggiungi Ingrediente
         </Button>
       </DialogTrigger>
-      <DialogContent className="max-w-2xl">
+      <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
-          <DialogTitle className="flex items-center space-x-2">
-            <Package className="w-5 h-5" />
-            <span>Aggiungi Nuovo Ingrediente</span>
-          </DialogTitle>
+          <DialogTitle>Aggiungi Nuovo Ingrediente</DialogTitle>
         </DialogHeader>
-        
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <label className="block text-sm font-medium mb-1">Nome Ingrediente *</label>
+        <form onSubmit={handleSubmit} className="grid gap-4 py-4">
+          <div className="grid grid-cols-4 items-center gap-4">
+            <Label htmlFor="name" className="text-right">
+              Nome
+            </Label>
             <Input
+              type="text"
+              id="name"
+              name="name"
               value={formData.name}
-              onChange={(e) => setFormData({...formData, name: e.target.value})}
-              placeholder="Es. Pomodori San Marzano"
+              onChange={handleChange}
+              className="col-span-3"
+              required
             />
           </div>
-
-          <div>
-            <label className="block text-sm font-medium mb-1">Categoria</label>
-            <Select value={formData.category} onValueChange={(value) => setFormData({...formData, category: value})}>
-              <SelectTrigger>
-                <SelectValue placeholder="Seleziona categoria" />
+          <div className="grid grid-cols-4 items-center gap-4">
+            <Label htmlFor="unit" className="text-right">
+              Unità
+            </Label>
+            <Select value={formData.unit} onValueChange={(value) => setFormData(prevData => ({ ...prevData, unit: value }))} >
+              <SelectTrigger className="col-span-3">
+                <SelectValue placeholder="Seleziona unità" />
               </SelectTrigger>
               <SelectContent>
-                {categories.map(cat => (
-                  <SelectItem key={cat} value={cat}>{cat}</SelectItem>
-                ))}
+                <SelectItem value="kg">kg</SelectItem>
+                <SelectItem value="g">g</SelectItem>
+                <SelectItem value="l">l</SelectItem>
+                <SelectItem value="ml">ml</SelectItem>
+                <SelectItem value="pz">pz</SelectItem>
               </SelectContent>
             </Select>
           </div>
-
-          <div>
-            <label className="block text-sm font-medium mb-1">Unità di Misura</label>
-            <Select value={formData.unit} onValueChange={(value) => setFormData({...formData, unit: value})}>
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {units.map(unit => (
-                  <SelectItem key={unit} value={unit}>{unit}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium mb-1">Costo per Unità (€) *</label>
+          <div className="grid grid-cols-4 items-center gap-4">
+            <Label htmlFor="costPerUnit" className="text-right">
+              Costo per Unità
+            </Label>
             <Input
               type="number"
+              id="costPerUnit"
+              name="costPerUnit"
+              value={formData.costPerUnit}
+              onChange={handleChange}
+              className="col-span-3"
               step="0.01"
-              value={formData.cost_per_unit}
-              onChange={(e) => setFormData({...formData, cost_per_unit: parseFloat(e.target.value) || 0})}
-              placeholder="0.00"
+              required
             />
           </div>
-
-          <div>
-            <label className="block text-sm font-medium mb-1">Fornitore</label>
+          <div className="grid grid-cols-4 items-center gap-4">
+            <Label htmlFor="supplier" className="text-right">
+              Fornitore
+            </Label>
             <Input
+              type="text"
+              id="supplier"
+              name="supplier"
               value={formData.supplier}
-              onChange={(e) => setFormData({...formData, supplier: e.target.value})}
-              placeholder="Nome fornitore"
+              onChange={handleChange}
+              className="col-span-3"
             />
           </div>
-
-          <div>
-            <label className="block text-sm font-medium mb-1">Scorte Attuali</label>
+          <div className="grid grid-cols-4 items-center gap-4">
+            <Label htmlFor="currentStock" className="text-right">
+              Giacenza Attuale
+            </Label>
             <Input
               type="number"
-              step="0.1"
-              value={formData.current_stock}
-              onChange={(e) => setFormData({...formData, current_stock: parseFloat(e.target.value) || 0})}
-              placeholder="0"
+              id="currentStock"
+              name="currentStock"
+              value={formData.currentStock}
+              onChange={handleChange}
+              className="col-span-3"
+              step="0.01"
             />
           </div>
-
-          <div className="md:col-span-2">
-            <label className="block text-sm font-medium mb-1">Soglia Allarme Scorte</label>
+          <div className="grid grid-cols-4 items-center gap-4">
+            <Label htmlFor="minStockThreshold" className="text-right">
+              Soglia Minima
+            </Label>
             <Input
               type="number"
-              step="0.1"
-              value={formData.min_stock_threshold}
-              onChange={(e) => setFormData({...formData, min_stock_threshold: parseFloat(e.target.value) || 0})}
-              placeholder="0"
+              id="minStockThreshold"
+              name="minStockThreshold"
+              value={formData.minStockThreshold}
+              onChange={handleChange}
+              className="col-span-3"
+              step="0.01"
             />
           </div>
-        </div>
-
-        <div className="flex justify-end space-x-2 pt-4">
-          <Button variant="outline" onClick={() => setOpen(false)}>
-            Annulla
+           <div className="grid grid-cols-4 items-center gap-4">
+            <Label htmlFor="category" className="text-right">
+              Categoria
+            </Label>
+            <Input
+              type="text"
+              id="category"
+              name="category"
+              value={formData.category}
+              onChange={handleChange}
+              className="col-span-3"
+            />
+          </div>
+          <Button type="submit" disabled={loading}>
+            {loading ? "Aggiunta..." : "Aggiungi"}
           </Button>
-          <Button onClick={handleSubmit} disabled={loading}>
-            {loading ? "Salvataggio..." : "Salva Ingrediente"}
-          </Button>
-        </div>
+        </form>
       </DialogContent>
     </Dialog>
   );

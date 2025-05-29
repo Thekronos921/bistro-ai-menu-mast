@@ -319,7 +319,7 @@ export type Database = {
           last_login_at: string | null
           reset_password_expires_at: string | null
           reset_password_token: string | null
-          restaurant_id: string
+          restaurant_id: string | null
           role: Database["public"]["Enums"]["user_role"]
           updated_at: string
         }
@@ -332,7 +332,7 @@ export type Database = {
           last_login_at?: string | null
           reset_password_expires_at?: string | null
           reset_password_token?: string | null
-          restaurant_id: string
+          restaurant_id?: string | null
           role?: Database["public"]["Enums"]["user_role"]
           updated_at?: string
         }
@@ -345,7 +345,7 @@ export type Database = {
           last_login_at?: string | null
           reset_password_expires_at?: string | null
           reset_password_token?: string | null
-          restaurant_id?: string
+          restaurant_id?: string | null
           role?: Database["public"]["Enums"]["user_role"]
           updated_at?: string
         }

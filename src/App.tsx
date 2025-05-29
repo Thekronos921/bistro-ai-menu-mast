@@ -1,4 +1,3 @@
-
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -16,6 +15,7 @@ import Login from "./pages/Login";
 import Register from "./pages/Register";
 import ForgotPassword from "./pages/ForgotPassword";
 import ResetPassword from "./pages/ResetPassword";
+import Profile from "./pages/Profile";
 
 // Protected Pages
 import FoodCost from "./pages/FoodCost";
@@ -78,6 +78,17 @@ const App = () => (
                 element={
                   <ProtectedRoute>
                     <PostRegistrationSetup />
+                  </ProtectedRoute>
+                }
+              />
+
+              {/* Profile route */}
+              <Route
+                path="/profile"
+                element={
+                  <ProtectedRoute>
+                    <Header />
+                    <Profile />
                   </ProtectedRoute>
                 }
               />

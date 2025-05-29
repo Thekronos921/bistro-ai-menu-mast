@@ -12,7 +12,7 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   children, 
   requireAuth = true 
 }) => {
-  const { user, loading } = useAuth();
+  const { user, userProfile, loading } = useAuth();
   const location = useLocation();
 
   if (loading) {
@@ -31,6 +31,11 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   if (!requireAuth && user) {
     // Redirect authenticated users away from login/register pages
     return <Navigate to="/" replace />;
+  }
+
+  // Check if user needs to complete restaurant setup
+  if (requireAuth && user && userProfile && !userProfile.restaurant_id && location.pathname !== '/setup') {
+    return <Navigate to="/setup" replace />;
   }
 
   return <>{children}</>;

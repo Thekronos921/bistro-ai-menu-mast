@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { ArrowLeft, Search, DollarSign, TrendingUp, TrendingDown, Edit, Download, RefreshCw, Target, AlertTriangle, Settings, Upload } from "lucide-react";
 import { Link } from "react-router-dom";
@@ -316,8 +317,9 @@ const FoodCost = () => {
 
   const getDishAnalysis = (dish: Dish) => {
     const foodCost = dish.recipes ? calculateTotalCost(dish.recipes.recipe_ingredients) : 0;
-    const foodCostPercentage = dish.selling_price > 0 ? (foodCost / dish.selling_price) * 100 : 0;
-    const margin = dish.selling_price - foodCost;
+    const costPerPortion = dish.recipes ? calculateCostPerPortion(dish.recipes.recipe_ingredients, dish.recipes.portions) : 0;
+    const foodCostPercentage = dish.selling_price > 0 ? (costPerPortion / dish.selling_price) * 100 : 0;
+    const margin = dish.selling_price - costPerPortion;
     
     let status = "ottimo";
     if (foodCostPercentage > settings.criticalThreshold) status = "critico";
@@ -326,7 +328,7 @@ const FoodCost = () => {
     const popularity = getPopularityScore(dish.name);
 
     return {
-      foodCost,
+      foodCost: costPerPortion,
       foodCostPercentage,
       margin,
       status,
@@ -335,16 +337,17 @@ const FoodCost = () => {
   };
 
   const getRecipeAnalysis = (recipe: Recipe, assumedPrice: number = 25) => {
-    const foodCost = calculateTotalCost(recipe.recipe_ingredients);
-    const foodCostPercentage = assumedPrice > 0 ? (foodCost / assumedPrice) * 100 : 0;
-    const margin = assumedPrice - foodCost;
+    const totalCost = calculateTotalCost(recipe.recipe_ingredients);
+    const costPerPortion = calculateCostPerPortion(recipe.recipe_ingredients, recipe.portions);
+    const foodCostPercentage = assumedPrice > 0 ? (costPerPortion / assumedPrice) * 100 : 0;
+    const margin = assumedPrice - costPerPortion;
     
     let status = "ottimo";
     if (foodCostPercentage > settings.criticalThreshold) status = "critico";
     else if (foodCostPercentage > 30) status = "buono";
 
     return {
-      foodCost,
+      foodCost: costPerPortion,
       foodCostPercentage,
       margin,
       status,

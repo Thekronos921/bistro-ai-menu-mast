@@ -19,6 +19,7 @@ export interface Database {
           current_stock: number | null;
           min_stock_threshold: number | null;
           category: string | null;
+          restaurant_id: string;
           created_at: string;
           updated_at: string;
         };
@@ -31,6 +32,7 @@ export interface Database {
           current_stock?: number | null;
           min_stock_threshold?: number | null;
           category?: string | null;
+          restaurant_id?: string;
           created_at?: string;
           updated_at?: string;
         };
@@ -43,6 +45,7 @@ export interface Database {
           current_stock?: number | null;
           min_stock_threshold?: number | null;
           category?: string | null;
+          restaurant_id?: string;
           created_at?: string;
           updated_at?: string;
         };
@@ -64,6 +67,7 @@ export interface Database {
           is_semilavorato: boolean | null;
           notes_chef: string | null;
           selling_price: number | null;
+          restaurant_id: string;
           created_at: string;
           updated_at: string;
         };
@@ -83,6 +87,7 @@ export interface Database {
           is_semilavorato?: boolean | null;
           notes_chef?: string | null;
           selling_price?: number | null;
+          restaurant_id?: string;
           created_at?: string;
           updated_at?: string;
         };
@@ -102,6 +107,7 @@ export interface Database {
           is_semilavorato?: boolean | null;
           notes_chef?: string | null;
           selling_price?: number | null;
+          restaurant_id?: string;
           created_at?: string;
           updated_at?: string;
         };
@@ -162,6 +168,7 @@ export interface Database {
           category: string;
           selling_price: number;
           recipe_id: string | null;
+          restaurant_id: string;
           created_at: string;
           updated_at: string;
         };
@@ -171,6 +178,7 @@ export interface Database {
           category: string;
           selling_price: number;
           recipe_id?: string | null;
+          restaurant_id?: string;
           created_at?: string;
           updated_at?: string;
         };
@@ -180,6 +188,92 @@ export interface Database {
           category?: string;
           selling_price?: number;
           recipe_id?: string | null;
+          restaurant_id?: string;
+          created_at?: string;
+          updated_at?: string;
+        };
+      };
+      restaurants: {
+        Row: {
+          id: string;
+          name: string;
+          type: string;
+          country: string;
+          city: string;
+          vat_number: string | null;
+          seats_count: number | null;
+          owner_user_id: string | null;
+          subscription_status: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          name: string;
+          type?: string;
+          country: string;
+          city: string;
+          vat_number?: string | null;
+          seats_count?: number | null;
+          owner_user_id?: string | null;
+          subscription_status?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          name?: string;
+          type?: string;
+          country?: string;
+          city?: string;
+          vat_number?: string | null;
+          seats_count?: number | null;
+          owner_user_id?: string | null;
+          subscription_status?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+      };
+      users: {
+        Row: {
+          id: string;
+          email: string;
+          full_name: string;
+          role: string;
+          restaurant_id: string;
+          password_hash: string;
+          email_verified_at: string | null;
+          last_login_at: string | null;
+          reset_password_token: string | null;
+          reset_password_expires_at: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          email: string;
+          full_name: string;
+          role?: string;
+          restaurant_id: string;
+          password_hash: string;
+          email_verified_at?: string | null;
+          last_login_at?: string | null;
+          reset_password_token?: string | null;
+          reset_password_expires_at?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          email?: string;
+          full_name?: string;
+          role?: string;
+          restaurant_id?: string;
+          password_hash?: string;
+          email_verified_at?: string | null;
+          last_login_at?: string | null;
+          reset_password_token?: string | null;
+          reset_password_expires_at?: string | null;
           created_at?: string;
           updated_at?: string;
         };

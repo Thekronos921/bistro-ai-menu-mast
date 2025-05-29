@@ -16,6 +16,7 @@ export type Database = {
           id: string
           name: string
           recipe_id: string | null
+          restaurant_id: string
           selling_price: number
           updated_at: string
         }
@@ -25,6 +26,7 @@ export type Database = {
           id?: string
           name: string
           recipe_id?: string | null
+          restaurant_id: string
           selling_price: number
           updated_at?: string
         }
@@ -34,6 +36,7 @@ export type Database = {
           id?: string
           name?: string
           recipe_id?: string | null
+          restaurant_id?: string
           selling_price?: number
           updated_at?: string
         }
@@ -43,6 +46,13 @@ export type Database = {
             columns: ["recipe_id"]
             isOneToOne: false
             referencedRelation: "recipes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fk_dishes_restaurant"
+            columns: ["restaurant_id"]
+            isOneToOne: false
+            referencedRelation: "restaurants"
             referencedColumns: ["id"]
           },
         ]
@@ -56,6 +66,7 @@ export type Database = {
           id: string
           min_stock_threshold: number | null
           name: string
+          restaurant_id: string
           supplier: string | null
           unit: string
           updated_at: string
@@ -68,6 +79,7 @@ export type Database = {
           id?: string
           min_stock_threshold?: number | null
           name: string
+          restaurant_id: string
           supplier?: string | null
           unit?: string
           updated_at?: string
@@ -80,11 +92,20 @@ export type Database = {
           id?: string
           min_stock_threshold?: number | null
           name?: string
+          restaurant_id?: string
           supplier?: string | null
           unit?: string
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "fk_ingredients_restaurant"
+            columns: ["restaurant_id"]
+            isOneToOne: false
+            referencedRelation: "restaurants"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       recipe_ingredients: {
         Row: {
@@ -177,6 +198,7 @@ export type Database = {
           portions: number
           preparation_time: number
           protein: number | null
+          restaurant_id: string
           selling_price: number | null
           updated_at: string
         }
@@ -196,6 +218,7 @@ export type Database = {
           portions: number
           preparation_time: number
           protein?: number | null
+          restaurant_id: string
           selling_price?: number | null
           updated_at?: string
         }
@@ -215,10 +238,19 @@ export type Database = {
           portions?: number
           preparation_time?: number
           protein?: number | null
+          restaurant_id?: string
           selling_price?: number | null
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "fk_recipes_restaurant"
+            columns: ["restaurant_id"]
+            isOneToOne: false
+            referencedRelation: "restaurants"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       restaurants: {
         Row: {
@@ -328,7 +360,14 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      get_current_user_restaurant_id: {
+        Args: Record<PropertyKey, never>
+        Returns: string
+      }
+      is_owner_or_manager: {
+        Args: Record<PropertyKey, never>
+        Returns: boolean
+      }
     }
     Enums: {
       restaurant_type:

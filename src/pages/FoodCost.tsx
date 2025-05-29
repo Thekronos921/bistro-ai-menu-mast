@@ -16,6 +16,8 @@ import AdvancedFilters, { FilterConfig } from "@/components/AdvancedFilters";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useRestaurant } from "@/hooks/useRestaurant";
+import { calculateTotalCost, calculateCostPerPortion } from "@/utils/recipeCalculations";
+import type { Recipe } from "@/types/recipe";
 
 interface Ingredient {
   id: string;
@@ -263,16 +265,6 @@ const FoodCost = () => {
     }
   }, [restaurantId]);
 
-  const calculateRecipeCost = (recipeIngredients: Recipe['recipe_ingredients']) => {
-    if (!recipeIngredients) return 0;
-    return recipeIngredients.reduce((total, ri) => {
-      const effectiveCost = ri.ingredients.effective_cost_per_unit ?? ri.ingredients.cost_per_unit;
-      const yieldPercentage = ri.ingredients.yield_percentage ?? 100;
-      const adjustedCost = effectiveCost / (yieldPercentage / 100);
-      return total + (adjustedCost * ri.quantity);
-    }, 0);
-  };
-
   // Convert Recipe to SimpleRecipe for dialog components
   const convertToSimpleRecipe = (recipe: Recipe): SimpleRecipe => {
     return {
@@ -341,7 +333,7 @@ const FoodCost = () => {
   };
 
   const getDishAnalysis = (dish: Dish) => {
-    const foodCost = dish.recipes ? calculateRecipeCost(dish.recipes.recipe_ingredients) : 0;
+    const foodCost = dish.recipes ? calculateTotalCost(dish.recipes.recipe_ingredients) : 0;
     const foodCostPercentage = dish.selling_price > 0 ? (foodCost / dish.selling_price) * 100 : 0;
     const margin = dish.selling_price - foodCost;
     
@@ -361,7 +353,7 @@ const FoodCost = () => {
   };
 
   const getRecipeAnalysis = (recipe: Recipe, assumedPrice: number = 25) => {
-    const foodCost = calculateRecipeCost(recipe.recipe_ingredients);
+    const foodCost = calculateTotalCost(recipe.recipe_ingredients);
     const foodCostPercentage = assumedPrice > 0 ? (foodCost / assumedPrice) * 100 : 0;
     const margin = assumedPrice - foodCost;
     
@@ -399,7 +391,7 @@ const FoodCost = () => {
         return;
       }
 
-      const recipeCost = calculateRecipeCost(recipe.recipe_ingredients);
+      const recipeCost = calculateTotalCost(recipe.recipe_ingredients);
       const suggestedPrice = recipeCost * 3; // Margine del 66%
 
       const { error } = await supabase

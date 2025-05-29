@@ -41,7 +41,7 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     )
 
-    // Create restaurant first
+    // Create restaurant first with a temporary owner_user_id that we'll update later
     const { data: restaurantResult, error: restaurantError } = await supabaseServiceClient
       .from('restaurants')
       .insert({
@@ -51,7 +51,7 @@ serve(async (req) => {
         city: restaurantData.city,
         vat_number: restaurantData.vatNumber,
         seats_count: restaurantData.seatsCount,
-        owner_user_id: user.id
+        owner_user_id: user.id // This should work since user.id exists in auth.users
       })
       .select()
       .single()
@@ -64,7 +64,7 @@ serve(async (req) => {
       )
     }
 
-    // Create user profile
+    // Create user profile after restaurant is created
     const { error: userError } = await supabaseServiceClient
       .from('users')
       .insert({
@@ -78,7 +78,16 @@ serve(async (req) => {
 
     if (userError) {
       console.error('Error creating user profile:', userError)
-      // Don't fail the whole process if user creation fails
+      // If user creation fails, we should clean up the restaurant
+      await supabaseServiceClient
+        .from('restaurants')
+        .delete()
+        .eq('id', restaurantResult.id)
+      
+      return new Response(
+        JSON.stringify({ error: 'Failed to create user profile' }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
+      )
     }
 
     return new Response(

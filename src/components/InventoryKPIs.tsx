@@ -1,5 +1,5 @@
 
-import { Package, AlertTriangle, TrendingUp, Users } from "lucide-react";
+import { Package, AlertTriangle, TrendingUp, Users, Calculator } from "lucide-react";
 import KPICard from "./KPICard";
 
 interface Ingredient {
@@ -7,10 +7,14 @@ interface Ingredient {
   name: string;
   unit: string;
   cost_per_unit: number;
+  yield_percentage: number;
+  effective_cost_per_unit: number;
   supplier: string;
   current_stock: number;
   min_stock_threshold: number;
   category: string;
+  external_id: string;
+  last_synced_at: string;
 }
 
 interface InventoryKPIsProps {
@@ -18,7 +22,7 @@ interface InventoryKPIsProps {
 }
 
 const InventoryKPIs = ({ ingredients }: InventoryKPIsProps) => {
-  // Calcolo valore totale scorte
+  // Calcolo valore totale scorte (basato su costo acquisto, non effettivo)
   const totalStockValue = ingredients.reduce((sum, ing) => {
     return sum + (ing.cost_per_unit * (ing.current_stock || 0));
   }, 0);
@@ -28,9 +32,9 @@ const InventoryKPIs = ({ ingredients }: InventoryKPIsProps) => {
     ing.current_stock <= ing.min_stock_threshold && ing.min_stock_threshold > 0
   ).length;
 
-  // Costo medio per unità
-  const averageCost = ingredients.length > 0 
-    ? ingredients.reduce((sum, ing) => sum + ing.cost_per_unit, 0) / ingredients.length 
+  // Costo medio effettivo per unità (quello reale utilizzato nelle ricette)
+  const averageEffectiveCost = ingredients.length > 0 
+    ? ingredients.reduce((sum, ing) => sum + (ing.effective_cost_per_unit || 0), 0) / ingredients.length 
     : 0;
 
   // Numero fornitori attivi
@@ -40,8 +44,11 @@ const InventoryKPIs = ({ ingredients }: InventoryKPIsProps) => {
       .map(ing => ing.supplier)
   ).size;
 
+  // Ingredienti sincronizzati con gestionale esterno
+  const syncedIngredients = ingredients.filter(ing => ing.external_id && ing.last_synced_at).length;
+
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6 mb-6">
       <KPICard
         title="Valore Totale Scorte"
         value={`€${totalStockValue.toFixed(2)}`}
@@ -59,10 +66,10 @@ const InventoryKPIs = ({ ingredients }: InventoryKPIsProps) => {
       />
       
       <KPICard
-        title="Costo Medio/Unità"
-        value={`€${averageCost.toFixed(2)}`}
-        subtitle="Media ponderata"
-        icon={TrendingUp}
+        title="Costo Medio Effettivo"
+        value={`€${averageEffectiveCost.toFixed(2)}`}
+        subtitle="Post-scarto (per ricette)"
+        icon={Calculator}
         trend="neutral"
       />
       
@@ -72,6 +79,14 @@ const InventoryKPIs = ({ ingredients }: InventoryKPIsProps) => {
         subtitle="Diversificazione"
         icon={Users}
         trend="neutral"
+      />
+
+      <KPICard
+        title="Ingredienti Sincronizzati"
+        value={syncedIngredients}
+        subtitle={`${syncedIngredients}/${ingredients.length} connessi`}
+        icon={TrendingUp}
+        trend={syncedIngredients === ingredients.length ? "up" : "neutral"}
       />
     </div>
   );

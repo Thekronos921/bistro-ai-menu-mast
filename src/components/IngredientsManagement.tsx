@@ -1,7 +1,9 @@
+
 import { useState, useEffect } from "react";
-import { Search, Edit, Trash2, AlertTriangle } from "lucide-react";
+import { Search, Edit, Trash2, AlertTriangle, ExternalLink } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useRestaurant } from "@/hooks/useRestaurant";
@@ -15,10 +17,17 @@ interface Ingredient {
   name: string;
   unit: string;
   cost_per_unit: number;
+  yield_percentage: number;
+  effective_cost_per_unit: number;
   supplier: string;
+  supplier_product_code: string;
   current_stock: number;
   min_stock_threshold: number;
+  par_level: number;
   category: string;
+  external_id: string;
+  notes: string;
+  last_synced_at: string;
   restaurant_id: string;
 }
 
@@ -28,7 +37,7 @@ const IngredientsManagement = () => {
   const [loading, setLoading] = useState(true);
   const [editingIngredient, setEditingIngredient] = useState<Ingredient | null>(null);
   const { toast } = useToast();
-  const { restaurantId, getRestaurantId } = useRestaurant();
+  const { restaurantId } = useRestaurant();
 
   const fetchIngredients = async () => {
     try {
@@ -62,27 +71,6 @@ const IngredientsManagement = () => {
       });
     } finally {
       setLoading(false);
-    }
-  };
-
-  const updateReorderPoint = async (id: string, reorderPoint: number) => {
-    try {
-      const { error } = await supabase
-        .from('ingredients')
-        .update({ min_stock_threshold: reorderPoint })
-        .eq('id', id)
-        .eq('restaurant_id', restaurantId);
-
-      if (error) throw error;
-      
-      fetchIngredients();
-    } catch (error) {
-      console.error("Update reorder point error:", error);
-      toast({
-        title: "Errore",
-        description: "Errore durante l'aggiornamento del punto di riordino",
-        variant: "destructive"
-      });
     }
   };
 
@@ -129,7 +117,8 @@ const IngredientsManagement = () => {
 
   const filteredIngredients = ingredients.filter(ingredient =>
     ingredient.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    ingredient.category?.toLowerCase().includes(searchTerm.toLowerCase())
+    ingredient.category?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    ingredient.supplier?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   const lowStockIngredients = ingredients.filter(ing => 
@@ -194,12 +183,14 @@ const IngredientsManagement = () => {
               <tr>
                 <th className="text-left px-6 py-3 text-sm font-medium text-slate-500">Nome</th>
                 <th className="text-left px-6 py-3 text-sm font-medium text-slate-500">Categoria</th>
-                <th className="text-right px-6 py-3 text-sm font-medium text-slate-500">Costo/Unità</th>
+                <th className="text-right px-6 py-3 text-sm font-medium text-slate-500">Costo Acquisto</th>
+                <th className="text-right px-6 py-3 text-sm font-medium text-slate-500">Resa %</th>
+                <th className="text-right px-6 py-3 text-sm font-medium text-slate-500">Costo Effettivo</th>
                 <th className="text-left px-6 py-3 text-sm font-medium text-slate-500">Unità</th>
                 <th className="text-right px-6 py-3 text-sm font-medium text-slate-500">Scorte</th>
-                <th className="text-right px-6 py-3 text-sm font-medium text-slate-500">Punto Riordino</th>
                 <th className="text-center px-6 py-3 text-sm font-medium text-slate-500">Stato</th>
                 <th className="text-left px-6 py-3 text-sm font-medium text-slate-500">Fornitore</th>
+                <th className="text-center px-6 py-3 text-sm font-medium text-slate-500">Sinc.</th>
                 <th className="text-center px-6 py-3 text-sm font-medium text-slate-500">Azioni</th>
               </tr>
             </thead>
@@ -208,29 +199,53 @@ const IngredientsManagement = () => {
                 const stockStatus = getStockStatus(ingredient.current_stock, ingredient.min_stock_threshold);
                 return (
                   <tr key={ingredient.id} className="hover:bg-slate-50">
-                    <td className="px-6 py-4 font-medium text-slate-800">{ingredient.name}</td>
-                    <td className="px-6 py-4 text-slate-600">{ingredient.category}</td>
+                    <td className="px-6 py-4 font-medium text-slate-800">
+                      <div>
+                        <div>{ingredient.name}</div>
+                        {ingredient.external_id && (
+                          <div className="flex items-center mt-1">
+                            <ExternalLink className="w-3 h-3 text-gray-400 mr-1" />
+                            <span className="text-xs text-gray-500">{ingredient.external_id}</span>
+                          </div>
+                        )}
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 text-slate-600">{ingredient.category || '-'}</td>
                     <td className="px-6 py-4 text-right font-medium">€{ingredient.cost_per_unit.toFixed(2)}</td>
+                    <td className="px-6 py-4 text-right">
+                      <Badge variant={ingredient.yield_percentage < 80 ? "destructive" : ingredient.yield_percentage < 90 ? "secondary" : "default"}>
+                        {ingredient.yield_percentage}%
+                      </Badge>
+                    </td>
+                    <td className="px-6 py-4 text-right font-bold text-blue-600">
+                      €{(ingredient.effective_cost_per_unit || 0).toFixed(2)}
+                    </td>
                     <td className="px-6 py-4 text-slate-600">{ingredient.unit}</td>
                     <td className="px-6 py-4 text-right">
                       <span className={ingredient.current_stock <= ingredient.min_stock_threshold && ingredient.min_stock_threshold > 0 ? 'text-red-600 font-semibold' : 'text-slate-800'}>
                         {ingredient.current_stock} {ingredient.unit}
                       </span>
                     </td>
-                    <td className="px-6 py-4 text-right">
-                      <Input
-                        type="number"
-                        value={ingredient.min_stock_threshold || 0}
-                        onChange={(e) => updateReorderPoint(ingredient.id, parseFloat(e.target.value) || 0)}
-                        className="w-20 text-right text-sm"
-                        min="0"
-                        step="0.1"
-                      />
-                    </td>
                     <td className="px-6 py-4 text-center">
                       <StockStatusBadge status={stockStatus} />
                     </td>
-                    <td className="px-6 py-4 text-slate-600">{ingredient.supplier || '-'}</td>
+                    <td className="px-6 py-4 text-slate-600">
+                      <div>
+                        <div>{ingredient.supplier || '-'}</div>
+                        {ingredient.supplier_product_code && (
+                          <div className="text-xs text-gray-500">{ingredient.supplier_product_code}</div>
+                        )}
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 text-center">
+                      {ingredient.last_synced_at ? (
+                        <div className="text-xs text-green-600">
+                          {new Date(ingredient.last_synced_at).toLocaleDateString('it-IT')}
+                        </div>
+                      ) : (
+                        <div className="text-xs text-gray-400">Mai</div>
+                      )}
+                    </td>
                     <td className="px-6 py-4 text-center">
                       <div className="flex justify-center space-x-2">
                         <Button

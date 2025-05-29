@@ -63,39 +63,60 @@ export type Database = {
           cost_per_unit: number
           created_at: string
           current_stock: number | null
+          effective_cost_per_unit: number | null
+          external_id: string | null
           id: string
+          last_synced_at: string | null
           min_stock_threshold: number | null
           name: string
+          notes: string | null
+          par_level: number | null
           restaurant_id: string
           supplier: string | null
+          supplier_product_code: string | null
           unit: string
           updated_at: string
+          yield_percentage: number
         }
         Insert: {
           category?: string | null
           cost_per_unit: number
           created_at?: string
           current_stock?: number | null
+          effective_cost_per_unit?: number | null
+          external_id?: string | null
           id?: string
+          last_synced_at?: string | null
           min_stock_threshold?: number | null
           name: string
+          notes?: string | null
+          par_level?: number | null
           restaurant_id: string
           supplier?: string | null
+          supplier_product_code?: string | null
           unit?: string
           updated_at?: string
+          yield_percentage?: number
         }
         Update: {
           category?: string | null
           cost_per_unit?: number
           created_at?: string
           current_stock?: number | null
+          effective_cost_per_unit?: number | null
+          external_id?: string | null
           id?: string
+          last_synced_at?: string | null
           min_stock_threshold?: number | null
           name?: string
+          notes?: string | null
+          par_level?: number | null
           restaurant_id?: string
           supplier?: string | null
+          supplier_product_code?: string | null
           unit?: string
           updated_at?: string
+          yield_percentage?: number
         }
         Relationships: [
           {

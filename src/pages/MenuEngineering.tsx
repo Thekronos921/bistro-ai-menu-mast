@@ -419,17 +419,17 @@ const MenuEngineering = () => {
                   <h4 className="font-medium text-indigo-800 mb-2">Azione Prioritaria</h4>
                   <p className="text-sm text-indigo-700">
                     {dishAnalyses.filter(d => d.category === "Plowhorses").length > 0
-                      ? `Ottimizza i costi dei piatti "Plowhorses" per migliorare la redditività.`
+                      ? "Ottimizza i costi dei piatti \"Plowhorses\" per migliorare la redditività."
                       : dishAnalyses.filter(d => d.category === "Dogs").length > 0
-                      ? `Considera di rimuovere o riprogettare i piatti "Dogs" per migliorare le performance.`
-                      : "Continua a promuovere i piatti "Stars" per massimizzare i profitti."}
+                      ? "Considera di rimuovere o riprogettare i piatti \"Dogs\" per migliorare le performance."
+                      : "Continua a promuovere i piatti \"Stars\" per massimizzare i profitti."}
                   </p>
                 </div>
                 <div className="bg-white/60 rounded-lg p-4">
                   <h4 className="font-medium text-indigo-800 mb-2">Opportunità Marketing</h4>
                   <p className="text-sm text-indigo-700">
                     {dishAnalyses.filter(d => d.category === "Puzzles").length > 0
-                      ? `Promuovi i piatti "Puzzles" con descrizioni accattivanti per aumentarne la popolarità.`
+                      ? "Promuovi i piatti \"Puzzles\" con descrizioni accattivanti per aumentarne la popolarità."
                       : "Mantieni alta la visibilità dei piatti più performanti nel menu."}
                   </p>
                 </div>

@@ -10,12 +10,14 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useRestaurant } from "@/hooks/useRestaurant";
+import type { Recipe } from '@/types/recipe';
 
 interface Ingredient {
   id: string;
   name: string;
   unit: string;
   cost_per_unit: number;
+  effective_cost_per_unit?: number;
 }
 
 interface Semilavorato {
@@ -30,7 +32,7 @@ interface RecipeIngredient {
   ingredient_id: string;
   quantity: number;
   is_semilavorato?: boolean;
-  ingredients: Ingredient;
+  ingredient: Ingredient;
 }
 
 interface RecipeInstruction {
@@ -125,7 +127,7 @@ const EditRecipeDialog = ({ recipe, onClose, onRecipeUpdated }: EditRecipeDialog
       // Fetch ingredients only for this restaurant
       const { data: ingredientsData, error: ingredientsError } = await supabase
         .from('ingredients')
-        .select('id, name, unit, cost_per_unit')
+        .select('id, name, unit, cost_per_unit, effective_cost_per_unit')
         .eq('restaurant_id', restaurantId)
         .order('name');
 
@@ -150,14 +152,14 @@ const EditRecipeDialog = ({ recipe, onClose, onRecipeUpdated }: EditRecipeDialog
           .select(`
             quantity,
             is_semilavorato,
-            ingredients!inner(cost_per_unit)
+            ingredients!inner(cost_per_unit, effective_cost_per_unit)
           `)
           .eq('recipe_id', sem.id);
 
         const totalCost = (recipeIngredientsData || []).reduce((sum, ri) => {
           const ingredients = ri.ingredients as any;
-          const ingredientCost = ingredients?.cost_per_unit || 0;
-          return sum + (ri.quantity * ingredientCost);
+          const effectiveCost = ingredients?.effective_cost_per_unit ?? ingredients?.cost_per_unit || 0;
+          return sum + (ri.quantity * effectiveCost);
         }, 0);
         
         return {
@@ -209,7 +211,8 @@ const EditRecipeDialog = ({ recipe, onClose, onRecipeUpdated }: EditRecipeDialog
                 id: semilavorato.id,
                 name: semilavorato.name,
                 unit: 'porzione',
-                cost_per_unit: semilavorato.cost_per_portion
+                cost_per_unit: semilavorato.cost_per_portion,
+                effective_cost_per_unit: semilavorato.cost_per_portion
               };
             }
           } else {
@@ -592,7 +595,7 @@ const EditRecipeDialog = ({ recipe, onClose, onRecipeUpdated }: EditRecipeDialog
                           />
                         </div>
                         <div className="text-right flex items-center">
-                          <span className="text-sm font-medium">€{cost.toFixed(2)}</span>
+                          <span className="text-sm font-medium">€{(cost * recipeIngredient.quantity).toFixed(2)}</span>
                         </div>
                       </div>
                     </div>

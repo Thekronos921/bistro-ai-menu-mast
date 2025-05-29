@@ -32,6 +32,7 @@ interface RecipeIngredient {
     name: string;
     unit: string;
     cost_per_unit: number;
+    effective_cost_per_unit?: number;
     current_stock?: number;
     min_stock_threshold?: number;
   };
@@ -99,6 +100,7 @@ const Recipes = () => {
               name,
               unit,
               cost_per_unit,
+              effective_cost_per_unit,
               current_stock,
               min_stock_threshold
             )

@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -114,7 +113,7 @@ const EditDishDialog = ({ dish, onClose, onDishUpdated, onEditRecipe }: EditDish
         ...recipe,
         recipe_ingredients: recipe.recipe_ingredients.map(ri => ({
           ...ri,
-          ingredients: ri.ingredients // This should be a single object, not an array
+          ingredients: Array.isArray(ri.ingredients) ? ri.ingredients[0] : ri.ingredients
         }))
       })) as RecipeType[];
       

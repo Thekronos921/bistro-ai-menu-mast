@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { ArrowLeft, Search, ChefHat, Clock, Users, Edit, Copy, Trash2, Printer, Info } from "lucide-react";
 import { Link } from "react-router-dom";
@@ -6,6 +5,7 @@ import AddRecipeDialog from "@/components/AddRecipeDialog";
 import EditRecipeDialog from "@/components/EditRecipeDialog";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { useRestaurant } from "@/hooks/useRestaurant";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import StockStatusBadge, { type StockStatus } from "@/components/StockStatusBadge";
@@ -70,11 +70,20 @@ const Recipes = () => {
   const [editingRecipe, setEditingRecipe] = useState<Recipe | null>(null);
   const [deleteRecipeId, setDeleteRecipeId] = useState<string | null>(null);
   const { toast } = useToast();
+  const { restaurantId, getRestaurantId } = useRestaurant();
 
   const categories = ["all", "Antipasti", "Primi Piatti", "Secondi Piatti", "Dolci", "Contorni", "Semilavorati", "Salse", "Preparazioni Base"];
 
   const fetchRecipes = async () => {
     try {
+      if (!restaurantId) {
+        console.log("No restaurant ID available");
+        setLoading(false);
+        return;
+      }
+
+      console.log("Fetching recipes for restaurant:", restaurantId);
+      
       const { data, error } = await supabase
         .from('recipes')
         .select(`
@@ -99,9 +108,15 @@ const Recipes = () => {
             instruction
           )
         `)
+        .eq('restaurant_id', restaurantId)
         .order('created_at', { ascending: false });
 
-      if (error) throw error;
+      if (error) {
+        console.error("Error fetching recipes:", error);
+        throw error;
+      }
+      
+      console.log("Fetched recipes:", data);
       
       const recipesWithDefaults = (data || []).map(recipe => ({
         ...recipe,
@@ -111,6 +126,7 @@ const Recipes = () => {
       
       setRecipes(recipesWithDefaults);
     } catch (error) {
+      console.error("Fetch recipes error:", error);
       toast({
         title: "Errore",
         description: "Errore nel caricamento delle ricette",
@@ -122,19 +138,26 @@ const Recipes = () => {
   };
 
   useEffect(() => {
-    fetchRecipes();
-    
-    const channel = supabase
-      .channel('recipes-changes')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'recipes' }, () => {
-        fetchRecipes();
-      })
-      .subscribe();
+    if (restaurantId) {
+      fetchRecipes();
+      
+      const channel = supabase
+        .channel('recipes-changes')
+        .on('postgres_changes', { 
+          event: '*', 
+          schema: 'public', 
+          table: 'recipes',
+          filter: `restaurant_id=eq.${restaurantId}`
+        }, () => {
+          fetchRecipes();
+        })
+        .subscribe();
 
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, []);
+      return () => {
+        supabase.removeChannel(channel);
+      };
+    }
+  }, [restaurantId]);
 
   const filteredRecipes = recipes.filter(recipe => {
     const matchesSearch = recipe.name.toLowerCase().includes(searchTerm.toLowerCase());
@@ -215,6 +238,8 @@ const Recipes = () => {
 
   const duplicateRecipe = async (recipe: Recipe) => {
     try {
+      const currentRestaurantId = getRestaurantId();
+      
       const { data: newRecipe, error: recipeError } = await supabase
         .from('recipes')
         .insert([{
@@ -230,7 +255,8 @@ const Recipes = () => {
           carbs: recipe.carbs,
           fat: recipe.fat,
           is_semilavorato: recipe.is_semilavorato,
-          notes_chef: recipe.notes_chef
+          notes_chef: recipe.notes_chef,
+          restaurant_id: currentRestaurantId
         }])
         .select()
         .single();
@@ -273,6 +299,7 @@ const Recipes = () => {
 
       fetchRecipes();
     } catch (error) {
+      console.error("Duplicate recipe error:", error);
       toast({
         title: "Errore",
         description: "Errore durante la duplicazione della ricetta",
@@ -388,6 +415,16 @@ const Recipes = () => {
         <div className="text-center">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600 mx-auto mb-4"></div>
           <p className="text-slate-600">Caricamento ricette...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!restaurantId) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-stone-50 flex items-center justify-center">
+        <div className="text-center">
+          <p className="text-slate-600">Errore: Nessun ristorante associato</p>
         </div>
       </div>
     );

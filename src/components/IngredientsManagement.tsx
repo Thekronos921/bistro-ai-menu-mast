@@ -4,6 +4,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { useRestaurant } from "@/hooks/useRestaurant";
 import AddIngredientDialog from "./AddIngredientDialog";
 import EditIngredientDialog from "./EditIngredientDialog";
 import InventoryKPIs from "./InventoryKPIs";
@@ -18,6 +19,7 @@ interface Ingredient {
   current_stock: number;
   min_stock_threshold: number;
   category: string;
+  restaurant_id: string;
 }
 
 const IngredientsManagement = () => {
@@ -26,17 +28,33 @@ const IngredientsManagement = () => {
   const [loading, setLoading] = useState(true);
   const [editingIngredient, setEditingIngredient] = useState<Ingredient | null>(null);
   const { toast } = useToast();
+  const { restaurantId, getRestaurantId } = useRestaurant();
 
   const fetchIngredients = async () => {
     try {
+      if (!restaurantId) {
+        console.log("No restaurant ID available");
+        setLoading(false);
+        return;
+      }
+
+      console.log("Fetching ingredients for restaurant:", restaurantId);
+
       const { data, error } = await supabase
         .from('ingredients')
         .select('*')
+        .eq('restaurant_id', restaurantId)
         .order('name');
 
-      if (error) throw error;
+      if (error) {
+        console.error("Error fetching ingredients:", error);
+        throw error;
+      }
+
+      console.log("Fetched ingredients:", data);
       setIngredients(data || []);
     } catch (error) {
+      console.error("Fetch ingredients error:", error);
       toast({
         title: "Errore",
         description: "Errore nel caricamento degli ingredienti",
@@ -52,12 +70,14 @@ const IngredientsManagement = () => {
       const { error } = await supabase
         .from('ingredients')
         .update({ min_stock_threshold: reorderPoint })
-        .eq('id', id);
+        .eq('id', id)
+        .eq('restaurant_id', restaurantId);
 
       if (error) throw error;
       
       fetchIngredients();
     } catch (error) {
+      console.error("Update reorder point error:", error);
       toast({
         title: "Errore",
         description: "Errore durante l'aggiornamento del punto di riordino",
@@ -73,7 +93,8 @@ const IngredientsManagement = () => {
       const { error } = await supabase
         .from('ingredients')
         .delete()
-        .eq('id', id);
+        .eq('id', id)
+        .eq('restaurant_id', restaurantId);
 
       if (error) throw error;
 
@@ -83,6 +104,7 @@ const IngredientsManagement = () => {
       });
       fetchIngredients();
     } catch (error) {
+      console.error("Delete ingredient error:", error);
       toast({
         title: "Errore",
         description: "Errore durante l'eliminazione",
@@ -100,8 +122,10 @@ const IngredientsManagement = () => {
   };
 
   useEffect(() => {
-    fetchIngredients();
-  }, []);
+    if (restaurantId) {
+      fetchIngredients();
+    }
+  }, [restaurantId]);
 
   const filteredIngredients = ingredients.filter(ingredient =>
     ingredient.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -114,6 +138,10 @@ const IngredientsManagement = () => {
 
   if (loading) {
     return <div className="text-center py-8">Caricamento ingredienti...</div>;
+  }
+
+  if (!restaurantId) {
+    return <div className="text-center py-8">Errore: Nessun ristorante associato</div>;
   }
 
   return (

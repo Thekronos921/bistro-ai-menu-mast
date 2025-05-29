@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { ArrowLeft, Search, ChefHat, Clock, Users, Edit, Copy, Trash2, Printer, Info } from "lucide-react";
 import { Link } from "react-router-dom";
@@ -21,8 +20,48 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { calculateTotalCost, calculateCostPerPortion, getFoodCostIndicator } from '@/utils/recipeCalculations';
-import type { Recipe } from '@/types/recipe';
+
+interface RecipeIngredient {
+  id: string;
+  ingredient_id: string;
+  quantity: number;
+  is_semilavorato?: boolean;
+  ingredients: {
+    id: string;
+    name: string;
+    unit: string;
+    cost_per_unit: number;
+    effective_cost_per_unit?: number; // <--- AGGIUNGI QUESTO CAMPO
+    current_stock?: number;
+    min_stock_threshold?: number;
+  };
+}
+
+interface RecipeInstruction {
+  id: string;
+  step_number: number;
+  instruction: string;
+}
+
+interface Recipe {
+  id: string;
+  name: string;
+  category: string;
+  preparation_time: number;
+  difficulty: string;
+  portions: number;
+  description: string;
+  allergens: string;
+  calories: number;
+  protein: number;
+  carbs: number;
+  fat: number;
+  is_semilavorato?: boolean;
+  notes_chef?: string;
+  selling_price?: number;
+  recipe_ingredients: RecipeIngredient[];
+  recipe_instructions: RecipeInstruction[];
+}
 
 const Recipes = () => {
   const [searchTerm, setSearchTerm] = useState("");
@@ -60,7 +99,7 @@ const Recipes = () => {
               name,
               unit,
               cost_per_unit,
-              effective_cost_per_unit,
+              effective_cost_per_unit, // <--- AGGIUNGI QUESTO CAMPO
               current_stock,
               min_stock_threshold
             )
@@ -135,6 +174,61 @@ const Recipes = () => {
       case "Alta": return "bg-red-100 text-red-800";
       default: return "bg-gray-100 text-gray-800";
     }
+  };
+
+  const calculateTotalCost = (recipeIngredients: Recipe['recipe_ingredients']) => {
+    if (!recipeIngredients) return 0;
+    return recipeIngredients.reduce((total, ri) => {
+      const effectiveCost = ri.ingredients.effective_cost_per_unit ?? ri.ingredients.cost_per_unit;
+      return total + (effectiveCost * ri.quantity);
+    }, 0);
+  };
+
+  const calculateCostPerPortion = (recipeIngredients: Recipe['recipe_ingredients'], portions: number) => {
+    const totalCost = calculateTotalCost(recipeIngredients);
+    return portions > 0 ? totalCost / portions : 0;
+  };
+
+  const getFoodCostIndicator = (recipe: Recipe) => {
+    const costPerPortion = calculateCostPerPortion(recipe.recipe_ingredients, recipe.portions);
+    
+    // Se la ricetta ha un prezzo di vendita, calcola FC%
+    if (recipe.selling_price && recipe.selling_price > 0) {
+      const foodCostPercentage = (costPerPortion / recipe.selling_price) * 100;
+      
+      if (foodCostPercentage <= 25) return { 
+        label: "FC Ottimale", 
+        color: "bg-green-100 text-green-800",
+        tooltip: `FC: ${foodCostPercentage.toFixed(1)}% (Costo: €${costPerPortion.toFixed(2)} / Prezzo: €${recipe.selling_price.toFixed(2)}). Soglia 'Critico': >35%`
+      };
+      if (foodCostPercentage <= 35) return { 
+        label: "FC Attenzione", 
+        color: "bg-yellow-100 text-yellow-800",
+        tooltip: `FC: ${foodCostPercentage.toFixed(1)}% (Costo: €${costPerPortion.toFixed(2)} / Prezzo: €${recipe.selling_price.toFixed(2)}). Soglia 'Critico': >35%`
+      };
+      return { 
+        label: "FC Critico", 
+        color: "bg-red-100 text-red-800",
+        tooltip: `FC: ${foodCostPercentage.toFixed(1)}% (Costo: €${costPerPortion.toFixed(2)} / Prezzo: €${recipe.selling_price.toFixed(2)}). Soglia 'Critico': >35%`
+      };
+    }
+    
+    // Se è un semilavorato o non ha prezzo, usa soglie di costo assoluto
+    if (costPerPortion <= 3) return { 
+      label: "Costo Prod. Basso", 
+      color: "bg-green-100 text-green-800",
+      tooltip: `Costo Produzione/Porzione: €${costPerPortion.toFixed(2)}. Soglia 'Alto' per questa categoria: >€8.00`
+    };
+    if (costPerPortion <= 8) return { 
+      label: "Costo Prod. Medio", 
+      color: "bg-yellow-100 text-yellow-800",
+      tooltip: `Costo Produzione/Porzione: €${costPerPortion.toFixed(2)}. Soglia 'Alto' per questa categoria: >€8.00`
+    };
+    return { 
+      label: "Costo Prod. Alto", 
+      color: "bg-red-100 text-red-800",
+      tooltip: `Costo Produzione/Porzione: €${costPerPortion.toFixed(2)}. Soglia 'Alto' per questa categoria: >€8.00`
+    };
   };
 
   const getIngredientStockStatus = (ingredient: Recipe['recipe_ingredients'][0]['ingredients']): StockStatus => {

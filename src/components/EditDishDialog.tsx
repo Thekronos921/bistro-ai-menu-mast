@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -9,14 +10,18 @@ import { Edit, DollarSign, Calculator, ExternalLink, AlertTriangle, CheckCircle,
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useRestaurant } from "@/hooks/useRestaurant";
+import { calculateTotalCost, calculateCostPerPortion } from "@/utils/recipeCalculations";
 
 interface Recipe {
   id: string;
   name: string;
   category: string;
+  portions: number;
   recipe_ingredients: {
     ingredients: {
       cost_per_unit: number;
+      effective_cost_per_unit?: number;
+      yield_percentage?: number;
     };
     quantity: number;
   }[];
@@ -78,10 +83,13 @@ const EditDishDialog = ({ dish, onClose, onDishUpdated, onEditRecipe }: EditDish
           id,
           name,
           category,
+          portions,
           recipe_ingredients (
             quantity,
             ingredients (
-              cost_per_unit
+              cost_per_unit,
+              effective_cost_per_unit,
+              yield_percentage
             )
           )
         `)
@@ -97,7 +105,9 @@ const EditDishDialog = ({ dish, onClose, onDishUpdated, onEditRecipe }: EditDish
         recipe_ingredients: recipe.recipe_ingredients.map((ri: any) => ({
           quantity: ri.quantity,
           ingredients: {
-            cost_per_unit: ri.ingredients.cost_per_unit
+            cost_per_unit: ri.ingredients.cost_per_unit,
+            effective_cost_per_unit: ri.ingredients.effective_cost_per_unit,
+            yield_percentage: ri.ingredients.yield_percentage
           }
         }))
       }));
@@ -114,13 +124,6 @@ const EditDishDialog = ({ dish, onClose, onDishUpdated, onEditRecipe }: EditDish
     }
   };
 
-  const calculateRecipeCost = (recipe: Recipe) => {
-    if (!recipe.recipe_ingredients) return 0;
-    return recipe.recipe_ingredients.reduce((total, ri) => {
-      return total + (ri.ingredients.cost_per_unit * ri.quantity);
-    }, 0);
-  };
-
   const handleRecipeChange = (recipeId: string) => {
     const recipe = recipes.find(r => r.id === recipeId);
     setSelectedRecipe(recipe || null);
@@ -129,14 +132,14 @@ const EditDishDialog = ({ dish, onClose, onDishUpdated, onEditRecipe }: EditDish
 
   const getFoodCostPercentage = () => {
     if (!selectedRecipe || formData.selling_price <= 0) return 0;
-    const recipeCost = calculateRecipeCost(selectedRecipe);
-    return (recipeCost / formData.selling_price) * 100;
+    const costPerPortion = calculateCostPerPortion(selectedRecipe.recipe_ingredients, selectedRecipe.portions);
+    return (costPerPortion / formData.selling_price) * 100;
   };
 
   const getMargin = () => {
     if (!selectedRecipe) return 0;
-    const recipeCost = calculateRecipeCost(selectedRecipe);
-    return formData.selling_price - recipeCost;
+    const costPerPortion = calculateCostPerPortion(selectedRecipe.recipe_ingredients, selectedRecipe.portions);
+    return formData.selling_price - costPerPortion;
   };
 
   const getFoodCostAlert = () => {
@@ -287,10 +290,10 @@ const EditDishDialog = ({ dish, onClose, onDishUpdated, onEditRecipe }: EditDish
                       <SelectItem value="no-recipes-available" disabled>Nessuna ricetta disponibile</SelectItem>
                     ) : (
                       recipes.map(recipe => {
-                        const cost = calculateRecipeCost(recipe);
+                        const costPerPortion = calculateCostPerPortion(recipe.recipe_ingredients, recipe.portions);
                         return (
                           <SelectItem key={recipe.id} value={recipe.id}>
-                            {recipe.name} (€{cost.toFixed(2)})
+                            {recipe.name} (€{costPerPortion.toFixed(2)})
                           </SelectItem>
                         );
                       })
@@ -359,7 +362,7 @@ const EditDishDialog = ({ dish, onClose, onDishUpdated, onEditRecipe }: EditDish
                   <div className="grid grid-cols-1 gap-3">
                     <div className="flex justify-between items-center">
                       <span className="text-sm text-slate-600">Costo Ricetta:</span>
-                      <span className="font-semibold text-lg">€{calculateRecipeCost(selectedRecipe).toFixed(2)}</span>
+                      <span className="font-semibold text-lg">€{calculateCostPerPortion(selectedRecipe.recipe_ingredients, selectedRecipe.portions).toFixed(2)}</span>
                     </div>
                     
                     <div className="flex justify-between items-center">
@@ -416,7 +419,7 @@ const EditDishDialog = ({ dish, onClose, onDishUpdated, onEditRecipe }: EditDish
                 <p className="text-sm text-blue-800 font-medium mb-1">Ricetta Originale:</p>
                 <p className="text-sm text-blue-600">{dish.recipes.name}</p>
                 <p className="text-xs text-blue-500 mt-2">
-                  Costo: €{calculateRecipeCost(dish.recipes).toFixed(2)}
+                  Costo: €{calculateCostPerPortion(dish.recipes.recipe_ingredients, dish.recipes.portions).toFixed(2)}
                 </p>
               </div>
             )}

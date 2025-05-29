@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -38,7 +39,7 @@ const AddRecipeDialog: React.FC<AddRecipeDialogProps> = ({ onAddRecipe }) => {
   const [loading, setLoading] = useState(false);
   const [ingredients, setIngredients] = useState<Ingredient[]>([]);
   const { toast } = useToast();
-  const { withRestaurantId } = useRestaurant();
+  const { withRestaurantId, restaurantId } = useRestaurant();
 
   const [formData, setFormData] = useState({
     name: '',
@@ -63,9 +64,15 @@ const AddRecipeDialog: React.FC<AddRecipeDialogProps> = ({ onAddRecipe }) => {
 
   const fetchIngredients = async () => {
     try {
+      if (!restaurantId) {
+        console.log("No restaurant ID available for fetching ingredients");
+        return;
+      }
+
       const { data, error } = await supabase
         .from('ingredients')
         .select('id, name, unit, cost_per_unit')
+        .eq('restaurant_id', restaurantId)
         .order('name');
 
       if (error) throw error;
@@ -76,8 +83,10 @@ const AddRecipeDialog: React.FC<AddRecipeDialogProps> = ({ onAddRecipe }) => {
   };
 
   useEffect(() => {
-    fetchIngredients();
-  }, []);
+    if (restaurantId) {
+      fetchIngredients();
+    }
+  }, [restaurantId]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
@@ -91,14 +100,6 @@ const AddRecipeDialog: React.FC<AddRecipeDialogProps> = ({ onAddRecipe }) => {
     setFormData(prevData => ({
       ...prevData,
       [name]: value
-    }));
-  };
-
-  const handleCheckboxChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, checked } = e.target;
-    setFormData(prevData => ({
-      ...prevData,
-      [name]: checked
     }));
   };
 
@@ -130,7 +131,6 @@ const AddRecipeDialog: React.FC<AddRecipeDialogProps> = ({ onAddRecipe }) => {
 
   const removeInstruction = (index: number) => {
     const updatedInstructions = recipeInstructions.filter((_, i) => i !== index);
-    // Renumber the steps to maintain continuity
     const renumberedInstructions = updatedInstructions.map((instruction, idx) => ({
       ...instruction,
       step_number: idx + 1,
@@ -157,6 +157,16 @@ const AddRecipeDialog: React.FC<AddRecipeDialogProps> = ({ onAddRecipe }) => {
     });
     setRecipeIngredients([]);
     setRecipeInstructions([{ step_number: 1, instruction: '' }]);
+  };
+
+  const calculateTotalCost = () => {
+    return recipeIngredients.reduce((total, ri) => {
+      const ingredient = ingredients.find(ing => ing.id === ri.ingredient_id);
+      if (ingredient) {
+        return total + (ingredient.cost_per_unit * ri.quantity);
+      }
+      return total;
+    }, 0);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -244,17 +254,21 @@ const AddRecipeDialog: React.FC<AddRecipeDialogProps> = ({ onAddRecipe }) => {
       <DialogTrigger asChild>
         <Button variant="outline">
           <Plus className="mr-2 h-4 w-4" />
-          Aggiungi Ricetta
+          Nuova Ricetta
         </Button>
       </DialogTrigger>
-      <DialogContent className="sm:max-w-[600px]">
+      <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Nuova Ricetta</DialogTitle>
+          <DialogTitle>Modifica Ricetta: {formData.name || 'Nuova Ricetta'}</DialogTitle>
         </DialogHeader>
-        <form onSubmit={handleSubmit} className="grid gap-4 py-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        
+        <form onSubmit={handleSubmit} className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* Colonna 1: Informazioni Base */}
+          <div className="space-y-4">
+            <h3 className="font-semibold text-lg">Informazioni Base</h3>
+            
             <div>
-              <Label htmlFor="name">Nome</Label>
+              <Label htmlFor="name">Nome Ricetta</Label>
               <Input
                 type="text"
                 id="name"
@@ -264,10 +278,11 @@ const AddRecipeDialog: React.FC<AddRecipeDialogProps> = ({ onAddRecipe }) => {
                 required
               />
             </div>
+
             <div>
               <Label htmlFor="category">Categoria</Label>
               <Select value={formData.category} onValueChange={(value) => handleSelectChange('category', value)}>
-                <SelectTrigger className="w-full">
+                <SelectTrigger>
                   <SelectValue placeholder="Seleziona una categoria" />
                 </SelectTrigger>
                 <SelectContent>
@@ -282,33 +297,34 @@ const AddRecipeDialog: React.FC<AddRecipeDialogProps> = ({ onAddRecipe }) => {
                 </SelectContent>
               </Select>
             </div>
-          </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div>
-              <Label htmlFor="preparationTime">Tempo (min)</Label>
-              <Input
-                type="number"
-                id="preparationTime"
-                name="preparationTime"
-                value={formData.preparationTime}
-                onChange={handleInputChange}
-              />
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <Label htmlFor="preparationTime">Tempo (min)</Label>
+                <Input
+                  type="number"
+                  id="preparationTime"
+                  name="preparationTime"
+                  value={formData.preparationTime}
+                  onChange={handleInputChange}
+                />
+              </div>
+              <div>
+                <Label htmlFor="portions">Porzioni</Label>
+                <Input
+                  type="number"
+                  id="portions"
+                  name="portions"
+                  value={formData.portions}
+                  onChange={handleInputChange}
+                />
+              </div>
             </div>
-            <div>
-              <Label htmlFor="portions">Porzioni</Label>
-              <Input
-                type="number"
-                id="portions"
-                name="portions"
-                value={formData.portions}
-                onChange={handleInputChange}
-              />
-            </div>
+
             <div>
               <Label htmlFor="difficulty">Difficoltà</Label>
               <Select value={formData.difficulty} onValueChange={(value) => handleSelectChange('difficulty', value)}>
-                <SelectTrigger className="w-full">
+                <SelectTrigger>
                   <SelectValue placeholder="Seleziona..." />
                 </SelectTrigger>
                 <SelectContent>
@@ -318,170 +334,229 @@ const AddRecipeDialog: React.FC<AddRecipeDialogProps> = ({ onAddRecipe }) => {
                 </SelectContent>
               </Select>
             </div>
-          </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div>
-              <Label htmlFor="calories">Calorie</Label>
-              <Input
-                type="number"
-                id="calories"
-                name="calories"
-                value={formData.calories}
+              <Label htmlFor="description">Descrizione</Label>
+              <Textarea
+                id="description"
+                name="description"
+                value={formData.description}
                 onChange={handleInputChange}
+                placeholder="Descrizione della ricetta..."
+                rows={3}
               />
             </div>
+
+            <div className="flex items-center space-x-2">
+              <Switch
+                id="isSemilavorato"
+                checked={formData.isSemilavorato}
+                onCheckedChange={(checked) => setFormData(prevData => ({ ...prevData, isSemilavorato: checked }))}
+              />
+              <Label htmlFor="isSemilavorato">È un semilavorato</Label>
+            </div>
+
             <div>
-              <Label htmlFor="protein">Proteine (g)</Label>
+              <Label htmlFor="allergens">Allergeni</Label>
               <Input
-                type="number"
-                id="protein"
-                name="protein"
-                value={formData.protein}
+                type="text"
+                id="allergens"
+                name="allergens"
+                value={formData.allergens}
                 onChange={handleInputChange}
+                placeholder="Es. Glutine, Latticini, Uova"
               />
             </div>
+
             <div>
-              <Label htmlFor="fat">Grassi (g)</Label>
-              <Input
-                type="number"
-                id="fat"
-                name="fat"
-                value={formData.fat}
+              <Label htmlFor="notesChef">Note Addizionali / Consigli dello Chef</Label>
+              <Textarea
+                id="notesChef"
+                name="notesChef"
+                value={formData.notesChef}
                 onChange={handleInputChange}
+                placeholder="Consigli, varianti, note tecniche..."
+                rows={2}
               />
             </div>
-          </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div>
-              <Label htmlFor="carbs">Carboidrati (g)</Label>
-              <Input
-                type="number"
-                id="carbs"
-                name="carbs"
-                value={formData.carbs}
-                onChange={handleInputChange}
-              />
-            </div>
-            <div>
-              <Label htmlFor="sellingPrice">Prezzo Vendita (€)</Label>
-              <Input
-                type="number"
-                id="sellingPrice"
-                name="sellingPrice"
-                value={formData.sellingPrice}
-                onChange={handleInputChange}
-              />
-            </div>
-            <div>
-              <Label htmlFor="isSemilavorato" className="flex items-center space-x-2">
-                <span>Semilavorato</span>
-                <Switch
-                  id="isSemilavorato"
-                  name="isSemilavorato"
-                  checked={formData.isSemilavorato}
-                  onCheckedChange={(checked) => setFormData(prevData => ({ ...prevData, isSemilavorato: checked }))}
-                />
-              </Label>
-            </div>
-          </div>
-
-          <div>
-            <Label htmlFor="description">Descrizione</Label>
-            <Textarea
-              id="description"
-              name="description"
-              value={formData.description}
-              onChange={handleInputChange}
-            />
-          </div>
-
-          <div>
-            <Label htmlFor="allergens">Allergeni</Label>
-            <Input
-              type="text"
-              id="allergens"
-              name="allergens"
-              value={formData.allergens}
-              onChange={handleInputChange}
-            />
-          </div>
-
-          <div>
-            <Label htmlFor="notesChef">Note Chef</Label>
-            <Textarea
-              id="notesChef"
-              name="notesChef"
-              value={formData.notesChef}
-              onChange={handleInputChange}
-            />
-          </div>
-
-          <div>
-            <Label>Ingredienti</Label>
-            {recipeIngredients.map((ingredient, index) => (
-              <div key={index} className="flex items-center space-x-2 mb-2">
-                <Select value={ingredient.ingredient_id} onValueChange={(value) => updateIngredient(index, 'ingredient_id', value)}>
-                  <SelectTrigger className="w-full">
-                    <SelectValue placeholder="Seleziona ingrediente" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {ingredients.map(ing => (
-                      <SelectItem key={ing.id} value={ing.id}>{ing.name}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <Input
-                  type="number"
-                  placeholder="Quantità"
-                  value={ingredient.quantity}
-                  onChange={(e) => updateIngredient(index, 'quantity', parseFloat(e.target.value))}
-                  className="w-24"
-                />
-                <Label htmlFor={`isSemilavorato-${index}`} className="flex items-center space-x-2">
-                  <Switch
-                    id={`isSemilavorato-${index}`}
-                    checked={ingredient.is_semilavorato}
-                    onCheckedChange={(checked) => updateIngredient(index, 'is_semilavorato', checked)}
+            <div className="space-y-3">
+              <h4 className="font-medium">Valori Nutrizionali (per porzione)</h4>
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <Label htmlFor="calories" className="text-xs">Calorie (kcal)</Label>
+                  <Input
+                    type="number"
+                    id="calories"
+                    name="calories"
+                    value={formData.calories}
+                    onChange={handleInputChange}
                   />
-                </Label>
-                <Button type="button" variant="ghost" size="sm" onClick={() => removeIngredient(index)}>
-                  <X className="h-4 w-4" />
-                </Button>
+                </div>
+                <div>
+                  <Label htmlFor="protein" className="text-xs">Proteine (g)</Label>
+                  <Input
+                    type="number"
+                    id="protein"
+                    name="protein"
+                    value={formData.protein}
+                    onChange={handleInputChange}
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="carbs" className="text-xs">Carboidrati (g)</Label>
+                  <Input
+                    type="number"
+                    id="carbs"
+                    name="carbs"
+                    value={formData.carbs}
+                    onChange={handleInputChange}
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="fat" className="text-xs">Grassi (g)</Label>
+                  <Input
+                    type="number"
+                    id="fat"
+                    name="fat"
+                    value={formData.fat}
+                    onChange={handleInputChange}
+                  />
+                </div>
               </div>
-            ))}
-            <Button type="button" variant="outline" size="sm" onClick={addIngredient}>
-              Aggiungi Ingrediente
-            </Button>
+            </div>
           </div>
 
-          <div>
-            <Label>Istruzioni</Label>
-            {recipeInstructions.map((instruction, index) => (
-              <div key={index} className="mb-2">
-                <Label htmlFor={`instruction-${index}`}>Passo {instruction.step_number}</Label>
-                <Textarea
-                  id={`instruction-${index}`}
-                  placeholder="Istruzione"
-                  value={instruction.instruction}
-                  onChange={(e) => updateInstruction(index, e.target.value)}
-                  className="w-full"
-                />
-                <Button type="button" variant="ghost" size="sm" onClick={() => removeInstruction(index)}>
-                  <X className="h-4 w-4" />
-                </Button>
+          {/* Colonna 2: Ingredienti */}
+          <div className="space-y-4">
+            <div className="flex justify-between items-center">
+              <h3 className="font-semibold text-lg">Ingredienti</h3>
+              <Button type="button" onClick={addIngredient} size="sm" variant="outline">
+                <Plus className="w-4 h-4 mr-1" />
+                Aggiungi
+              </Button>
+            </div>
+
+            <div className="space-y-3 max-h-96 overflow-y-auto">
+              {recipeIngredients.map((ingredient, index) => {
+                const selectedIngredient = ingredients.find(ing => ing.id === ingredient.ingredient_id);
+                const cost = selectedIngredient ? selectedIngredient.cost_per_unit * ingredient.quantity : 0;
+                
+                return (
+                  <div key={index} className="space-y-2 p-3 border rounded-lg">
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm font-medium">Ingrediente {index + 1}</span>
+                      {recipeIngredients.length > 1 && (
+                        <Button type="button" onClick={() => removeIngredient(index)} size="sm" variant="outline">
+                          <X className="w-4 h-4" />
+                        </Button>
+                      )}
+                    </div>
+                    
+                    <div className="flex items-center space-x-2">
+                      <Switch
+                        checked={ingredient.is_semilavorato}
+                        onCheckedChange={(checked) => updateIngredient(index, 'is_semilavorato', checked)}
+                      />
+                      <label className="text-xs">È semilavorato</label>
+                    </div>
+                    
+                    <Select value={ingredient.ingredient_id} onValueChange={(value) => updateIngredient(index, 'ingredient_id', value)}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Seleziona ingrediente" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {ingredients.map(ing => (
+                          <SelectItem key={ing.id} value={ing.id}>
+                            {ing.name} (€{ing.cost_per_unit.toFixed(2)}/{ing.unit})
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    
+                    <div className="grid grid-cols-2 gap-2">
+                      <Input
+                        type="number"
+                        step="0.1"
+                        placeholder={`Quantità ${selectedIngredient?.unit ? `(${selectedIngredient.unit})` : ''}`}
+                        value={ingredient.quantity}
+                        onChange={(e) => updateIngredient(index, 'quantity', parseFloat(e.target.value) || 0)}
+                      />
+                      <div className="text-right flex items-center">
+                        <span className="text-sm font-medium">€{cost.toFixed(2)}</span>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            <div className="bg-purple-50 p-3 rounded-lg space-y-2">
+              <div className="flex justify-between">
+                <span className="font-medium">Costo Produzione Totale:</span>
+                <span className="font-bold text-purple-600">€{calculateTotalCost().toFixed(2)}</span>
               </div>
-            ))}
-            <Button type="button" variant="outline" size="sm" onClick={addInstruction}>
-              Aggiungi Istruzione
-            </Button>
+              <div className="flex justify-between">
+                <span className="font-medium">Costo per Porzione:</span>
+                <span className="font-bold text-purple-600">
+                  €{formData.portions > 0 ? (calculateTotalCost() / formData.portions).toFixed(2) : '0.00'}
+                </span>
+              </div>
+            </div>
           </div>
 
-          <Button type="submit" disabled={loading}>
-            {loading && <ChefHat className="mr-2 h-4 w-4 animate-spin" />}
-            Aggiungi
-          </Button>
+          {/* Colonna 3: Preparazione */}
+          <div className="space-y-4">
+            <div className="flex justify-between items-center">
+              <h3 className="font-semibold text-lg">Preparazione</h3>
+              <Button type="button" onClick={addInstruction} size="sm" variant="outline">
+                <Plus className="w-4 h-4 mr-1" />
+                Step
+              </Button>
+            </div>
+
+            <div className="space-y-3 max-h-96 overflow-y-auto">
+              {recipeInstructions.map((instruction, index) => (
+                <div key={index} className="space-y-2">
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm font-medium flex items-center">
+                      <span className="w-6 h-6 bg-purple-100 text-purple-600 rounded-full flex items-center justify-center text-xs font-medium mr-2">
+                        {index + 1}
+                      </span>
+                      Step {index + 1}
+                    </span>
+                    {recipeInstructions.length > 1 && (
+                      <Button type="button" onClick={() => removeInstruction(index)} size="sm" variant="outline">
+                        <X className="w-4 h-4" />
+                      </Button>
+                    )}
+                  </div>
+                  <Textarea
+                    placeholder="Descrivi questo passaggio..."
+                    value={instruction.instruction}
+                    onChange={(e) => updateInstruction(index, e.target.value)}
+                    rows={3}
+                  />
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Footer con pulsanti */}
+          <div className="col-span-full flex justify-between items-center pt-4 border-t">
+            <p className="text-xs text-slate-500">
+              Costi ingredienti aggiornati al: {new Date().toLocaleString('it-IT')}
+            </p>
+            <div className="flex space-x-2">
+              <Button type="button" variant="outline" onClick={() => setOpen(false)}>
+                Annulla
+              </Button>
+              <Button type="submit" disabled={loading}>
+                {loading && <ChefHat className="mr-2 h-4 w-4 animate-spin" />}
+                Aggiungi Ricetta
+              </Button>
+            </div>
+          </div>
         </form>
       </DialogContent>
     </Dialog>

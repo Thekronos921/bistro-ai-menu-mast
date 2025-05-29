@@ -9,6 +9,7 @@ import { Plus, X, Clock, Users, ChefHat, Info } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { useRestaurant } from "@/hooks/useRestaurant";
 
 interface Ingredient {
   id: string;
@@ -68,6 +69,7 @@ const EditRecipeDialog = ({ recipe, onClose, onRecipeUpdated }: EditRecipeDialog
   const [ingredients, setIngredients] = useState<Ingredient[]>([]);
   const [semilavorati, setSemilavorati] = useState<Semilavorato[]>([]);
   const { toast } = useToast();
+  const { restaurantId } = useRestaurant();
   
   const [formData, setFormData] = useState({
     name: recipe.name,
@@ -108,25 +110,34 @@ const EditRecipeDialog = ({ recipe, onClose, onRecipeUpdated }: EditRecipeDialog
   const difficulties = ["Bassa", "Media", "Alta"];
 
   useEffect(() => {
-    fetchIngredientsAndSemilavorati();
-  }, []);
+    if (restaurantId) {
+      fetchIngredientsAndSemilavorati();
+    }
+  }, [restaurantId]);
 
   const fetchIngredientsAndSemilavorati = async () => {
     try {
-      // Fetch ingredients
+      if (!restaurantId) {
+        console.log("No restaurant ID available for fetching ingredients");
+        return;
+      }
+
+      // Fetch ingredients only for this restaurant
       const { data: ingredientsData, error: ingredientsError } = await supabase
         .from('ingredients')
         .select('id, name, unit, cost_per_unit')
+        .eq('restaurant_id', restaurantId)
         .order('name');
 
       if (ingredientsError) throw ingredientsError;
       setIngredients(ingredientsData || []);
 
-      // Fetch semilavorati (recipes marked as semilavorati)
+      // Fetch semilavorati (recipes marked as semilavorati) only for this restaurant
       const { data: semilavoratiData, error: semilavoratiError } = await supabase
         .from('recipes')
         .select('id, name, portions')
         .eq('is_semilavorato', true)
+        .eq('restaurant_id', restaurantId)
         .neq('id', recipe.id) // Exclude current recipe
         .order('name');
 
@@ -144,7 +155,6 @@ const EditRecipeDialog = ({ recipe, onClose, onRecipeUpdated }: EditRecipeDialog
           .eq('recipe_id', sem.id);
 
         const totalCost = (recipeIngredientsData || []).reduce((sum, ri) => {
-          // Safely access the cost_per_unit from the ingredients relation
           const ingredients = ri.ingredients as any;
           const ingredientCost = ingredients?.cost_per_unit || 0;
           return sum + (ri.quantity * ingredientCost);

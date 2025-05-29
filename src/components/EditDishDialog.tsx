@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -9,6 +8,7 @@ import { Switch } from "@/components/ui/switch";
 import { Edit, DollarSign, Calculator, ExternalLink, AlertTriangle, CheckCircle, Zap } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { useRestaurant } from "@/hooks/useRestaurant";
 
 interface Recipe {
   id: string;
@@ -43,6 +43,7 @@ const EditDishDialog = ({ dish, onClose, onDishUpdated, onEditRecipe }: EditDish
   const [recipes, setRecipes] = useState<Recipe[]>([]);
   const [selectedRecipe, setSelectedRecipe] = useState<Recipe | null>(null);
   const { toast } = useToast();
+  const { restaurantId } = useRestaurant();
   
   const [formData, setFormData] = useState({
     name: dish.name,
@@ -56,14 +57,21 @@ const EditDishDialog = ({ dish, onClose, onDishUpdated, onEditRecipe }: EditDish
   const categories = ["Antipasti", "Primi Piatti", "Secondi Piatti", "Dolci", "Contorni"];
 
   useEffect(() => {
-    fetchRecipes();
+    if (restaurantId) {
+      fetchRecipes();
+    }
     if (dish.recipes) {
       setSelectedRecipe(dish.recipes);
     }
-  }, []);
+  }, [restaurantId]);
 
   const fetchRecipes = async () => {
     try {
+      if (!restaurantId) {
+        console.log("No restaurant ID available");
+        return;
+      }
+
       const { data, error } = await supabase
         .from('recipes')
         .select(`
@@ -77,6 +85,7 @@ const EditDishDialog = ({ dish, onClose, onDishUpdated, onEditRecipe }: EditDish
             )
           )
         `)
+        .eq('restaurant_id', restaurantId)
         .eq('is_semilavorato', false)
         .order('name');
 
@@ -94,8 +103,14 @@ const EditDishDialog = ({ dish, onClose, onDishUpdated, onEditRecipe }: EditDish
       }));
       
       setRecipes(transformedData);
+      console.log("Fetched recipes for restaurant:", restaurantId, transformedData);
     } catch (error) {
       console.error('Error fetching recipes:', error);
+      toast({
+        title: "Errore",
+        description: "Errore nel caricamento delle ricette",
+        variant: "destructive"
+      });
     }
   };
 
@@ -268,16 +283,30 @@ const EditDishDialog = ({ dish, onClose, onDishUpdated, onEditRecipe }: EditDish
                     <SelectValue placeholder="Seleziona ricetta" />
                   </SelectTrigger>
                   <SelectContent>
-                    {recipes.map(recipe => {
-                      const cost = calculateRecipeCost(recipe);
-                      return (
-                        <SelectItem key={recipe.id} value={recipe.id}>
-                          {recipe.name} (€{cost.toFixed(2)})
-                        </SelectItem>
-                      );
-                    })}
+                    {recipes.length === 0 ? (
+                      <SelectItem value="" disabled>Nessuna ricetta disponibile</SelectItem>
+                    ) : (
+                      recipes.map(recipe => {
+                        const cost = calculateRecipeCost(recipe);
+                        return (
+                          <SelectItem key={recipe.id} value={recipe.id}>
+                            {recipe.name} (€{cost.toFixed(2)})
+                          </SelectItem>
+                        );
+                      })
+                    )}
                   </SelectContent>
                 </Select>
+                {!restaurantId && (
+                  <p className="text-sm text-red-500 mt-1">
+                    Errore: ID ristorante non trovato
+                  </p>
+                )}
+                {restaurantId && recipes.length === 0 && (
+                  <p className="text-sm text-gray-500 mt-1">
+                    Nessuna ricetta trovata per questo ristorante
+                  </p>
+                )}
               </div>
 
               <div>

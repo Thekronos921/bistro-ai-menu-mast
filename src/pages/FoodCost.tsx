@@ -22,6 +22,8 @@ interface Ingredient {
   name: string;
   unit: string;
   cost_per_unit: number;
+  effective_cost_per_unit?: number;
+  yield_percentage?: number;
 }
 
 interface RecipeIngredient {

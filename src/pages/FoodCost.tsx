@@ -22,6 +22,7 @@ interface Ingredient {
   name: string;
   unit: string;
   cost_per_unit: number;
+  effective_cost_per_unit?: number; // <-- AGGIUNGI QUESTA LINEA
 }
 
 interface RecipeIngredient {
@@ -192,7 +193,8 @@ const FoodCost = () => {
                 id,
                 name,
                 unit,
-                cost_per_unit
+                cost_per_unit,
+                effective_cost_per_unit -- <-- AGGIUNGI QUESTO CAMPO
               )
             ),
             recipe_instructions (
@@ -220,7 +222,8 @@ const FoodCost = () => {
               id,
               name,
               unit,
-              cost_per_unit
+              cost_per_unit,
+              effective_cost_per_unit -- <-- AGGIUNGI QUESTO CAMPO
             )
           ),
           recipe_instructions (

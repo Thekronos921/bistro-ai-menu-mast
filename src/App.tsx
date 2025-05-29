@@ -7,6 +7,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import Header from "@/components/Header";
+import PostRegistrationSetup from "@/components/PostRegistrationSetup";
 
 // Pages
 import Index from "./pages/Index";
@@ -67,6 +68,16 @@ const App = () => (
                 element={
                   <ProtectedRoute requireAuth={false}>
                     <ResetPassword />
+                  </ProtectedRoute>
+                }
+              />
+
+              {/* Setup route for post-registration */}
+              <Route
+                path="/setup"
+                element={
+                  <ProtectedRoute>
+                    <PostRegistrationSetup />
                   </ProtectedRoute>
                 }
               />

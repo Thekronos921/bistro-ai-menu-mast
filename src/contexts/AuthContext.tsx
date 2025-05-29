@@ -1,3 +1,4 @@
+
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
@@ -126,7 +127,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         .from('users')
         .select(`
           *,
-          restaurant:restaurants(*)
+          restaurant:restaurants!users_restaurant_id_fkey(*)
         `)
         .eq('id', userId)
         .single();
@@ -212,47 +213,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return { success: false, error: 'Errore durante la creazione dell\'account' };
       }
 
-      // Create restaurant
-      const { data: restaurantData, error: restaurantError } = await supabase
-        .from('restaurants')
-        .insert({
-          name: data.restaurantName,
-          type: data.restaurantType,
-          country: data.country,
-          city: data.city,
-          vat_number: data.vatNumber,
-          seats_count: data.seatsCount,
-          owner_user_id: authData.user.id
-        })
-        .select()
-        .single();
-
-      if (restaurantError) {
-        // Cleanup: delete the auth user if restaurant creation fails
-        await supabase.auth.admin.deleteUser(authData.user.id);
-        return { success: false, error: 'Errore durante la creazione del ristorante' };
-      }
-
-      // Create user profile
-      const { error: userError } = await supabase
-        .from('users')
-        .insert({
-          id: authData.user.id,
-          restaurant_id: restaurantData.id,
-          full_name: data.fullName,
-          email: data.email,
-          password_hash: '', // This will be handled by Supabase Auth
-          role: 'owner'
-        });
-
-      if (userError) {
-        console.error('Error creating user profile:', userError);
-        // Note: We don't return error here as the main auth user was created successfully
-      }
+      // Store the registration data temporarily for the user to use later
+      // The restaurant and user profile will be created when the user confirms their email
+      localStorage.setItem('pendingRegistration', JSON.stringify(data));
 
       toast({
         title: "Registrazione completata",
-        description: "Account creato con successo! Controlla la tua email per verificare l'account.",
+        description: "Account creato con successo! Controlla la tua email per verificare l'account e completare la registrazione.",
       });
 
       return { success: true };

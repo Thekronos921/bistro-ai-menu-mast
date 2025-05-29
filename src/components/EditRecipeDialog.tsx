@@ -10,7 +10,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useRestaurant } from "@/hooks/useRestaurant";
-import type { Recipe } from '@/types/recipe';
+import type { Recipe, RecipeIngredient } from '@/types/recipe';
 
 interface Ingredient {
   id: string;
@@ -27,37 +27,18 @@ interface Semilavorato {
   portions: number;
 }
 
-interface RecipeIngredient {
+interface LocalRecipeIngredient {
   id: string;
   ingredient_id: string;
   quantity: number;
   is_semilavorato?: boolean;
-  ingredient: Ingredient;
+  ingredient: Ingredient | null;
 }
 
 interface RecipeInstruction {
   id: string;
   step_number: number;
   instruction: string;
-}
-
-interface Recipe {
-  id: string;
-  name: string;
-  category: string;
-  preparation_time: number;
-  difficulty: string;
-  portions: number;
-  description: string;
-  allergens: string;
-  calories: number;
-  protein: number;
-  carbs: number;
-  fat: number;
-  is_semilavorato?: boolean;
-  notes_chef?: string;
-  recipe_ingredients: RecipeIngredient[];
-  recipe_instructions: RecipeInstruction[];
 }
 
 interface EditRecipeDialogProps {
@@ -85,7 +66,7 @@ const EditRecipeDialog = ({ recipe, onClose, onRecipeUpdated }: EditRecipeDialog
     notesChef: recipe.notes_chef || ""
   });
   
-  const [recipeIngredients, setRecipeIngredients] = useState(
+  const [recipeIngredients, setRecipeIngredients] = useState<LocalRecipeIngredient[]>(
     recipe.recipe_ingredients.map(ri => ({
       id: ri.id,
       ingredient_id: ri.ingredient_id,
@@ -158,7 +139,7 @@ const EditRecipeDialog = ({ recipe, onClose, onRecipeUpdated }: EditRecipeDialog
 
         const totalCost = (recipeIngredientsData || []).reduce((sum, ri) => {
           const ingredients = ri.ingredients as any;
-          const effectiveCost = ingredients?.effective_cost_per_unit ?? ingredients?.cost_per_unit || 0;
+          const effectiveCost = ingredients?.effective_cost_per_unit ?? (ingredients?.cost_per_unit || 0);
           return sum + (ri.quantity * effectiveCost);
         }, 0);
         

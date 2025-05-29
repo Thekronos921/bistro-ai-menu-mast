@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { ArrowLeft, Search, ChefHat, Clock, Users, Edit, Copy, Trash2, Printer, Info } from "lucide-react";
 import { Link } from "react-router-dom";
@@ -21,48 +22,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { calculateTotalCost, calculateCostPerPortion, getFoodCostIndicator } from '@/utils/recipeCalculations';
-
-interface RecipeIngredient {
-  id: string;
-  ingredient_id: string;
-  quantity: number;
-  is_semilavorato?: boolean;
-  ingredients: {
-    id: string;
-    name: string;
-    unit: string;
-    cost_per_unit: number;
-    effective_cost_per_unit?: number;
-    current_stock?: number;
-    min_stock_threshold?: number;
-  };
-}
-
-interface RecipeInstruction {
-  id: string;
-  step_number: number;
-  instruction: string;
-}
-
-interface Recipe {
-  id: string;
-  name: string;
-  category: string;
-  preparation_time: number;
-  difficulty: string;
-  portions: number;
-  description: string;
-  allergens: string;
-  calories: number;
-  protein: number;
-  carbs: number;
-  fat: number;
-  is_semilavorato?: boolean;
-  notes_chef?: string;
-  selling_price?: number;
-  recipe_ingredients: RecipeIngredient[];
-  recipe_instructions: RecipeInstruction[];
-}
+import type { Recipe } from '@/types/recipe';
 
 const Recipes = () => {
   const [searchTerm, setSearchTerm] = useState("");

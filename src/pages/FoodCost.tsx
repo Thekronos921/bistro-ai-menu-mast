@@ -306,29 +306,24 @@ const FoodCost = () => {
     setEditingRecipe(recipe);
   };
 
-  const handleEditRecipeFromDialog = (simpleRecipe: SimpleRecipe) => {
-    // Find the full recipe data
-    const fullRecipe = recipes.find(r => r.id === simpleRecipe.id) || 
-                      dishes.find(d => d.recipes?.id === simpleRecipe.id)?.recipes;
-    
-    if (fullRecipe) {
-      // Ensure all required fields are present with proper defaults
-      const completeRecipe: Recipe = {
-        ...fullRecipe,
-        preparation_time: fullRecipe.preparation_time || 0,
-        difficulty: fullRecipe.difficulty || 'Facile',
-        portions: fullRecipe.portions || 1,
-        description: fullRecipe.description || undefined,
-        allergens: fullRecipe.allergens || undefined,
-        calories: fullRecipe.calories || undefined,
-        protein: fullRecipe.protein || undefined,
-        carbs: fullRecipe.carbs || undefined,
-        fat: fullRecipe.fat || undefined,
-        is_semilavorato: fullRecipe.is_semilavorato || false,
-        recipe_instructions: fullRecipe.recipe_instructions || []
-      };
-      setEditingRecipe(completeRecipe);
-    }
+  const handleEditRecipeFromDialog = (recipe: Recipe) => {
+    // Ensure all required fields are present with proper defaults
+    const completeRecipe: Recipe = {
+      ...recipe,
+      preparation_time: recipe.preparation_time || 0,
+      difficulty: recipe.difficulty || 'Facile',
+      portions: recipe.portions || 1,
+      description: recipe.description || undefined,
+      allergens: recipe.allergens || undefined,
+      calories: recipe.calories || undefined,
+      protein: recipe.protein || undefined,
+      carbs: recipe.carbs || undefined,
+      fat: recipe.fat || undefined,
+      is_semilavorato: recipe.is_semilavorato || false,
+      notes_chef: recipe.notes_chef || '',
+      recipe_instructions: recipe.recipe_instructions || []
+    };
+    setEditingRecipe(completeRecipe);
   };
 
   const getMenuEngineeringCategory = (dish: Dish): MenuCategory => {
@@ -866,6 +861,7 @@ const FoodCost = () => {
             carbs: editingRecipe.carbs || 0,
             fat: editingRecipe.fat || 0,
             is_semilavorato: editingRecipe.is_semilavorato || false,
+            notes_chef: editingRecipe.notes_chef || '',
             recipe_instructions: editingRecipe.recipe_instructions || []
           }}
           onClose={() => setEditingRecipe(null)}

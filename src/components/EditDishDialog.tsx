@@ -1,5 +1,4 @@
 
-
 import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -110,9 +109,17 @@ const EditDishDialog = ({ dish, onClose, onDishUpdated, onEditRecipe }: EditDish
 
       if (error) throw error;
       
-      // Type assertion to ensure the data matches our Recipe type
-      setRecipes((data as RecipeType[]) || []);
-      console.log("Fetched recipes for restaurant:", restaurantId, data);
+      // Transform the data to match our Recipe type structure
+      const transformedData = data?.map(recipe => ({
+        ...recipe,
+        recipe_ingredients: recipe.recipe_ingredients.map(ri => ({
+          ...ri,
+          ingredients: ri.ingredients // This should be a single object, not an array
+        }))
+      })) as RecipeType[];
+      
+      setRecipes(transformedData || []);
+      console.log("Fetched recipes for restaurant:", restaurantId, transformedData);
     } catch (error) {
       console.error('Error fetching recipes:', error);
       toast({
@@ -439,4 +446,3 @@ const EditDishDialog = ({ dish, onClose, onDishUpdated, onEditRecipe }: EditDish
 };
 
 export default EditDishDialog;
-

@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -17,6 +16,7 @@ interface Ingredient {
   name: string;
   unit: string;
   cost_per_unit: number;
+  effective_cost_per_unit?: number;
 }
 
 interface RecipeIngredient {
@@ -71,7 +71,7 @@ const AddRecipeDialog: React.FC<AddRecipeDialogProps> = ({ onAddRecipe }) => {
 
       const { data, error } = await supabase
         .from('ingredients')
-        .select('id, name, unit, cost_per_unit')
+        .select('id, name, unit, cost_per_unit, effective_cost_per_unit')
         .eq('restaurant_id', restaurantId)
         .order('name');
 
@@ -163,7 +163,8 @@ const AddRecipeDialog: React.FC<AddRecipeDialogProps> = ({ onAddRecipe }) => {
     return recipeIngredients.reduce((total, ri) => {
       const ingredient = ingredients.find(ing => ing.id === ri.ingredient_id);
       if (ingredient) {
-        return total + (ingredient.cost_per_unit * ri.quantity);
+        const effectiveCost = ingredient.effective_cost_per_unit ?? ingredient.cost_per_unit;
+        return total + (effectiveCost * ri.quantity);
       }
       return total;
     }, 0);
@@ -468,7 +469,7 @@ const AddRecipeDialog: React.FC<AddRecipeDialogProps> = ({ onAddRecipe }) => {
                       <SelectContent>
                         {ingredients.map(ing => (
                           <SelectItem key={ing.id} value={ing.id}>
-                            {ing.name} (€{ing.cost_per_unit.toFixed(2)}/{ing.unit})
+                            {ing.name} (€{(ing.effective_cost_per_unit ?? ing.cost_per_unit).toFixed(2)}/{ing.unit})
                           </SelectItem>
                         ))}
                       </SelectContent>

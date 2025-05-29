@@ -242,7 +242,8 @@ const EditRecipeDialog = ({ recipe, onClose, onRecipeUpdated }: EditRecipeDialog
   const calculateTotalCost = () => {
     return recipeIngredients.reduce((total, recipeIng) => {
       if (recipeIng.ingredient) {
-        return total + (recipeIng.ingredient.cost_per_unit * recipeIng.quantity);
+        const effectiveCost = recipeIng.ingredient.effective_cost_per_unit ?? recipeIng.ingredient.cost_per_unit;
+        return total + (effectiveCost * recipeIng.quantity);
       }
       return total;
     }, 0);
@@ -527,7 +528,7 @@ const EditRecipeDialog = ({ recipe, onClose, onRecipeUpdated }: EditRecipeDialog
               <div className="space-y-3 max-h-96 overflow-y-auto">
                 {recipeIngredients.map((recipeIngredient, index) => {
                   const cost = recipeIngredient.ingredient 
-                    ? recipeIngredient.ingredient.cost_per_unit * recipeIngredient.quantity 
+                    ? recipeIngredient.ingredient.effective_cost_per_unit ?? recipeIngredient.ingredient.cost_per_unit
                     : 0;
                   
                   return (
@@ -569,7 +570,7 @@ const EditRecipeDialog = ({ recipe, onClose, onRecipeUpdated }: EditRecipeDialog
                               ))
                             : ingredients.map(ingredient => (
                                 <SelectItem key={ingredient.id} value={ingredient.id}>
-                                  {ingredient.name} (€{ingredient.cost_per_unit.toFixed(2)}/{ingredient.unit})
+                                  {ingredient.name} (€{(ingredient.effective_cost_per_unit ?? ingredient.cost_per_unit).toFixed(2)}/{ingredient.unit})
                                 </SelectItem>
                               ))
                           }

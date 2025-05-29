@@ -20,6 +20,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { calculateTotalCost, calculateCostPerPortion, getFoodCostIndicator } from '@/utils/recipeCalculations';
 
 interface RecipeIngredient {
   id: string;
@@ -174,60 +175,6 @@ const Recipes = () => {
     }
   };
 
-  const calculateTotalCost = (recipeIngredients: Recipe['recipe_ingredients']) => {
-    if (!recipeIngredients) return 0;
-    return recipeIngredients.reduce((total, ri) => {
-      return total + (ri.ingredients.cost_per_unit * ri.quantity);
-    }, 0);
-  };
-
-  const calculateCostPerPortion = (recipeIngredients: Recipe['recipe_ingredients'], portions: number) => {
-    const totalCost = calculateTotalCost(recipeIngredients);
-    return portions > 0 ? totalCost / portions : 0;
-  };
-
-  const getFoodCostIndicator = (recipe: Recipe) => {
-    const costPerPortion = calculateCostPerPortion(recipe.recipe_ingredients, recipe.portions);
-    
-    // Se la ricetta ha un prezzo di vendita, calcola FC%
-    if (recipe.selling_price && recipe.selling_price > 0) {
-      const foodCostPercentage = (costPerPortion / recipe.selling_price) * 100;
-      
-      if (foodCostPercentage <= 25) return { 
-        label: "FC Ottimale", 
-        color: "bg-green-100 text-green-800",
-        tooltip: `FC: ${foodCostPercentage.toFixed(1)}% (Costo: €${costPerPortion.toFixed(2)} / Prezzo: €${recipe.selling_price.toFixed(2)}). Soglia 'Critico': >35%`
-      };
-      if (foodCostPercentage <= 35) return { 
-        label: "FC Attenzione", 
-        color: "bg-yellow-100 text-yellow-800",
-        tooltip: `FC: ${foodCostPercentage.toFixed(1)}% (Costo: €${costPerPortion.toFixed(2)} / Prezzo: €${recipe.selling_price.toFixed(2)}). Soglia 'Critico': >35%`
-      };
-      return { 
-        label: "FC Critico", 
-        color: "bg-red-100 text-red-800",
-        tooltip: `FC: ${foodCostPercentage.toFixed(1)}% (Costo: €${costPerPortion.toFixed(2)} / Prezzo: €${recipe.selling_price.toFixed(2)}). Soglia 'Critico': >35%`
-      };
-    }
-    
-    // Se è un semilavorato o non ha prezzo, usa soglie di costo assoluto
-    if (costPerPortion <= 3) return { 
-      label: "Costo Prod. Basso", 
-      color: "bg-green-100 text-green-800",
-      tooltip: `Costo Produzione/Porzione: €${costPerPortion.toFixed(2)}. Soglia 'Alto' per questa categoria: >€8.00`
-    };
-    if (costPerPortion <= 8) return { 
-      label: "Costo Prod. Medio", 
-      color: "bg-yellow-100 text-yellow-800",
-      tooltip: `Costo Produzione/Porzione: €${costPerPortion.toFixed(2)}. Soglia 'Alto' per questa categoria: >€8.00`
-    };
-    return { 
-      label: "Costo Prod. Alto", 
-      color: "bg-red-100 text-red-800",
-      tooltip: `Costo Produzione/Porzione: €${costPerPortion.toFixed(2)}. Soglia 'Alto' per questa categoria: >€8.00`
-    };
-  };
-
   const getIngredientStockStatus = (ingredient: Recipe['recipe_ingredients'][0]['ingredients']): StockStatus => {
     if (!ingredient.current_stock || !ingredient.min_stock_threshold) return "ok";
     
@@ -366,9 +313,10 @@ const Recipes = () => {
             <div class="ingredients">
               <h2>Ingredienti:</h2>
               <ul>
-                ${recipe.recipe_ingredients?.map(ri => 
-                  `<li${ri.is_semilavorato ? ' class="semilavorato"' : ''}>${ri.is_semilavorato ? '[S] ' : ''}${ri.ingredients.name} - ${ri.quantity}${ri.ingredients.unit} (€${(ri.ingredients.cost_per_unit * ri.quantity).toFixed(2)})</li>`
-                ).join('') || ''}
+                ${recipe.recipe_ingredients?.map(ri => {
+                  const effectiveCost = ri.ingredients.effective_cost_per_unit ?? ri.ingredients.cost_per_unit;
+                  return `<li${ri.is_semilavorato ? ' class="semilavorato"' : ''}>${ri.is_semilavorato ? '[S] ' : ''}${ri.ingredients.name} - ${ri.quantity}${ri.ingredients.unit} (€${(effectiveCost * ri.quantity).toFixed(2)})</li>`;
+                }).join('') || ''}
               </ul>
             </div>
             
@@ -573,6 +521,7 @@ const Recipes = () => {
                         <div className="space-y-2">
                           {recipe.recipe_ingredients?.map((ri) => {
                             const stockStatus = getIngredientStockStatus(ri.ingredients);
+                            const effectiveCost = ri.ingredients.effective_cost_per_unit ?? ri.ingredients.cost_per_unit;
                             return (
                               <div key={ri.id} className="flex items-center justify-between text-sm group">
                                 <div className="flex items-center space-x-2">
@@ -584,7 +533,7 @@ const Recipes = () => {
                                   )}
                                 </div>
                                 <span className="font-medium text-slate-800">
-                                  €{(ri.ingredients.cost_per_unit * ri.quantity).toFixed(2)}
+                                  €{(effectiveCost * ri.quantity).toFixed(2)}
                                 </span>
                               </div>
                             );

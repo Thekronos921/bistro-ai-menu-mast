@@ -17,7 +17,6 @@ interface Ingredient {
   name: string;
   unit: string;
   cost_per_unit: number;
-  effective_cost_per_unit: number;
 }
 
 interface RecipeIngredient {
@@ -72,7 +71,7 @@ const AddRecipeDialog: React.FC<AddRecipeDialogProps> = ({ onAddRecipe }) => {
 
       const { data, error } = await supabase
         .from('ingredients')
-        .select('id, name, unit, cost_per_unit, effective_cost_per_unit')
+        .select('id, name, unit, cost_per_unit')
         .eq('restaurant_id', restaurantId)
         .order('name');
 
@@ -164,8 +163,7 @@ const AddRecipeDialog: React.FC<AddRecipeDialogProps> = ({ onAddRecipe }) => {
     return recipeIngredients.reduce((total, ri) => {
       const ingredient = ingredients.find(ing => ing.id === ri.ingredient_id);
       if (ingredient) {
-        // Usa il costo effettivo che considera la resa
-        return total + (ingredient.effective_cost_per_unit * ri.quantity);
+        return total + (ingredient.cost_per_unit * ri.quantity);
       }
       return total;
     }, 0);
@@ -442,8 +440,7 @@ const AddRecipeDialog: React.FC<AddRecipeDialogProps> = ({ onAddRecipe }) => {
             <div className="space-y-3 max-h-96 overflow-y-auto">
               {recipeIngredients.map((ingredient, index) => {
                 const selectedIngredient = ingredients.find(ing => ing.id === ingredient.ingredient_id);
-                // Usa il costo effettivo per il calcolo
-                const cost = selectedIngredient ? selectedIngredient.effective_cost_per_unit * ingredient.quantity : 0;
+                const cost = selectedIngredient ? selectedIngredient.cost_per_unit * ingredient.quantity : 0;
                 
                 return (
                   <div key={index} className="space-y-2 p-3 border rounded-lg">
@@ -471,7 +468,7 @@ const AddRecipeDialog: React.FC<AddRecipeDialogProps> = ({ onAddRecipe }) => {
                       <SelectContent>
                         {ingredients.map(ing => (
                           <SelectItem key={ing.id} value={ing.id}>
-                            {ing.name} (€{ing.effective_cost_per_unit.toFixed(2)}/{ing.unit} effettivo)
+                            {ing.name} (€{ing.cost_per_unit.toFixed(2)}/{ing.unit})
                           </SelectItem>
                         ))}
                       </SelectContent>
@@ -489,13 +486,6 @@ const AddRecipeDialog: React.FC<AddRecipeDialogProps> = ({ onAddRecipe }) => {
                         <span className="text-sm font-medium">€{cost.toFixed(2)}</span>
                       </div>
                     </div>
-                    
-                    {selectedIngredient && (
-                      <div className="text-xs text-gray-500">
-                        Costo acquisto: €{selectedIngredient.cost_per_unit.toFixed(2)}/{selectedIngredient.unit} → 
-                        Costo effettivo: €{selectedIngredient.effective_cost_per_unit.toFixed(2)}/{selectedIngredient.unit}
-                      </div>
-                    )}
                   </div>
                 );
               })}
@@ -511,9 +501,6 @@ const AddRecipeDialog: React.FC<AddRecipeDialogProps> = ({ onAddRecipe }) => {
                 <span className="font-bold text-purple-600">
                   €{formData.portions > 0 ? (calculateTotalCost() / formData.portions).toFixed(2) : '0.00'}
                 </span>
-              </div>
-              <div className="text-xs text-gray-600">
-                * Costi calcolati considerando la resa degli ingredienti
               </div>
             </div>
           </div>

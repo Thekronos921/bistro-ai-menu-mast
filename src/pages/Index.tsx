@@ -1,6 +1,8 @@
+
 import { useAuth } from "@/contexts/AuthContext";
-import { ChefHat, TrendingUp, Users, DollarSign, Star } from 'lucide-react';
+import { ChefHat, TrendingUp, Users, DollarSign, Star, Utensils, BarChart, Book, Package } from 'lucide-react';
 import { Card, CardContent } from "@/components/ui/card";
+import { Link } from "react-router-dom";
 
 const Index = () => {
   const { userProfile } = useAuth();
@@ -245,6 +247,3 @@ const Index = () => {
 };
 
 export default Index;
-
-import { Utensils, BarChart, Book, Package, TrendingUp, Users } from 'lucide-react';
-import { Link } from "react-router-dom";

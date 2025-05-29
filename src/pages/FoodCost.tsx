@@ -260,7 +260,9 @@ const FoodCost = () => {
   const calculateRecipeCost = (recipeIngredients: Recipe['recipe_ingredients']) => {
     if (!recipeIngredients) return 0;
     return recipeIngredients.reduce((total, ri) => {
-      return total + (ri.ingredients.cost_per_unit * ri.quantity);
+      // Usa effective_cost_per_unit se presente, altrimenti cost_per_unit
+      const effectiveCost = ri.ingredients.effective_cost_per_unit ?? ri.ingredients.cost_per_unit;
+      return total + (effectiveCost * ri.quantity);
     }, 0);
   };
 

@@ -313,7 +313,7 @@ const FoodCost = () => {
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-3xl font-bold text-slate-800">{kpiData.criticalDishes}</p>
-                    <p className="text-xs text-green-600">Food cost > 40%</p>
+                    <p className="text-xs text-green-600">Food cost {'>'} 40%</p>
                   </div>
                   <div className="text-red-500">
                     <span className="text-xs">⚠</span>
@@ -463,7 +463,7 @@ const FoodCost = () => {
                       </TableCell>
                       <TableCell className="text-center">
                         <Tooltip>
-                          <TooltipTrigger>
+                          <TooltipTrigger asChild>
                             <Button variant="ghost" size="sm" className="text-yellow-600">
                               💡
                             </Button>

@@ -41,24 +41,6 @@ interface RecipeInstruction {
   instruction: string;
 }
 
-interface Recipe {
-  id: string;
-  name: string;
-  category: string;
-  preparation_time: number;
-  difficulty: string;
-  portions: number;
-  description?: string;
-  allergens?: string;
-  calories?: number;
-  protein?: number;
-  carbs?: number;
-  fat?: number;
-  is_semilavorato?: boolean;
-  recipe_ingredients: RecipeIngredient[];
-  recipe_instructions?: RecipeInstruction[];
-}
-
 // Simplified Recipe interface for dialogs
 interface SimpleRecipe {
   id: string;

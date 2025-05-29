@@ -19,7 +19,7 @@ export const calculateTotalCost = (recipeIngredients: RecipeIngredient[]) => {
   return recipeIngredients.reduce((total, ri) => {
     const effectiveCost = ri.ingredients.effective_cost_per_unit ?? ri.ingredients.cost_per_unit;
     const yieldPercentage = ri.ingredients.yield_percentage ?? 100;
-    const adjustedCost = effectiveCost / (yieldPercentage / 100);
+    const adjustedCost = effectiveCost;
     return total + (adjustedCost * ri.quantity);
   }, 0);
 };

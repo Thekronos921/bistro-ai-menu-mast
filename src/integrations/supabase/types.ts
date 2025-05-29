@@ -300,6 +300,13 @@ export type Database = {
             referencedRelation: "users"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "restaurants_owner_user_id_fkey"
+            columns: ["owner_user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
         ]
       }
       users: {
@@ -310,7 +317,6 @@ export type Database = {
           full_name: string
           id: string
           last_login_at: string | null
-          password_hash: string
           reset_password_expires_at: string | null
           reset_password_token: string | null
           restaurant_id: string
@@ -324,7 +330,6 @@ export type Database = {
           full_name: string
           id?: string
           last_login_at?: string | null
-          password_hash: string
           reset_password_expires_at?: string | null
           reset_password_token?: string | null
           restaurant_id: string
@@ -338,7 +343,6 @@ export type Database = {
           full_name?: string
           id?: string
           last_login_at?: string | null
-          password_hash?: string
           reset_password_expires_at?: string | null
           reset_password_token?: string | null
           restaurant_id?: string

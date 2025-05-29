@@ -5,10 +5,10 @@ export const useRestaurant = () => {
   const { userProfile } = useAuth();
   
   const getRestaurantId = () => {
-    if (!userProfile?.restaurant?.id) {
+    if (!userProfile?.restaurant_id) {
       throw new Error('Restaurant ID not found. User must be logged in and associated with a restaurant.');
     }
-    return userProfile.restaurant.id;
+    return userProfile.restaurant_id;
   };
 
   const withRestaurantId = <T extends Record<string, any>>(data: T): T & { restaurant_id: string } => {
@@ -19,7 +19,7 @@ export const useRestaurant = () => {
   };
 
   return {
-    restaurantId: userProfile?.restaurant?.id,
+    restaurantId: userProfile?.restaurant_id,
     getRestaurantId,
     withRestaurantId
   };

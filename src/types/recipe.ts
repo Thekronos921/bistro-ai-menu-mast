@@ -1,4 +1,5 @@
 
+
 export interface RecipeIngredient {
   id: string;
   ingredient_id: string;
@@ -10,6 +11,8 @@ export interface RecipeIngredient {
     unit: string;
     cost_per_unit: number;
     effective_cost_per_unit?: number;
+    current_stock?: number;
+    min_stock_threshold?: number;
   };
 }
 
@@ -36,3 +39,4 @@ export interface Recipe {
     instruction: string;
   }>;
 }
+

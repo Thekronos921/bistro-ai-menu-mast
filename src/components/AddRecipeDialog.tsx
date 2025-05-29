@@ -266,9 +266,9 @@ const AddRecipeDialog: React.FC<AddRecipeDialogProps> = ({ onAddRecipe }) => {
             </div>
             <div>
               <Label htmlFor="category">Categoria</Label>
-              <Select onValueChange={(value) => handleSelectChange('category', value)}>
+              <Select value={formData.category} onValueChange={(value) => handleSelectChange('category', value)}>
                 <SelectTrigger className="w-full">
-                  <SelectValue placeholder="Seleziona una categoria" value={formData.category} />
+                  <SelectValue placeholder="Seleziona una categoria" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="Antipasti">Antipasti</SelectItem>
@@ -307,9 +307,9 @@ const AddRecipeDialog: React.FC<AddRecipeDialogProps> = ({ onAddRecipe }) => {
             </div>
             <div>
               <Label htmlFor="difficulty">Difficoltà</Label>
-              <Select onValueChange={(value) => handleSelectChange('difficulty', value)}>
+              <Select value={formData.difficulty} onValueChange={(value) => handleSelectChange('difficulty', value)}>
                 <SelectTrigger className="w-full">
-                  <SelectValue placeholder="Seleziona..." value={formData.difficulty} />
+                  <SelectValue placeholder="Seleziona..." />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="Bassa">Bassa</SelectItem>
@@ -422,9 +422,9 @@ const AddRecipeDialog: React.FC<AddRecipeDialogProps> = ({ onAddRecipe }) => {
             <Label>Ingredienti</Label>
             {recipeIngredients.map((ingredient, index) => (
               <div key={index} className="flex items-center space-x-2 mb-2">
-                <Select onValueChange={(value) => updateIngredient(index, 'ingredient_id', value)}>
+                <Select value={ingredient.ingredient_id} onValueChange={(value) => updateIngredient(index, 'ingredient_id', value)}>
                   <SelectTrigger className="w-full">
-                    <SelectValue placeholder="Seleziona ingrediente" value={ingredient.ingredient_id} />
+                    <SelectValue placeholder="Seleziona ingrediente" />
                   </SelectTrigger>
                   <SelectContent>
                     {ingredients.map(ing => (

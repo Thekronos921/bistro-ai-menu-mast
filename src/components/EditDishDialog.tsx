@@ -1,4 +1,5 @@
 
+
 import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -11,21 +12,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useRestaurant } from "@/hooks/useRestaurant";
 import { calculateTotalCost, calculateCostPerPortion } from "@/utils/recipeCalculations";
-
-interface Recipe {
-  id: string;
-  name: string;
-  category: string;
-  portions: number;
-  recipe_ingredients: {
-    ingredients: {
-      cost_per_unit: number;
-      effective_cost_per_unit?: number;
-      yield_percentage?: number;
-    };
-    quantity: number;
-  }[];
-}
+import { Recipe as RecipeType } from "@/types/recipe";
 
 interface Dish {
   id: string;
@@ -33,20 +20,20 @@ interface Dish {
   category: string;
   selling_price: number;
   recipe_id?: string;
-  recipes?: Recipe;
+  recipes?: RecipeType;
 }
 
 interface EditDishDialogProps {
   dish: Dish;
   onClose: () => void;
   onDishUpdated: () => void;
-  onEditRecipe?: (recipe: Recipe) => void;
+  onEditRecipe?: (recipe: RecipeType) => void;
 }
 
 const EditDishDialog = ({ dish, onClose, onDishUpdated, onEditRecipe }: EditDishDialogProps) => {
   const [loading, setLoading] = useState(false);
-  const [recipes, setRecipes] = useState<Recipe[]>([]);
-  const [selectedRecipe, setSelectedRecipe] = useState<Recipe | null>(null);
+  const [recipes, setRecipes] = useState<RecipeType[]>([]);
+  const [selectedRecipe, setSelectedRecipe] = useState<RecipeType | null>(null);
   const { toast } = useToast();
   const { restaurantId } = useRestaurant();
   
@@ -84,13 +71,37 @@ const EditDishDialog = ({ dish, onClose, onDishUpdated, onEditRecipe }: EditDish
           name,
           category,
           portions,
+          preparation_time,
+          difficulty,
+          description,
+          allergens,
+          calories,
+          protein,
+          carbs,
+          fat,
+          is_semilavorato,
+          notes_chef,
+          selling_price,
           recipe_ingredients (
+            id,
+            ingredient_id,
             quantity,
+            is_semilavorato,
             ingredients (
+              id,
+              name,
+              unit,
               cost_per_unit,
               effective_cost_per_unit,
+              current_stock,
+              min_stock_threshold,
               yield_percentage
             )
+          ),
+          recipe_instructions (
+            id,
+            step_number,
+            instruction
           )
         `)
         .eq('restaurant_id', restaurantId)
@@ -99,21 +110,8 @@ const EditDishDialog = ({ dish, onClose, onDishUpdated, onEditRecipe }: EditDish
 
       if (error) throw error;
       
-      // Transform the data to match our Recipe interface
-      const transformedData = (data || []).map(recipe => ({
-        ...recipe,
-        recipe_ingredients: recipe.recipe_ingredients.map((ri: any) => ({
-          quantity: ri.quantity,
-          ingredients: {
-            cost_per_unit: ri.ingredients.cost_per_unit,
-            effective_cost_per_unit: ri.ingredients.effective_cost_per_unit,
-            yield_percentage: ri.ingredients.yield_percentage
-          }
-        }))
-      }));
-      
-      setRecipes(transformedData);
-      console.log("Fetched recipes for restaurant:", restaurantId, transformedData);
+      setRecipes(data || []);
+      console.log("Fetched recipes for restaurant:", restaurantId, data);
     } catch (error) {
       console.error('Error fetching recipes:', error);
       toast({
@@ -440,3 +438,4 @@ const EditDishDialog = ({ dish, onClose, onDishUpdated, onEditRecipe }: EditDish
 };
 
 export default EditDishDialog;
+

@@ -192,7 +192,9 @@ const FoodCost = () => {
                 id,
                 name,
                 unit,
-                cost_per_unit
+                cost_per_unit,
+                effective_cost_per_unit,
+                yield_percentage
               )
             ),
             recipe_instructions (
@@ -220,7 +222,9 @@ const FoodCost = () => {
               id,
               name,
               unit,
-              cost_per_unit
+              cost_per_unit,
+              effective_cost_per_unit,
+              yield_percentage
             )
           ),
           recipe_instructions (
@@ -260,9 +264,10 @@ const FoodCost = () => {
   const calculateRecipeCost = (recipeIngredients: Recipe['recipe_ingredients']) => {
     if (!recipeIngredients) return 0;
     return recipeIngredients.reduce((total, ri) => {
-      // Usa effective_cost_per_unit se presente, altrimenti cost_per_unit
       const effectiveCost = ri.ingredients.effective_cost_per_unit ?? ri.ingredients.cost_per_unit;
-      return total + (effectiveCost * ri.quantity);
+      const yieldPercentage = ri.ingredients.yield_percentage ?? 100;
+      const adjustedCost = effectiveCost / (yieldPercentage / 100);
+      return total + (adjustedCost * ri.quantity);
     }, 0);
   };
 

@@ -10,6 +10,7 @@ interface RecipeIngredient {
     unit: string;
     cost_per_unit: number;
     effective_cost_per_unit?: number;
+    yield_percentage?: number;
   };
 }
 
@@ -17,7 +18,9 @@ export const calculateTotalCost = (recipeIngredients: RecipeIngredient[]) => {
   if (!recipeIngredients) return 0;
   return recipeIngredients.reduce((total, ri) => {
     const effectiveCost = ri.ingredients.effective_cost_per_unit ?? ri.ingredients.cost_per_unit;
-    return total + (effectiveCost * ri.quantity);
+    const yieldPercentage = ri.ingredients.yield_percentage ?? 100;
+    const adjustedCost = effectiveCost / (yieldPercentage / 100);
+    return total + (adjustedCost * ri.quantity);
   }, 0);
 };
 

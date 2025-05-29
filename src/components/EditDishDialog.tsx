@@ -110,7 +110,8 @@ const EditDishDialog = ({ dish, onClose, onDishUpdated, onEditRecipe }: EditDish
 
       if (error) throw error;
       
-      setRecipes(data || []);
+      // Type assertion to ensure the data matches our Recipe type
+      setRecipes((data as RecipeType[]) || []);
       console.log("Fetched recipes for restaurant:", restaurantId, data);
     } catch (error) {
       console.error('Error fetching recipes:', error);

@@ -220,6 +220,109 @@ export type Database = {
         }
         Relationships: []
       }
+      restaurants: {
+        Row: {
+          city: string
+          country: string
+          created_at: string
+          id: string
+          name: string
+          owner_user_id: string | null
+          seats_count: number | null
+          subscription_status: string | null
+          type: Database["public"]["Enums"]["restaurant_type"]
+          updated_at: string
+          vat_number: string | null
+        }
+        Insert: {
+          city: string
+          country: string
+          created_at?: string
+          id?: string
+          name: string
+          owner_user_id?: string | null
+          seats_count?: number | null
+          subscription_status?: string | null
+          type?: Database["public"]["Enums"]["restaurant_type"]
+          updated_at?: string
+          vat_number?: string | null
+        }
+        Update: {
+          city?: string
+          country?: string
+          created_at?: string
+          id?: string
+          name?: string
+          owner_user_id?: string | null
+          seats_count?: number | null
+          subscription_status?: string | null
+          type?: Database["public"]["Enums"]["restaurant_type"]
+          updated_at?: string
+          vat_number?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fk_restaurants_owner"
+            columns: ["owner_user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      users: {
+        Row: {
+          created_at: string
+          email: string
+          email_verified_at: string | null
+          full_name: string
+          id: string
+          last_login_at: string | null
+          password_hash: string
+          reset_password_expires_at: string | null
+          reset_password_token: string | null
+          restaurant_id: string
+          role: Database["public"]["Enums"]["user_role"]
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          email: string
+          email_verified_at?: string | null
+          full_name: string
+          id?: string
+          last_login_at?: string | null
+          password_hash: string
+          reset_password_expires_at?: string | null
+          reset_password_token?: string | null
+          restaurant_id: string
+          role?: Database["public"]["Enums"]["user_role"]
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          email?: string
+          email_verified_at?: string | null
+          full_name?: string
+          id?: string
+          last_login_at?: string | null
+          password_hash?: string
+          reset_password_expires_at?: string | null
+          reset_password_token?: string | null
+          restaurant_id?: string
+          role?: Database["public"]["Enums"]["user_role"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "users_restaurant_id_fkey"
+            columns: ["restaurant_id"]
+            isOneToOne: false
+            referencedRelation: "restaurants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
@@ -228,7 +331,17 @@ export type Database = {
       [_ in never]: never
     }
     Enums: {
-      [_ in never]: never
+      restaurant_type:
+        | "ristorante"
+        | "bar"
+        | "pizzeria"
+        | "pub"
+        | "trattoria"
+        | "osteria"
+        | "pasticceria"
+        | "gelateria"
+        | "altro"
+      user_role: "owner" | "manager" | "staff"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -343,6 +456,19 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      restaurant_type: [
+        "ristorante",
+        "bar",
+        "pizzeria",
+        "pub",
+        "trattoria",
+        "osteria",
+        "pasticceria",
+        "gelateria",
+        "altro",
+      ],
+      user_role: ["owner", "manager", "staff"],
+    },
   },
 } as const

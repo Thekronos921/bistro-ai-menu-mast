@@ -1,161 +1,250 @@
-
-import { Link } from "react-router-dom";
-import { ChefHat, DollarSign, BarChart3, Package, Users, TrendingUp, Calendar, Settings } from "lucide-react";
+import { useAuth } from "@/contexts/AuthContext";
+import { ChefHat, TrendingUp, Users, DollarSign, Star } from 'lucide-react';
+import { Card, CardContent } from "@/components/ui/card";
 
 const Index = () => {
-  const menuItems = [
-    {
-      title: "Food Cost",
-      description: "Calcolo automatico costi ingredienti e food cost teorico/reale",
-      icon: DollarSign,
-      href: "/food-cost",
-      color: "bg-gradient-to-br from-emerald-500 to-teal-600"
-    },
-    {
-      title: "Menu Engineering",
-      description: "Classificazione piatti AI-driven e analisi redditività",
-      icon: BarChart3,
-      href: "/menu-engineering",
-      color: "bg-gradient-to-br from-blue-500 to-indigo-600"
-    },
-    {
-      title: "Mapping Ricette",
-      description: "Gestione completa ricette e ingredienti",
-      icon: ChefHat,
-      href: "/recipes",
-      color: "bg-gradient-to-br from-purple-500 to-violet-600"
-    },
-    {
-      title: "Gestione Scorte",
-      description: "Analisi trend consumo e previsione scorte intelligente",
-      icon: Package,
-      href: "/inventory",
-      color: "bg-gradient-to-br from-amber-500 to-orange-600"
-    },
-    {
-      title: "Previsione Domanda",
-      description: "Predizioni basate su meteo, eventi e stagionalità",
-      icon: TrendingUp,
-      href: "/demand-forecast",
-      color: "bg-gradient-to-br from-rose-500 to-pink-600"
-    },
-    {
-      title: "Analisi Clienti",
-      description: "Segmentazione clienti e personalizzazione marketing",
-      icon: Users,
-      href: "/customer-analysis",
-      color: "bg-gradient-to-br from-cyan-500 to-blue-600"
-    },
-    {
-      title: "Pianificazione",
-      description: "Gestione produzione e pianificazione operativa",
-      icon: Calendar,
-      href: "/production-planning",
-      color: "bg-gradient-to-br from-green-500 to-emerald-600"
-    },
-    {
-      title: "Dashboard Dipendenti",
-      description: "Monitoraggio attività e performance del team",
-      icon: Settings,
-      href: "/staff-dashboard",
-      color: "bg-gradient-to-br from-slate-500 to-gray-600"
-    }
-  ];
+  const { userProfile } = useAuth();
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-stone-50">
-      {/* Header */}
-      <header className="bg-white/80 backdrop-blur-sm border-b border-stone-200 sticky top-0 z-50">
-        <div className="max-w-7xl mx-auto px-6 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-3">
-              <div className="w-10 h-10 bg-gradient-to-br from-amber-400 to-orange-500 rounded-xl flex items-center justify-center">
-                <ChefHat className="w-6 h-6 text-white" />
+    <div className="min-h-screen bg-gradient-to-br from-orange-50 to-red-50">
+      <div className="container mx-auto px-4 py-8">
+        {/* Welcome Section */}
+        {userProfile && (
+          <div className="mb-8">
+            <div className="bg-white rounded-lg shadow-sm p-6 border">
+              <h1 className="text-2xl font-bold text-gray-900 mb-2">
+                Benvenuto, {userProfile.full_name}!
+              </h1>
+              <p className="text-gray-600">
+                Dashboard di gestione per{' '}
+                <span className="font-medium text-orange-600">
+                  {userProfile.restaurant?.name}
+                </span>
+              </p>
+              <div className="mt-2 text-sm text-gray-500">
+                <span className="capitalize">{userProfile.restaurant?.type}</span>
+                {' • '}
+                {userProfile.restaurant?.city}, {userProfile.restaurant?.country}
+                {userProfile.restaurant?.seats_count && (
+                  <>
+                    {' • '}
+                    {userProfile.restaurant.seats_count} coperti
+                  </>
+                )}
               </div>
-              <div>
-                <h1 className="text-2xl font-bold text-slate-800">RestaurantOS</h1>
-                <p className="text-sm text-slate-500">Sistema di Gestione Intelligente</p>
-              </div>
-            </div>
-            <div className="text-right">
-              <p className="text-sm text-slate-500">Ristorante</p>
-              <p className="font-semibold text-slate-700">La Tavola d'Oro</p>
             </div>
           </div>
-        </div>
-      </header>
+        )}
 
-      {/* Main Content */}
-      <main className="max-w-7xl mx-auto px-6 py-12">
-        <div className="text-center mb-16">
-          <h2 className="text-4xl font-bold text-slate-800 mb-4">
-            Dashboard Principale
-          </h2>
-          <p className="text-xl text-slate-600 max-w-3xl mx-auto">
-            Sistema integrato per la gestione intelligente di Food Cost, Menu Engineering 
-            e ottimizzazione operativa del ristorante
+        {/* Dashboard Title */}
+        <div className="text-center mb-12">
+          <div className="flex items-center justify-center mb-4">
+            <ChefHat className="h-12 w-12 text-orange-600 mr-3" />
+            <h1 className="text-4xl font-bold text-gray-900">Bistro AI</h1>
+          </div>
+          <p className="text-xl text-gray-600 max-w-2xl mx-auto">
+            La piattaforma AI completa per la gestione intelligente del tuo ristorante
           </p>
         </div>
 
-        {/* Menu Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-          {menuItems.map((item) => {
-            const Icon = item.icon;
-            return (
-              <Link
-                key={item.title}
-                to={item.href}
-                className="group relative overflow-hidden rounded-2xl bg-white shadow-sm hover:shadow-xl transition-all duration-300 border border-stone-200 hover:border-stone-300"
-              >
-                <div className="p-6">
-                  <div className={`w-16 h-16 ${item.color} rounded-2xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform duration-300`}>
-                    <Icon className="w-8 h-8 text-white" />
-                  </div>
-                  <h3 className="text-xl font-bold text-slate-800 mb-2 group-hover:text-slate-900">
-                    {item.title}
-                  </h3>
-                  <p className="text-sm text-slate-600 leading-relaxed">
-                    {item.description}
-                  </p>
+        {/* Quick Stats */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-12">
+          <Card className="hover:shadow-md transition-shadow">
+            <CardContent className="p-6">
+              <div className="flex items-center">
+                <div className="p-2 bg-green-100 rounded-lg">
+                  <TrendingUp className="h-6 w-6 text-green-600" />
                 </div>
-                <div className="absolute inset-0 bg-gradient-to-t from-black/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-              </Link>
-            );
-          })}
+                <div className="ml-4">
+                  <p className="text-sm font-medium text-gray-600">Ricavi Oggi</p>
+                  <p className="text-2xl font-bold text-gray-900">€2,847</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="hover:shadow-md transition-shadow">
+            <CardContent className="p-6">
+              <div className="flex items-center">
+                <div className="p-2 bg-blue-100 rounded-lg">
+                  <Users className="h-6 w-6 text-blue-600" />
+                </div>
+                <div className="ml-4">
+                  <p className="text-sm font-medium text-gray-600">Clienti Serviti</p>
+                  <p className="text-2xl font-bold text-gray-900">127</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="hover:shadow-md transition-shadow">
+            <CardContent className="p-6">
+              <div className="flex items-center">
+                <div className="p-2 bg-orange-100 rounded-lg">
+                  <DollarSign className="h-6 w-6 text-orange-600" />
+                </div>
+                <div className="ml-4">
+                  <p className="text-sm font-medium text-gray-600">Food Cost %</p>
+                  <p className="text-2xl font-bold text-gray-900">28.4%</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="hover:shadow-md transition-shadow">
+            <CardContent className="p-6">
+              <div className="flex items-center">
+                <div className="p-2 bg-purple-100 rounded-lg">
+                  <Star className="h-6 w-6 text-purple-600" />
+                </div>
+                <div className="ml-4">
+                  <p className="text-sm font-medium text-gray-600">Rating Medio</p>
+                  <p className="text-2xl font-bold text-gray-900">4.8</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
         </div>
 
-        {/* Statistics Section */}
-        <div className="mt-16 grid grid-cols-1 md:grid-cols-3 gap-6">
-          <div className="bg-white rounded-2xl p-6 border border-stone-200">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold text-slate-700">Food Cost Medio</h3>
-              <div className="w-3 h-3 bg-emerald-400 rounded-full"></div>
-            </div>
-            <p className="text-3xl font-bold text-slate-800">28.5%</p>
-            <p className="text-sm text-emerald-600 mt-1">↓ -2.3% dal mese scorso</p>
-          </div>
-          
-          <div className="bg-white rounded-2xl p-6 border border-stone-200">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold text-slate-700">Margine Medio</h3>
-              <div className="w-3 h-3 bg-blue-400 rounded-full"></div>
-            </div>
-            <p className="text-3xl font-bold text-slate-800">71.5%</p>
-            <p className="text-sm text-blue-600 mt-1">↑ +1.8% dal mese scorso</p>
-          </div>
-          
-          <div className="bg-white rounded-2xl p-6 border border-stone-200">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold text-slate-700">Efficienza Scorte</h3>
-              <div className="w-3 h-3 bg-amber-400 rounded-full"></div>
-            </div>
-            <p className="text-3xl font-bold text-slate-800">94.2%</p>
-            <p className="text-sm text-amber-600 mt-1">→ Stabile</p>
+        {/* Main Features Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 mb-12">
+          {/* Food Cost Analysis */}
+          <Link to="/food-cost" className="block hover:shadow-md transition-shadow">
+            <Card>
+              <CardContent className="p-6">
+                <div className="flex items-center">
+                  <div className="p-3 bg-red-100 rounded-lg">
+                    <Utensils className="h-6 w-6 text-red-600" />
+                  </div>
+                  <div className="ml-4">
+                    <h3 className="text-lg font-semibold text-gray-900">Analisi Food Cost</h3>
+                    <p className="text-sm text-gray-600">Ottimizza i costi degli ingredienti</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </Link>
+
+          {/* Menu Engineering */}
+          <Link to="/menu-engineering" className="block hover:shadow-md transition-shadow">
+            <Card>
+              <CardContent className="p-6">
+                <div className="flex items-center">
+                  <div className="p-3 bg-blue-100 rounded-lg">
+                    <BarChart className="h-6 w-6 text-blue-600" />
+                  </div>
+                  <div className="ml-4">
+                    <h3 className="text-lg font-semibold text-gray-900">Menu Engineering</h3>
+                    <p className="text-sm text-gray-600">Massimizza i profitti del tuo menu</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </Link>
+
+          {/* Recipes Management */}
+          <Link to="/recipes" className="block hover:shadow-md transition-shadow">
+            <Card>
+              <CardContent className="p-6">
+                <div className="flex items-center">
+                  <div className="p-3 bg-green-100 rounded-lg">
+                    <Book className="h-6 w-6 text-green-600" />
+                  </div>
+                  <div className="ml-4">
+                    <h3 className="text-lg font-semibold text-gray-900">Gestione Ricette</h3>
+                    <p className="text-sm text-gray-600">Organizza e gestisci le tue ricette</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </Link>
+
+          {/* Inventory Management */}
+          <Link to="/inventory" className="block hover:shadow-md transition-shadow">
+            <Card>
+              <CardContent className="p-6">
+                <div className="flex items-center">
+                  <div className="p-3 bg-orange-100 rounded-lg">
+                    <Package className="h-6 w-6 text-orange-600" />
+                  </div>
+                  <div className="ml-4">
+                    <h3 className="text-lg font-semibold text-gray-900">Gestione Magazzino</h3>
+                    <p className="text-sm text-gray-600">Monitora e gestisci il tuo inventario</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </Link>
+
+          {/* Demand Forecasting */}
+          <Link to="/demand-forecast" className="block hover:shadow-md transition-shadow">
+            <Card>
+              <CardContent className="p-6">
+                <div className="flex items-center">
+                  <div className="p-3 bg-purple-100 rounded-lg">
+                    <TrendingUp className="h-6 w-6 text-purple-600" />
+                  </div>
+                  <div className="ml-4">
+                    <h3 className="text-lg font-semibold text-gray-900">Previsione Domanda</h3>
+                    <p className="text-sm text-gray-600">Prevedi la domanda dei clienti</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </Link>
+
+          {/* Customer Analysis */}
+          <Link to="/customer-analysis" className="block hover:shadow-md transition-shadow">
+            <Card>
+              <CardContent className="p-6">
+                <div className="flex items-center">
+                  <div className="p-3 bg-yellow-100 rounded-lg">
+                    <Users className="h-6 w-6 text-yellow-600" />
+                  </div>
+                  <div className="ml-4">
+                    <h3 className="text-lg font-semibold text-gray-900">Analisi Clienti</h3>
+                    <p className="text-sm text-gray-600">Comprendi meglio i tuoi clienti</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </Link>
+        </div>
+
+        {/* AI Insights */}
+        <div className="mb-12">
+          <h2 className="text-2xl font-bold text-gray-900 mb-4">AI Insights</h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <Card className="hover:shadow-md transition-shadow">
+              <CardContent className="p-6">
+                <h3 className="text-lg font-semibold text-gray-900 mb-2">Ottimizzazione Menu</h3>
+                <p className="text-sm text-gray-600">
+                  L'AI suggerisce di ridurre i prezzi dei piatti con basso margine e alta popolarità per aumentare i profitti complessivi.
+                </p>
+              </CardContent>
+            </Card>
+
+            <Card className="hover:shadow-md transition-shadow">
+              <CardContent className="p-6">
+                <h3 className="text-lg font-semibold text-gray-900 mb-2">Gestione Inventario</h3>
+                <p className="text-sm text-gray-600">
+                  L'AI prevede un aumento della domanda di pasta la prossima settimana. Assicurati di avere scorte sufficienti.
+                </p>
+              </CardContent>
+            </Card>
           </div>
         </div>
-      </main>
+
+        {/* Footer */}
+        <footer className="text-center text-gray-500 text-sm py-4">
+          © 2024 Bistro AI. Tutti i diritti riservati.
+        </footer>
+      </div>
     </div>
   );
 };
 
 export default Index;
+
+import { Utensils, BarChart, Book, Package, TrendingUp, Users } from 'lucide-react';
+import { Link } from "react-router-dom";

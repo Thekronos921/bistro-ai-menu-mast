@@ -16,6 +16,7 @@ interface Ingredient {
   name: string;
   unit: string;
   cost_per_unit: number;
+  effective_cost_per_unit: number;
 }
 
 interface Semilavorato {
@@ -122,10 +123,10 @@ const EditRecipeDialog = ({ recipe, onClose, onRecipeUpdated }: EditRecipeDialog
         return;
       }
 
-      // Fetch ingredients only for this restaurant
+      // Fetch ingredients only for this restaurant - include effective_cost_per_unit
       const { data: ingredientsData, error: ingredientsError } = await supabase
         .from('ingredients')
-        .select('id, name, unit, cost_per_unit')
+        .select('id, name, unit, cost_per_unit, effective_cost_per_unit')
         .eq('restaurant_id', restaurantId)
         .order('name');
 
@@ -143,20 +144,20 @@ const EditRecipeDialog = ({ recipe, onClose, onRecipeUpdated }: EditRecipeDialog
 
       if (semilavoratiError) throw semilavoratiError;
       
-      // Calculate cost per portion for each semilavorato
+      // Calculate cost per portion for each semilavorato using effective_cost_per_unit
       const semilavoratiWithCosts = await Promise.all((semilavoratiData || []).map(async (sem) => {
         const { data: recipeIngredientsData } = await supabase
           .from('recipe_ingredients')
           .select(`
             quantity,
             is_semilavorato,
-            ingredients!inner(cost_per_unit)
+            ingredients!inner(effective_cost_per_unit)
           `)
           .eq('recipe_id', sem.id);
 
         const totalCost = (recipeIngredientsData || []).reduce((sum, ri) => {
           const ingredients = ri.ingredients as any;
-          const ingredientCost = ingredients?.cost_per_unit || 0;
+          const ingredientCost = ingredients?.effective_cost_per_unit || 0;
           return sum + (ri.quantity * ingredientCost);
         }, 0);
         
@@ -209,7 +210,8 @@ const EditRecipeDialog = ({ recipe, onClose, onRecipeUpdated }: EditRecipeDialog
                 id: semilavorato.id,
                 name: semilavorato.name,
                 unit: 'porzione',
-                cost_per_unit: semilavorato.cost_per_portion
+                cost_per_unit: semilavorato.cost_per_portion,
+                effective_cost_per_unit: semilavorato.cost_per_portion
               };
             }
           } else {
@@ -242,7 +244,8 @@ const EditRecipeDialog = ({ recipe, onClose, onRecipeUpdated }: EditRecipeDialog
   const calculateTotalCost = () => {
     return recipeIngredients.reduce((total, recipeIng) => {
       if (recipeIng.ingredient) {
-        return total + (recipeIng.ingredient.cost_per_unit * recipeIng.quantity);
+        // Usa il costo effettivo che considera la resa
+        return total + (recipeIng.ingredient.effective_cost_per_unit * recipeIng.quantity);
       }
       return total;
     }, 0);
@@ -526,8 +529,9 @@ const EditRecipeDialog = ({ recipe, onClose, onRecipeUpdated }: EditRecipeDialog
 
               <div className="space-y-3 max-h-96 overflow-y-auto">
                 {recipeIngredients.map((recipeIngredient, index) => {
+                  // Usa il costo effettivo per il calcolo
                   const cost = recipeIngredient.ingredient 
-                    ? recipeIngredient.ingredient.cost_per_unit * recipeIngredient.quantity 
+                    ? recipeIngredient.ingredient.effective_cost_per_unit * recipeIngredient.quantity 
                     : 0;
                   
                   return (
@@ -569,7 +573,7 @@ const EditRecipeDialog = ({ recipe, onClose, onRecipeUpdated }: EditRecipeDialog
                               ))
                             : ingredients.map(ingredient => (
                                 <SelectItem key={ingredient.id} value={ingredient.id}>
-                                  {ingredient.name} (€{ingredient.cost_per_unit.toFixed(2)}/{ingredient.unit})
+                                  {ingredient.name} (€{ingredient.effective_cost_per_unit.toFixed(2)}/{ingredient.unit} effettivo)
                                 </SelectItem>
                               ))
                           }
@@ -594,6 +598,13 @@ const EditRecipeDialog = ({ recipe, onClose, onRecipeUpdated }: EditRecipeDialog
                           <span className="text-sm font-medium">€{cost.toFixed(2)}</span>
                         </div>
                       </div>
+                      
+                      {recipeIngredient.ingredient && !recipeIngredient.is_semilavorato && (
+                        <div className="text-xs text-gray-500">
+                          Costo acquisto: €{recipeIngredient.ingredient.cost_per_unit.toFixed(2)}/{recipeIngredient.ingredient.unit} → 
+                          Costo effettivo: €{recipeIngredient.ingredient.effective_cost_per_unit.toFixed(2)}/{recipeIngredient.ingredient.unit}
+                        </div>
+                      )}
                     </div>
                   );
                 })}
@@ -609,6 +620,9 @@ const EditRecipeDialog = ({ recipe, onClose, onRecipeUpdated }: EditRecipeDialog
                   <span className="font-bold text-purple-600">
                     €{formData.portions > 0 ? (calculateTotalCost() / formData.portions).toFixed(2) : '0.00'}
                   </span>
+                </div>
+                <div className="text-xs text-gray-600">
+                  * Costi calcolati considerando la resa degli ingredienti
                 </div>
               </div>
             </div>

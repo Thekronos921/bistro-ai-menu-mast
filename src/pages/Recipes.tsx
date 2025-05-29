@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { ArrowLeft, Search, ChefHat, Clock, Users, Edit, Copy, Trash2, Printer, Info } from "lucide-react";
 import { Link } from "react-router-dom";
@@ -31,6 +32,7 @@ interface RecipeIngredient {
     name: string;
     unit: string;
     cost_per_unit: number;
+    effective_cost_per_unit: number;
     current_stock?: number;
     min_stock_threshold?: number;
   };
@@ -98,6 +100,7 @@ const Recipes = () => {
               name,
               unit,
               cost_per_unit,
+              effective_cost_per_unit,
               current_stock,
               min_stock_threshold
             )
@@ -177,7 +180,8 @@ const Recipes = () => {
   const calculateTotalCost = (recipeIngredients: Recipe['recipe_ingredients']) => {
     if (!recipeIngredients) return 0;
     return recipeIngredients.reduce((total, ri) => {
-      return total + (ri.ingredients.cost_per_unit * ri.quantity);
+      // Usa il costo effettivo che considera la resa
+      return total + (ri.ingredients.effective_cost_per_unit * ri.quantity);
     }, 0);
   };
 
@@ -359,7 +363,8 @@ const Recipes = () => {
               <strong>Porzioni:</strong> ${recipe.portions}<br>
               <strong>Difficoltà:</strong> ${recipe.difficulty}<br>
               <strong class="cost-highlight">Costo Produzione Totale: €${totalCost.toFixed(2)}</strong><br>
-              <strong class="cost-highlight">Costo per Porzione: €${costPerPortion.toFixed(2)}</strong>
+              <strong class="cost-highlight">Costo per Porzione: €${costPerPortion.toFixed(2)}</strong><br>
+              <em>* Costi calcolati considerando la resa degli ingredienti</em>
               ${recipe.allergens ? `<br><strong>Allergeni:</strong> ${recipe.allergens}` : ''}
             </div>
             
@@ -367,7 +372,7 @@ const Recipes = () => {
               <h2>Ingredienti:</h2>
               <ul>
                 ${recipe.recipe_ingredients?.map(ri => 
-                  `<li${ri.is_semilavorato ? ' class="semilavorato"' : ''}>${ri.is_semilavorato ? '[S] ' : ''}${ri.ingredients.name} - ${ri.quantity}${ri.ingredients.unit} (€${(ri.ingredients.cost_per_unit * ri.quantity).toFixed(2)})</li>`
+                  `<li${ri.is_semilavorato ? ' class="semilavorato"' : ''}>${ri.is_semilavorato ? '[S] ' : ''}${ri.ingredients.name} - ${ri.quantity}${ri.ingredients.unit} (€${(ri.ingredients.effective_cost_per_unit * ri.quantity).toFixed(2)} effettivo)</li>`
                 ).join('') || ''}
               </ul>
             </div>
@@ -399,7 +404,7 @@ const Recipes = () => {
             ` : ''}
             
             <div style="margin-top: 20px; font-size: 10px; color: #666;">
-              Stampato il: ${new Date().toLocaleString('it-IT')}
+              Stampato il: ${new Date().toLocaleString('it-IT')} - Costi con resa ingredienti
             </div>
           </body>
         </html>
@@ -563,6 +568,9 @@ const Recipes = () => {
                             <p className="text-lg font-bold text-purple-700">€{costPerPortion.toFixed(2)}</p>
                           </div>
                         </div>
+                        <div className="mt-2 text-xs text-slate-500">
+                          * Costi calcolati considerando la resa degli ingredienti
+                        </div>
                       </div>
                     </CardHeader>
 
@@ -584,7 +592,7 @@ const Recipes = () => {
                                   )}
                                 </div>
                                 <span className="font-medium text-slate-800">
-                                  €{(ri.ingredients.cost_per_unit * ri.quantity).toFixed(2)}
+                                  €{(ri.ingredients.effective_cost_per_unit * ri.quantity).toFixed(2)}
                                 </span>
                               </div>
                             );

@@ -15,6 +15,7 @@ import AISuggestionTooltip from "@/components/AISuggestionTooltip";
 import AdvancedFilters, { FilterConfig } from "@/components/AdvancedFilters";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { useRestaurant } from "@/hooks/useRestaurant";
 
 interface Ingredient {
   id: string;
@@ -102,6 +103,7 @@ const FoodCost = () => {
   const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
   const [advancedFilters, setAdvancedFilters] = useState<FilterConfig>({});
   const { toast } = useToast();
+  const { restaurantId } = useRestaurant();
 
   // Configurazioni utente (persistenti nel localStorage)
   const [settings, setSettings] = useState<SettingsConfig>(() => {
@@ -156,7 +158,15 @@ const FoodCost = () => {
 
   const fetchData = async () => {
     try {
-      // Fetch dishes con ricette
+      if (!restaurantId) {
+        console.log("No restaurant ID available");
+        setLoading(false);
+        return;
+      }
+
+      console.log("Fetching data for restaurant:", restaurantId);
+
+      // Fetch dishes con ricette per il ristorante corrente
       const { data: dishesData, error: dishesError } = await supabase
         .from('dishes')
         .select(`
@@ -192,11 +202,12 @@ const FoodCost = () => {
             )
           )
         `)
+        .eq('restaurant_id', restaurantId)
         .order('created_at', { ascending: false });
 
       if (dishesError) throw dishesError;
 
-      // Fetch ricette standalone (non ancora associate a piatti)
+      // Fetch ricette standalone per il ristorante corrente (non ancora associate a piatti)
       const { data: recipesData, error: recipesError } = await supabase
         .from('recipes')
         .select(`
@@ -218,13 +229,18 @@ const FoodCost = () => {
             instruction
           )
         `)
+        .eq('restaurant_id', restaurantId)
         .order('created_at', { ascending: false });
 
       if (recipesError) throw recipesError;
 
+      console.log("Fetched dishes:", dishesData);
+      console.log("Fetched recipes:", recipesData);
+
       setDishes(dishesData || []);
       setRecipes(recipesData || []);
     } catch (error) {
+      console.error("Fetch data error:", error);
       toast({
         title: "Errore",
         description: "Errore nel caricamento dei dati",
@@ -236,29 +252,10 @@ const FoodCost = () => {
   };
 
   useEffect(() => {
-    fetchData();
-
-    // Real-time updates
-    const channel = supabase
-      .channel('food-cost-changes')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'dishes' }, () => {
-        fetchData();
-      })
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'recipes' }, () => {
-        fetchData();
-      })
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'ingredients' }, () => {
-        fetchData();
-      })
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'recipe_ingredients' }, () => {
-        fetchData();
-      })
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, []);
+    if (restaurantId) {
+      fetchData();
+    }
+  }, [restaurantId]);
 
   const calculateRecipeCost = (recipeIngredients: Recipe['recipe_ingredients']) => {
     if (!recipeIngredients) return 0;
@@ -384,6 +381,15 @@ const FoodCost = () => {
 
   const createDishFromRecipe = async (recipe: Recipe) => {
     try {
+      if (!restaurantId) {
+        toast({
+          title: "Errore",
+          description: "ID ristorante non trovato",
+          variant: "destructive"
+        });
+        return;
+      }
+
       const recipeCost = calculateRecipeCost(recipe.recipe_ingredients);
       const suggestedPrice = recipeCost * 3; // Margine del 66%
 
@@ -393,7 +399,8 @@ const FoodCost = () => {
           name: recipe.name,
           category: recipe.category,
           selling_price: suggestedPrice,
-          recipe_id: recipe.id
+          recipe_id: recipe.id,
+          restaurant_id: restaurantId
         }]);
 
       if (error) throw error;
@@ -405,6 +412,7 @@ const FoodCost = () => {
 
       fetchData();
     } catch (error) {
+      console.error("Create dish error:", error);
       toast({
         title: "Errore",
         description: "Errore nella creazione del piatto",
@@ -502,6 +510,16 @@ const FoodCost = () => {
         <div className="text-center">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-emerald-600 mx-auto mb-4"></div>
           <p className="text-slate-600">Caricamento analisi food cost...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!restaurantId) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-stone-50 flex items-center justify-center">
+        <div className="text-center">
+          <p className="text-slate-600">Errore: Nessun ristorante associato</p>
         </div>
       </div>
     );

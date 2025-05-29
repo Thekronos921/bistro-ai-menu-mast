@@ -284,7 +284,7 @@ const EditDishDialog = ({ dish, onClose, onDishUpdated, onEditRecipe }: EditDish
                   </SelectTrigger>
                   <SelectContent>
                     {recipes.length === 0 ? (
-                      <SelectItem value="" disabled>Nessuna ricetta disponibile</SelectItem>
+                      <SelectItem value="no-recipes-available" disabled>Nessuna ricetta disponibile</SelectItem>
                     ) : (
                       recipes.map(recipe => {
                         const cost = calculateRecipeCost(recipe);

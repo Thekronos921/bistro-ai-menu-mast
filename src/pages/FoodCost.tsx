@@ -22,12 +22,24 @@ interface Ingredient {
   name: string;
   unit: string;
   cost_per_unit: number;
+  effective_cost_per_unit: number;
+  yield_percentage: number;
+  current_stock?: number;
+  min_stock_threshold?: number;
+  supplier?: string;
+  supplier_product_code?: string;
+  category?: string;
+  par_level?: number;
+  external_id?: string;
+  last_synced_at?: string;
+  notes?: string;
 }
 
 interface RecipeIngredient {
   id: string;
   ingredient_id: string;
   quantity: number;
+  is_semilavorato?: boolean;
   ingredients: Ingredient;
 }
 
@@ -51,6 +63,7 @@ interface Recipe {
   carbs?: number;
   fat?: number;
   is_semilavorato?: boolean;
+  notes_chef?: string;
   recipe_ingredients: RecipeIngredient[];
   recipe_instructions?: RecipeInstruction[];
 }
@@ -64,6 +77,7 @@ interface SimpleRecipe {
   recipe_ingredients: {
     ingredients: {
       cost_per_unit: number;
+      effective_cost_per_unit: number;
     };
     quantity: number;
   }[];
@@ -188,11 +202,14 @@ const FoodCost = () => {
               id,
               ingredient_id,
               quantity,
+              is_semilavorato,
               ingredients (
                 id,
                 name,
                 unit,
-                cost_per_unit
+                cost_per_unit,
+                effective_cost_per_unit,
+                yield_percentage
               )
             ),
             recipe_instructions (
@@ -216,11 +233,14 @@ const FoodCost = () => {
             id,
             ingredient_id,
             quantity,
+            is_semilavorato,
             ingredients (
               id,
               name,
               unit,
-              cost_per_unit
+              cost_per_unit,
+              effective_cost_per_unit,
+              yield_percentage
             )
           ),
           recipe_instructions (
@@ -260,7 +280,8 @@ const FoodCost = () => {
   const calculateRecipeCost = (recipeIngredients: Recipe['recipe_ingredients']) => {
     if (!recipeIngredients) return 0;
     return recipeIngredients.reduce((total, ri) => {
-      return total + (ri.ingredients.cost_per_unit * ri.quantity);
+      // Use effective_cost_per_unit which includes yield calculation
+      return total + (ri.ingredients.effective_cost_per_unit * ri.quantity);
     }, 0);
   };
 
@@ -273,7 +294,8 @@ const FoodCost = () => {
       is_semilavorato: recipe.is_semilavorato,
       recipe_ingredients: recipe.recipe_ingredients.map(ri => ({
         ingredients: {
-          cost_per_unit: ri.ingredients.cost_per_unit
+          cost_per_unit: ri.ingredients.cost_per_unit,
+          effective_cost_per_unit: ri.ingredients.effective_cost_per_unit
         },
         quantity: ri.quantity
       }))

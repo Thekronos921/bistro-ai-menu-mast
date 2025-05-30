@@ -1,8 +1,11 @@
 
+import { convertQuantity, normalizeToBaseUnit } from './unitConversions';
+
 interface RecipeIngredient {
   id: string;
   ingredient_id: string;
   quantity: number;
+  unit?: string; // Aggiungo l'unità per il recipe ingredient
   is_semilavorato?: boolean;
   ingredients: {
     id: string;
@@ -19,8 +22,15 @@ export const calculateTotalCost = (recipeIngredients: RecipeIngredient[]) => {
   return recipeIngredients.reduce((total, ri) => {
     const effectiveCost = ri.ingredients.effective_cost_per_unit ?? ri.ingredients.cost_per_unit;
     const yieldPercentage = ri.ingredients.yield_percentage ?? 100;
+    
+    // Normalizza la quantità all'unità base dell'ingrediente
+    let adjustedQuantity = ri.quantity;
+    if (ri.unit && ri.unit !== ri.ingredients.unit) {
+      adjustedQuantity = convertQuantity(ri.quantity, ri.unit, ri.ingredients.unit);
+    }
+    
     const adjustedCost = effectiveCost;
-    return total + (adjustedCost * ri.quantity);
+    return total + (adjustedCost * adjustedQuantity);
   }, 0);
 };
 
@@ -73,4 +83,19 @@ export const getFoodCostIndicator = (recipe: {
     color: "bg-red-100 text-red-800",
     tooltip: `Costo Produzione/Porzione: €${costPerPortion.toFixed(2)}. Soglia 'Alto' per questa categoria: >€8.00`
   };
+};
+
+// Utility per calcolare il costo di un singolo ingrediente nella ricetta
+export const calculateIngredientCost = (
+  ingredient: RecipeIngredient
+): number => {
+  const effectiveCost = ingredient.ingredients.effective_cost_per_unit ?? ingredient.ingredients.cost_per_unit;
+  
+  // Normalizza la quantità all'unità base dell'ingrediente
+  let adjustedQuantity = ingredient.quantity;
+  if (ingredient.unit && ingredient.unit !== ingredient.ingredients.unit) {
+    adjustedQuantity = convertQuantity(ingredient.quantity, ingredient.unit, ingredient.ingredients.unit);
+  }
+  
+  return effectiveCost * adjustedQuantity;
 };

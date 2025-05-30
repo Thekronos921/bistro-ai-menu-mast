@@ -11,6 +11,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useRestaurant } from '@/hooks/useRestaurant';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { UNIT_CONVERSIONS } from '@/utils/unitConversions';
 
 interface AddIngredientDialogProps {
   onAddIngredient: () => void;
@@ -37,7 +38,13 @@ const AddIngredientDialog: React.FC<AddIngredientDialogProps> = ({ onAddIngredie
     notes: ''
   });
 
-  const units = ["g", "kg", "ml", "l", "pz", "cucchiai", "cucchiaini", "tazze"];
+  // Raggruppa le unità per categoria per una migliore UX
+  const unitsByCategory = UNIT_CONVERSIONS.reduce((acc, unit) => {
+    if (!acc[unit.category]) acc[unit.category] = [];
+    acc[unit.category].push(unit);
+    return acc;
+  }, {} as Record<string, typeof UNIT_CONVERSIONS>);
+
   const categories = ["Carni", "Pesce", "Verdure", "Frutta", "Cereali", "Latticini", "Spezie", "Condimenti", "Altro"];
 
   const calculateEffectiveCost = () => {
@@ -185,17 +192,31 @@ const AddIngredientDialog: React.FC<AddIngredientDialogProps> = ({ onAddIngredie
             {/* Costi e Resa */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div>
-                <Label htmlFor="unit">Unità di Misura</Label>
+                <Label htmlFor="unit">Unità di Misura Base</Label>
                 <Select value={formData.unit} onValueChange={(value) => handleChange('unit', value)}>
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    {units.map(unit => (
-                      <SelectItem key={unit} value={unit}>{unit}</SelectItem>
+                    {Object.entries(unitsByCategory).map(([category, units]) => (
+                      <div key={category}>
+                        <div className="px-2 py-1 text-xs font-semibold text-gray-500 uppercase">
+                          {category === 'weight' ? 'Peso' : 
+                           category === 'volume' ? 'Volume' : 
+                           category === 'count' ? 'Conteggio' : 'Altro'}
+                        </div>
+                        {units.map(unit => (
+                          <SelectItem key={unit.unit} value={unit.unit}>
+                            {unit.label}
+                          </SelectItem>
+                        ))}
+                      </div>
                     ))}
                   </SelectContent>
                 </Select>
+                <p className="text-xs text-gray-500 mt-1">
+                  Questa sarà l'unità base per costi e scorte
+                </p>
               </div>
               <div>
                 <Label htmlFor="costPerUnit">Costo Acquisto/Unità (€) *</Label>
@@ -239,7 +260,8 @@ const AddIngredientDialog: React.FC<AddIngredientDialogProps> = ({ onAddIngredie
                 Costo Effettivo per Unità: €{calculateEffectiveCost().toFixed(2)}
               </Label>
               <p className="text-sm text-blue-600 mt-1">
-                Questo è il costo reale che verrà utilizzato nei calcoli delle ricette
+                Questo è il costo reale che verrà utilizzato nei calcoli delle ricette. 
+                Potrai usare unità diverse nelle ricette (es. ml se l'unità base è L).
               </p>
             </div>
 

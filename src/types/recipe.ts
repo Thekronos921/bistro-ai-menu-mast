@@ -3,11 +3,12 @@ export interface RecipeIngredient {
   id: string;
   ingredient_id: string;
   quantity: number;
+  unit?: string; // Unità di misura usata nella ricetta (può essere diversa da quella base dell'ingrediente)
   is_semilavorato?: boolean;
   ingredients: {
     id: string;
     name: string;
-    unit: string;
+    unit: string; // Unità base dell'ingrediente
     cost_per_unit: number;
     effective_cost_per_unit?: number;
     current_stock?: number;

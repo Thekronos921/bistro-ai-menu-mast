@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -34,8 +33,6 @@ const Recipes = () => {
   const { restaurantId } = useRestaurant();
 
   const categories = ["all", "Antipasti", "Primi Piatti", "Secondi Piatti", "Dolci", "Contorni", "Semilavorati", "Salse", "Preparazioni Base"];
-
-  const { duplicateRecipe, deleteRecipe } = useRecipeActions(fetchRecipes);
 
   const fetchRecipes = async () => {
     try {
@@ -100,6 +97,8 @@ const Recipes = () => {
       setLoading(false);
     }
   };
+
+  const { duplicateRecipe, deleteRecipe } = useRecipeActions(fetchRecipes);
 
   useEffect(() => {
     if (restaurantId) {

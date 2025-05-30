@@ -10,6 +10,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useRestaurant } from "@/hooks/useRestaurant";
+import UnitSelector from "@/components/UnitSelector";
+import { convertUnit } from "@/utils/unitConversion";
 import type { Recipe, RecipeIngredient } from '@/types/recipe';
 
 interface Ingredient {
@@ -31,6 +33,7 @@ interface LocalRecipeIngredient {
   id: string;
   ingredient_id: string;
   quantity: number;
+  unit?: string; // Unità specifica per la ricetta
   is_semilavorato?: boolean;
   ingredient: Ingredient | null;
 }
@@ -71,6 +74,7 @@ const EditRecipeDialog = ({ recipe, onClose, onRecipeUpdated }: EditRecipeDialog
       id: ri.id,
       ingredient_id: ri.ingredient_id,
       quantity: ri.quantity,
+      unit: ri.unit || ri.ingredients.unit, // Usa l'unità specifica o quella base
       is_semilavorato: ri.is_semilavorato || false,
       ingredient: ri.ingredients
     }))
@@ -105,7 +109,6 @@ const EditRecipeDialog = ({ recipe, onClose, onRecipeUpdated }: EditRecipeDialog
         return;
       }
 
-      // Fetch ingredients only for this restaurant
       const { data: ingredientsData, error: ingredientsError } = await supabase
         .from('ingredients')
         .select('id, name, unit, cost_per_unit, effective_cost_per_unit')
@@ -115,18 +118,16 @@ const EditRecipeDialog = ({ recipe, onClose, onRecipeUpdated }: EditRecipeDialog
       if (ingredientsError) throw ingredientsError;
       setIngredients(ingredientsData || []);
 
-      // Fetch semilavorati (recipes marked as semilavorati) only for this restaurant
       const { data: semilavoratiData, error: semilavoratiError } = await supabase
         .from('recipes')
         .select('id, name, portions')
         .eq('is_semilavorato', true)
         .eq('restaurant_id', restaurantId)
-        .neq('id', recipe.id) // Exclude current recipe
+        .neq('id', recipe.id)
         .order('name');
 
       if (semilavoratiError) throw semilavoratiError;
       
-      // Calculate cost per portion for each semilavorato
       const semilavoratiWithCosts = await Promise.all((semilavoratiData || []).map(async (sem) => {
         const { data: recipeIngredientsData } = await supabase
           .from('recipe_ingredients')
@@ -164,6 +165,7 @@ const EditRecipeDialog = ({ recipe, onClose, onRecipeUpdated }: EditRecipeDialog
       id: crypto.randomUUID(), 
       ingredient_id: "", 
       quantity: 0, 
+      unit: "",
       is_semilavorato: false,
       ingredient: null 
     }]);
@@ -181,6 +183,7 @@ const EditRecipeDialog = ({ recipe, onClose, onRecipeUpdated }: EditRecipeDialog
         if (field === 'is_semilavorato') {
           updatedIng.ingredient_id = "";
           updatedIng.quantity = 0;
+          updatedIng.unit = "";
           updatedIng.ingredient = null;
         }
         
@@ -195,9 +198,14 @@ const EditRecipeDialog = ({ recipe, onClose, onRecipeUpdated }: EditRecipeDialog
                 cost_per_unit: semilavorato.cost_per_portion,
                 effective_cost_per_unit: semilavorato.cost_per_portion
               };
+              updatedIng.unit = 'porzione';
             }
           } else {
-            updatedIng.ingredient = ingredients.find(ingredient => ingredient.id === value) || null;
+            const ingredient = ingredients.find(ingredient => ingredient.id === value);
+            if (ingredient) {
+              updatedIng.ingredient = ingredient;
+              updatedIng.unit = ingredient.unit; // Imposta l'unità base come default
+            }
           }
         }
         
@@ -205,6 +213,20 @@ const EditRecipeDialog = ({ recipe, onClose, onRecipeUpdated }: EditRecipeDialog
       }
       return ing;
     });
+    setRecipeIngredients(updated);
+  };
+
+  const updateIngredientUnit = (index: number, unit: string) => {
+    const updated = recipeIngredients.map((ing, i) => 
+      i === index ? { ...ing, unit } : ing
+    );
+    setRecipeIngredients(updated);
+  };
+
+  const updateIngredientQuantity = (index: number, quantity: number) => {
+    const updated = recipeIngredients.map((ing, i) => 
+      i === index ? { ...ing, quantity } : ing
+    );
     setRecipeIngredients(updated);
   };
 
@@ -227,7 +249,14 @@ const EditRecipeDialog = ({ recipe, onClose, onRecipeUpdated }: EditRecipeDialog
     return recipeIngredients.reduce((total, recipeIng) => {
       if (recipeIng.ingredient) {
         const effectiveCost = recipeIng.ingredient.effective_cost_per_unit ?? recipeIng.ingredient.cost_per_unit;
-        return total + (effectiveCost * recipeIng.quantity);
+        
+        // Se l'unità della ricetta è diversa da quella base, converte
+        let finalQuantity = recipeIng.quantity;
+        if (recipeIng.unit && recipeIng.unit !== recipeIng.ingredient.unit) {
+          finalQuantity = convertUnit(recipeIng.quantity, recipeIng.unit, recipeIng.ingredient.unit);
+        }
+        
+        return total + (effectiveCost * finalQuantity);
       }
       return total;
     }, 0);
@@ -283,10 +312,12 @@ const EditRecipeDialog = ({ recipe, onClose, onRecipeUpdated }: EditRecipeDialog
 
       if (deleteIngredientsError) throw deleteIngredientsError;
 
+      // Salva gli ingredienti con le unità specifiche
       const ingredientsData = validIngredients.map(ing => ({
         recipe_id: recipe.id,
         ingredient_id: ing.ingredient_id,
         quantity: ing.quantity,
+        unit: ing.unit, // Salva l'unità specifica
         is_semilavorato: ing.is_semilavorato || false
       }));
 
@@ -515,6 +546,13 @@ const EditRecipeDialog = ({ recipe, onClose, onRecipeUpdated }: EditRecipeDialog
                     ? recipeIngredient.ingredient.effective_cost_per_unit ?? recipeIngredient.ingredient.cost_per_unit
                     : 0;
                   
+                  // Calcola il costo convertito se necessario
+                  let finalCost = cost * recipeIngredient.quantity;
+                  if (recipeIngredient.unit && recipeIngredient.ingredient && recipeIngredient.unit !== recipeIngredient.ingredient.unit) {
+                    const convertedQuantity = convertUnit(recipeIngredient.quantity, recipeIngredient.unit, recipeIngredient.ingredient.unit);
+                    finalCost = cost * convertedQuantity;
+                  }
+                  
                   return (
                     <div key={recipeIngredient.id} className="space-y-2 p-3 border rounded-lg">
                       <div className="flex justify-between items-center">
@@ -561,24 +599,36 @@ const EditRecipeDialog = ({ recipe, onClose, onRecipeUpdated }: EditRecipeDialog
                         </SelectContent>
                       </Select>
                       
-                      <div className="grid grid-cols-2 gap-2">
-                        <div>
+                      {recipeIngredient.ingredient && !recipeIngredient.is_semilavorato && (
+                        <UnitSelector
+                          baseUnit={recipeIngredient.ingredient.unit}
+                          selectedUnit={recipeIngredient.unit || recipeIngredient.ingredient.unit}
+                          quantity={recipeIngredient.quantity}
+                          onUnitChange={(unit) => updateIngredientUnit(index, unit)}
+                          onQuantityChange={(quantity) => updateIngredientQuantity(index, quantity)}
+                        />
+                      )}
+                      
+                      {recipeIngredient.is_semilavorato && (
+                        <div className="grid grid-cols-2 gap-2">
                           <Input
                             type="number"
                             step="0.1"
-                            placeholder={
-                              recipeIngredient.is_semilavorato 
-                                ? "Quantità (porzioni)" 
-                                : `Quantità ${recipeIngredient.ingredient?.unit ? `(${recipeIngredient.ingredient.unit})` : ''}`
-                            }
+                            placeholder="Quantità (porzioni)"
                             value={recipeIngredient.quantity}
-                            onChange={(e) => updateIngredient(index, 'quantity', parseFloat(e.target.value) || 0)}
+                            onChange={(e) => updateIngredientQuantity(index, parseFloat(e.target.value) || 0)}
                           />
+                          <div className="text-right flex items-center">
+                            <span className="text-sm font-medium">€{finalCost.toFixed(2)}</span>
+                          </div>
                         </div>
-                        <div className="text-right flex items-center">
-                          <span className="text-sm font-medium">€{(cost * recipeIngredient.quantity).toFixed(2)}</span>
+                      )}
+                      
+                      {!recipeIngredient.is_semilavorato && recipeIngredient.ingredient && (
+                        <div className="text-right">
+                          <span className="text-sm font-medium">€{finalCost.toFixed(2)}</span>
                         </div>
-                      </div>
+                      )}
                     </div>
                   );
                 })}

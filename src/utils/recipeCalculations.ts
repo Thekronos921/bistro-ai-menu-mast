@@ -1,8 +1,11 @@
 
+import { convertUnit, convertCostPerUnit, areUnitsCompatible } from './unitConversion';
+
 interface RecipeIngredient {
   id: string;
   ingredient_id: string;
   quantity: number;
+  unit?: string; // Aggiungiamo l'unità specifica per questo ingrediente nella ricetta
   is_semilavorato?: boolean;
   ingredients: {
     id: string;
@@ -19,8 +22,25 @@ export const calculateTotalCost = (recipeIngredients: RecipeIngredient[]) => {
   return recipeIngredients.reduce((total, ri) => {
     const effectiveCost = ri.ingredients.effective_cost_per_unit ?? ri.ingredients.cost_per_unit;
     const yieldPercentage = ri.ingredients.yield_percentage ?? 100;
-    const adjustedCost = effectiveCost;
-    return total + (adjustedCost * ri.quantity);
+    
+    // Se l'ingrediente nella ricetta ha un'unità diversa da quella base, converte
+    let adjustedCost = effectiveCost;
+    let adjustedQuantity = ri.quantity;
+    
+    if (ri.unit && ri.unit !== ri.ingredients.unit) {
+      if (areUnitsCompatible(ri.unit, ri.ingredients.unit)) {
+        // Converte la quantità dall'unità della ricetta all'unità base dell'ingrediente
+        adjustedQuantity = convertUnit(ri.quantity, ri.unit, ri.ingredients.unit);
+        console.log(`Convertendo ${ri.quantity} ${ri.unit} a ${adjustedQuantity} ${ri.ingredients.unit} per ${ri.ingredients.name}`);
+      } else {
+        console.warn(`Unità incompatibili per ${ri.ingredients.name}: ${ri.unit} vs ${ri.ingredients.unit}`);
+      }
+    }
+    
+    // Applica la resa se disponibile
+    const finalCost = adjustedCost * (100 / yieldPercentage);
+    
+    return total + (finalCost * adjustedQuantity);
   }, 0);
 };
 

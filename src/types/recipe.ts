@@ -3,6 +3,7 @@ export interface RecipeIngredient {
   id: string;
   ingredient_id: string;
   quantity: number;
+  unit?: string; // Unità specifica per questo ingrediente nella ricetta
   is_semilavorato?: boolean;
   ingredients: {
     id: string;

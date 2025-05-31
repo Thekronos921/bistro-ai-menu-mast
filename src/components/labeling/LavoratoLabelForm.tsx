@@ -22,6 +22,24 @@ interface LabelRecipe {
   }[];
 }
 
+// Raw data type from Supabase
+interface RawRecipeData {
+  id: string;
+  name: string;
+  allergens: string | null;
+  recipe_ingredients: {
+    ingredient_id: string;
+    quantity: number;
+    ingredients: {
+      name: string;
+      supplier: string;
+    } | {
+      name: string;
+      supplier: string;
+    }[];
+  }[];
+}
+
 const LavoratoLabelForm = () => {
   const [selectedRecipe, setSelectedRecipe] = useState<string>('');
   const [recipes, setRecipes] = useState<LabelRecipe[]>([]);
@@ -61,18 +79,25 @@ const LavoratoLabelForm = () => {
       if (error) throw error;
 
       // Transform the data to properly handle the joined ingredients
-      const transformedData: LabelRecipe[] = (data || []).map(recipe => ({
+      const transformedData: LabelRecipe[] = (data as RawRecipeData[] || []).map(recipe => ({
         id: recipe.id,
         name: recipe.name,
         allergens: recipe.allergens || '',
-        recipe_ingredients: (recipe.recipe_ingredients || []).map(ri => ({
-          ingredient_id: ri.ingredient_id,
-          quantity: ri.quantity,
-          ingredients: {
-            name: Array.isArray(ri.ingredients) ? ri.ingredients[0]?.name || '' : ri.ingredients?.name || '',
-            supplier: Array.isArray(ri.ingredients) ? ri.ingredients[0]?.supplier || '' : ri.ingredients?.supplier || ''
-          }
-        }))
+        recipe_ingredients: (recipe.recipe_ingredients || []).map(ri => {
+          // Handle both array and object cases for ingredients
+          const ingredientData = Array.isArray(ri.ingredients) 
+            ? ri.ingredients[0] 
+            : ri.ingredients;
+          
+          return {
+            ingredient_id: ri.ingredient_id,
+            quantity: ri.quantity,
+            ingredients: {
+              name: ingredientData?.name || '',
+              supplier: ingredientData?.supplier || ''
+            }
+          };
+        })
       }));
 
       setRecipes(transformedData);

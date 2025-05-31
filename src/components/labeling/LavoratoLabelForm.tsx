@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -7,6 +8,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { useRestaurant } from '@/hooks/useRestaurant';
+import LabelPreview from './LabelPreview';
 
 interface LabelRecipe {
   id: string;
@@ -22,36 +24,21 @@ interface LabelRecipe {
   }[];
 }
 
-// Raw data type from Supabase - ingredients can be array or single object
-interface RawRecipeData {
-  id: string;
-  name: string;
-  allergens: string | null;
-  recipe_ingredients: {
-    ingredient_id: string;
-    quantity: number;
-    ingredients: {
-      name: string;
-      supplier: string;
-    }[] | {
-      name: string;
-      supplier: string;
-    } | null;
-  }[];
-}
-
 const LavoratoLabelForm = () => {
   const [selectedRecipe, setSelectedRecipe] = useState<string>('');
   const [recipes, setRecipes] = useState<LabelRecipe[]>([]);
   const [productionDate, setProductionDate] = useState<string>(new Date().toISOString().split('T')[0]);
   const [expiryDate, setExpiryDate] = useState<string>('');
   const [additionalNotes, setAdditionalNotes] = useState<string>('');
+  const [batchNumber, setBatchNumber] = useState<string>('');
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
   const { restaurantId } = useRestaurant();
 
   useEffect(() => {
     fetchRecipes();
+    // Generate automatic batch number
+    setBatchNumber(`LAV-${Date.now().toString().slice(-6)}`);
   }, [restaurantId]);
 
   const fetchRecipes = async () => {
@@ -80,13 +67,11 @@ const LavoratoLabelForm = () => {
 
       // Transform the data to properly handle the joined ingredients
       const transformedData: LabelRecipe[] = (data || []).map(recipe => {
-        const typedRecipe = recipe as any; // Use any to bypass strict typing for transformation
-        
         return {
-          id: typedRecipe.id,
-          name: typedRecipe.name,
-          allergens: typedRecipe.allergens || '',
-          recipe_ingredients: (typedRecipe.recipe_ingredients || []).map((ri: any) => {
+          id: recipe.id,
+          name: recipe.name,
+          allergens: recipe.allergens || '',
+          recipe_ingredients: (recipe.recipe_ingredients || []).map((ri: any) => {
             // Handle ingredients - can be array, object, or null
             let ingredientData = { name: '', supplier: '' };
             
@@ -123,6 +108,21 @@ const LavoratoLabelForm = () => {
     }
   };
 
+  const generateQRData = () => {
+    const selectedRecipeData = recipes.find(r => r.id === selectedRecipe);
+    return JSON.stringify({
+      type: 'lavorato',
+      recipeId: selectedRecipe,
+      recipeName: selectedRecipeData?.name,
+      productionDate,
+      expiryDate,
+      batchNumber,
+      allergens: selectedRecipeData?.allergens,
+      restaurantId,
+      timestamp: new Date().toISOString()
+    });
+  };
+
   const handleGenerateLabel = () => {
     if (!selectedRecipe || !expiryDate) {
       toast({
@@ -149,7 +149,49 @@ const LavoratoLabelForm = () => {
       return;
     }
 
+    // Crea un nuovo stile CSS specifico per la stampa
+    const printStyles = `
+      @media print {
+        body * {
+          visibility: hidden;
+        }
+        .print-content, .print-content * {
+          visibility: visible;
+        }
+        .print-content {
+          position: absolute;
+          left: 0;
+          top: 0;
+          width: 8cm;
+          height: 6cm;
+        }
+        @page {
+          size: 8cm 6cm;
+          margin: 0;
+        }
+      }
+    `;
+
+    // Aggiunge gli stili alla head
+    const styleSheet = document.createElement('style');
+    styleSheet.innerText = printStyles;
+    document.head.appendChild(styleSheet);
+
+    // Aggiunge la classe per la stampa all'anteprima
+    const labelPreview = document.querySelector('[data-label-preview]');
+    if (labelPreview) {
+      labelPreview.classList.add('print-content');
+    }
+
     window.print();
+
+    // Rimuove gli stili e la classe dopo la stampa
+    setTimeout(() => {
+      document.head.removeChild(styleSheet);
+      if (labelPreview) {
+        labelPreview.classList.remove('print-content');
+      }
+    }, 1000);
   };
 
   const selectedRecipeData = recipes.find(r => r.id === selectedRecipe);
@@ -172,6 +214,16 @@ const LavoratoLabelForm = () => {
                 ))}
               </SelectContent>
             </Select>
+          </div>
+
+          <div>
+            <Label htmlFor="batchNumber">Numero Lotto</Label>
+            <Input
+              id="batchNumber"
+              value={batchNumber}
+              onChange={(e) => setBatchNumber(e.target.value)}
+              placeholder="LAV-123456"
+            />
           </div>
 
           <div>
@@ -214,25 +266,17 @@ const LavoratoLabelForm = () => {
           </div>
         </div>
 
-        <div className="border rounded-lg p-4 bg-white" data-label-preview>
-          <div className="text-center space-y-2">
-            <h3 className="font-bold text-lg">PRODOTTO LAVORATO</h3>
-            {selectedRecipeData && (
-              <>
-                <p className="font-semibold">{selectedRecipeData.name}</p>
-                <div className="text-sm space-y-1">
-                  <p><strong>Prodotto il:</strong> {productionDate}</p>
-                  <p><strong>Scade il:</strong> {expiryDate}</p>
-                  {selectedRecipeData.allergens && (
-                    <p><strong>Allergeni:</strong> {selectedRecipeData.allergens}</p>
-                  )}
-                  {additionalNotes && (
-                    <p><strong>Note:</strong> {additionalNotes}</p>
-                  )}
-                </div>
-              </>
-            )}
-          </div>
+        <div className="space-y-4">
+          <LabelPreview
+            title={selectedRecipeData?.name || "Seleziona ricetta"}
+            type="Lavorato"
+            productionDate={productionDate}
+            expiryDate={expiryDate}
+            batchNumber={batchNumber}
+            qrData={generateQRData()}
+            storageInstructions={additionalNotes}
+            allergens={selectedRecipeData?.allergens}
+          />
         </div>
       </div>
     </div>

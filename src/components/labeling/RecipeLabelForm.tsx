@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -7,6 +8,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { useRestaurant } from '@/hooks/useRestaurant';
+import LabelPreview from './LabelPreview';
 
 interface RecipeForLabel {
   id: string;
@@ -26,40 +28,21 @@ interface RecipeForLabel {
   }[];
 }
 
-// Raw data type from Supabase - ingredients can be array or single object
-interface RawRecipeData {
-  id: string;
-  name: string;
-  allergens: string | null;
-  portions: number;
-  preparation_time: number;
-  difficulty: string;
-  category: string;
-  recipe_ingredients: {
-    ingredient_id: string;
-    quantity: number;
-    ingredients: {
-      name: string;
-      supplier: string;
-    }[] | {
-      name: string;
-      supplier: string;
-    } | null;
-  }[];
-}
-
 const RecipeLabelForm = () => {
   const [selectedRecipe, setSelectedRecipe] = useState<string>('');
   const [recipes, setRecipes] = useState<RecipeForLabel[]>([]);
   const [preparedBy, setPreparedBy] = useState<string>('');
   const [preparationDate, setPreparationDate] = useState<string>(new Date().toISOString().split('T')[0]);
   const [additionalNotes, setAdditionalNotes] = useState<string>('');
+  const [batchNumber, setBatchNumber] = useState<string>('');
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
   const { restaurantId } = useRestaurant();
 
   useEffect(() => {
     fetchRecipes();
+    // Generate automatic batch number
+    setBatchNumber(`RIC-${Date.now().toString().slice(-6)}`);
   }, [restaurantId]);
 
   const fetchRecipes = async () => {
@@ -91,17 +74,15 @@ const RecipeLabelForm = () => {
 
       // Transform the data to properly handle the joined ingredients
       const transformedData: RecipeForLabel[] = (data || []).map(recipe => {
-        const typedRecipe = recipe as any; // Use any to bypass strict typing for transformation
-        
         return {
-          id: typedRecipe.id,
-          name: typedRecipe.name,
-          allergens: typedRecipe.allergens || '',
-          portions: typedRecipe.portions,
-          preparation_time: typedRecipe.preparation_time,
-          difficulty: typedRecipe.difficulty,
-          category: typedRecipe.category,
-          recipe_ingredients: (typedRecipe.recipe_ingredients || []).map((ri: any) => {
+          id: recipe.id,
+          name: recipe.name,
+          allergens: recipe.allergens || '',
+          portions: recipe.portions,
+          preparation_time: recipe.preparation_time,
+          difficulty: recipe.difficulty,
+          category: recipe.category,
+          recipe_ingredients: (recipe.recipe_ingredients || []).map((ri: any) => {
             // Handle ingredients - can be array, object, or null
             let ingredientData = { name: '', supplier: '' };
             
@@ -138,6 +119,30 @@ const RecipeLabelForm = () => {
     }
   };
 
+  const generateQRData = () => {
+    const selectedRecipeData = recipes.find(r => r.id === selectedRecipe);
+    return JSON.stringify({
+      type: 'recipe',
+      recipeId: selectedRecipe,
+      recipeName: selectedRecipeData?.name,
+      preparationDate,
+      preparedBy,
+      batchNumber,
+      category: selectedRecipeData?.category,
+      portions: selectedRecipeData?.portions,
+      allergens: selectedRecipeData?.allergens,
+      restaurantId,
+      timestamp: new Date().toISOString()
+    });
+  };
+
+  const generateStorageInstructions = () => {
+    const notes = [];
+    if (preparedBy) notes.push(`Preparato da: ${preparedBy}`);
+    if (additionalNotes) notes.push(additionalNotes);
+    return notes.join(' | ');
+  };
+
   const handleGenerateLabel = () => {
     if (!selectedRecipe) {
       toast({
@@ -164,7 +169,49 @@ const RecipeLabelForm = () => {
       return;
     }
 
+    // Crea un nuovo stile CSS specifico per la stampa
+    const printStyles = `
+      @media print {
+        body * {
+          visibility: hidden;
+        }
+        .print-content, .print-content * {
+          visibility: visible;
+        }
+        .print-content {
+          position: absolute;
+          left: 0;
+          top: 0;
+          width: 8cm;
+          height: 6cm;
+        }
+        @page {
+          size: 8cm 6cm;
+          margin: 0;
+        }
+      }
+    `;
+
+    // Aggiunge gli stili alla head
+    const styleSheet = document.createElement('style');
+    styleSheet.innerText = printStyles;
+    document.head.appendChild(styleSheet);
+
+    // Aggiunge la classe per la stampa all'anteprima
+    const labelPreview = document.querySelector('[data-label-preview]');
+    if (labelPreview) {
+      labelPreview.classList.add('print-content');
+    }
+
     window.print();
+
+    // Rimuove gli stili e la classe dopo la stampa
+    setTimeout(() => {
+      document.head.removeChild(styleSheet);
+      if (labelPreview) {
+        labelPreview.classList.remove('print-content');
+      }
+    }, 1000);
   };
 
   const selectedRecipeData = recipes.find(r => r.id === selectedRecipe);
@@ -187,6 +234,16 @@ const RecipeLabelForm = () => {
                 ))}
               </SelectContent>
             </Select>
+          </div>
+
+          <div>
+            <Label htmlFor="batchNumber">Numero Lotto</Label>
+            <Input
+              id="batchNumber"
+              value={batchNumber}
+              onChange={(e) => setBatchNumber(e.target.value)}
+              placeholder="RIC-123456"
+            />
           </div>
 
           <div>
@@ -229,29 +286,18 @@ const RecipeLabelForm = () => {
           </div>
         </div>
 
-        <div className="border rounded-lg p-4 bg-white" data-label-preview>
-          <div className="text-center space-y-2">
-            <h3 className="font-bold text-lg">RICETTA</h3>
-            {selectedRecipeData && (
-              <>
-                <p className="font-semibold">{selectedRecipeData.name}</p>
-                <div className="text-sm space-y-1">
-                  <p><strong>Categoria:</strong> {selectedRecipeData.category}</p>
-                  <p><strong>Porzioni:</strong> {selectedRecipeData.portions}</p>
-                  <p><strong>Tempo:</strong> {selectedRecipeData.preparation_time} min</p>
-                  <p><strong>Difficoltà:</strong> {selectedRecipeData.difficulty}</p>
-                  <p><strong>Preparato il:</strong> {preparationDate}</p>
-                  {preparedBy && <p><strong>Preparato da:</strong> {preparedBy}</p>}
-                  {selectedRecipeData.allergens && (
-                    <p><strong>Allergeni:</strong> {selectedRecipeData.allergens}</p>
-                  )}
-                  {additionalNotes && (
-                    <p><strong>Note:</strong> {additionalNotes}</p>
-                  )}
-                </div>
-              </>
-            )}
-          </div>
+        <div className="space-y-4">
+          <LabelPreview
+            title={selectedRecipeData?.name || "Seleziona ricetta"}
+            type="Ricetta"
+            productionDate={preparationDate}
+            expiryDate=""
+            batchNumber={batchNumber}
+            qrData={generateQRData()}
+            storageInstructions={generateStorageInstructions()}
+            allergens={selectedRecipeData?.allergens}
+            portions={selectedRecipeData?.portions.toString()}
+          />
         </div>
       </div>
     </div>

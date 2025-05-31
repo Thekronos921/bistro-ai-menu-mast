@@ -136,6 +136,7 @@ export type Database = {
           is_semilavorato: boolean | null
           quantity: number
           recipe_id: string | null
+          unit: string | null
         }
         Insert: {
           created_at?: string
@@ -144,6 +145,7 @@ export type Database = {
           is_semilavorato?: boolean | null
           quantity: number
           recipe_id?: string | null
+          unit?: string | null
         }
         Update: {
           created_at?: string
@@ -152,6 +154,7 @@ export type Database = {
           is_semilavorato?: boolean | null
           quantity?: number
           recipe_id?: string | null
+          unit?: string | null
         }
         Relationships: [
           {

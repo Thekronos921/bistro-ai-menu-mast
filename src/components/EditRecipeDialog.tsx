@@ -56,16 +56,7 @@ const EditRecipeDialog = ({ recipe, onClose, onRecipeUpdated }: EditRecipeDialog
     notesChef: recipe.notes_chef || ""
   });
   
-  const [recipeIngredients, setRecipeIngredients] = useState<LocalRecipeIngredient[]>(
-    recipe.recipe_ingredients.map(ri => ({
-      id: ri.id,
-      ingredient_id: ri.ingredient_id,
-      quantity: ri.quantity,
-      unit: ri.unit || ri.ingredients.unit,
-      is_semilavorato: ri.is_semilavorato || false,
-      ingredient: ri.ingredients
-    }))
-  );
+  const [recipeIngredients, setRecipeIngredients] = useState<LocalRecipeIngredient[]>([]);
   
   const [instructions, setInstructions] = useState(
     recipe.recipe_instructions
@@ -79,6 +70,50 @@ const EditRecipeDialog = ({ recipe, onClose, onRecipeUpdated }: EditRecipeDialog
     carbs: recipe.carbs || 0,
     fat: recipe.fat || 0
   });
+
+  useEffect(() => {
+    const loadRecipeIngredients = async () => {
+      console.log("Loading recipe ingredients for recipe:", recipe.id);
+      
+      const { data: recipeIngredientsData, error } = await supabase
+        .from('recipe_ingredients')
+        .select(`
+          id,
+          ingredient_id,
+          quantity,
+          unit,
+          is_semilavorato,
+          ingredients!inner(
+            id,
+            name,
+            unit,
+            cost_per_unit,
+            effective_cost_per_unit
+          )
+        `)
+        .eq('recipe_id', recipe.id);
+
+      if (error) {
+        console.error("Error loading recipe ingredients:", error);
+        return;
+      }
+
+      console.log("Loaded recipe ingredients:", recipeIngredientsData);
+      
+      const mappedIngredients = (recipeIngredientsData || []).map(ri => ({
+        id: ri.id,
+        ingredient_id: ri.ingredient_id,
+        quantity: ri.quantity,
+        unit: ri.unit || ri.ingredients.unit,
+        is_semilavorato: ri.is_semilavorato || false,
+        ingredient: ri.ingredients
+      }));
+
+      setRecipeIngredients(mappedIngredients);
+    };
+
+    loadRecipeIngredients();
+  }, [recipe.id]);
 
   const handleSubmit = async () => {
     if (!formData.name || !formData.category) {
@@ -102,6 +137,8 @@ const EditRecipeDialog = ({ recipe, onClose, onRecipeUpdated }: EditRecipeDialog
 
     setLoading(true);
     try {
+      console.log("Updating recipe with data:", formData);
+      
       const { error: recipeError } = await supabase
         .from('recipes')
         .update({
@@ -121,15 +158,23 @@ const EditRecipeDialog = ({ recipe, onClose, onRecipeUpdated }: EditRecipeDialog
         })
         .eq('id', recipe.id);
 
-      if (recipeError) throw recipeError;
+      if (recipeError) {
+        console.error("Recipe update error:", recipeError);
+        throw recipeError;
+      }
 
+      console.log("Deleting old recipe ingredients");
       const { error: deleteIngredientsError } = await supabase
         .from('recipe_ingredients')
         .delete()
         .eq('recipe_id', recipe.id);
 
-      if (deleteIngredientsError) throw deleteIngredientsError;
+      if (deleteIngredientsError) {
+        console.error("Delete ingredients error:", deleteIngredientsError);
+        throw deleteIngredientsError;
+      }
 
+      console.log("Inserting new recipe ingredients:", validIngredients);
       const ingredientsData = validIngredients.map(ing => ({
         recipe_id: recipe.id,
         ingredient_id: ing.ingredient_id,
@@ -142,17 +187,25 @@ const EditRecipeDialog = ({ recipe, onClose, onRecipeUpdated }: EditRecipeDialog
         .from('recipe_ingredients')
         .insert(ingredientsData);
 
-      if (ingredientsError) throw ingredientsError;
+      if (ingredientsError) {
+        console.error("Ingredients insert error:", ingredientsError);
+        throw ingredientsError;
+      }
 
+      console.log("Deleting old recipe instructions");
       const { error: deleteInstructionsError } = await supabase
         .from('recipe_instructions')
         .delete()
         .eq('recipe_id', recipe.id);
 
-      if (deleteInstructionsError) throw deleteInstructionsError;
+      if (deleteInstructionsError) {
+        console.error("Delete instructions error:", deleteInstructionsError);
+        throw deleteInstructionsError;
+      }
 
       const validInstructions = instructions.filter(inst => inst.instruction.trim());
       if (validInstructions.length > 0) {
+        console.log("Inserting new recipe instructions:", validInstructions);
         const instructionsData = validInstructions.map((inst, index) => ({
           recipe_id: recipe.id,
           step_number: index + 1,
@@ -163,7 +216,10 @@ const EditRecipeDialog = ({ recipe, onClose, onRecipeUpdated }: EditRecipeDialog
           .from('recipe_instructions')
           .insert(instructionsData);
 
-        if (instructionsError) throw instructionsError;
+        if (instructionsError) {
+          console.error("Instructions insert error:", instructionsError);
+          throw instructionsError;
+        }
       }
 
       toast({
@@ -174,6 +230,7 @@ const EditRecipeDialog = ({ recipe, onClose, onRecipeUpdated }: EditRecipeDialog
       onClose();
       onRecipeUpdated();
     } catch (error) {
+      console.error("Submit error:", error);
       toast({
         title: "Errore",
         description: "Errore durante l'aggiornamento della ricetta",

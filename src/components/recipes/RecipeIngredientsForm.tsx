@@ -82,6 +82,7 @@ const RecipeIngredientsForm = ({ recipeIngredients, onIngredientsChange, recipeI
           .from('recipe_ingredients')
           .select(`
             quantity,
+            unit,
             is_semilavorato,
             ingredients!inner(cost_per_unit, effective_cost_per_unit)
           `)
@@ -90,7 +91,13 @@ const RecipeIngredientsForm = ({ recipeIngredients, onIngredientsChange, recipeI
         const totalCost = (recipeIngredientsData || []).reduce((sum, ri) => {
           const ingredients = ri.ingredients as any;
           const effectiveCost = ingredients?.effective_cost_per_unit ?? (ingredients?.cost_per_unit || 0);
-          return sum + (ri.quantity * effectiveCost);
+          let finalQuantity = ri.quantity;
+          
+          if (ri.unit && ri.unit !== ingredients?.unit) {
+            finalQuantity = convertUnit(ri.quantity, ri.unit, ingredients?.unit || 'g');
+          }
+          
+          return sum + (finalQuantity * effectiveCost);
         }, 0);
         
         return {
@@ -101,6 +108,7 @@ const RecipeIngredientsForm = ({ recipeIngredients, onIngredientsChange, recipeI
 
       setSemilavorati(semilavoratiWithCosts);
     } catch (error) {
+      console.error("Error fetching ingredients:", error);
       toast({
         title: "Errore",
         description: "Errore nel caricamento degli ingredienti",

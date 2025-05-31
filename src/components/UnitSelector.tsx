@@ -31,23 +31,30 @@ const UnitSelector = ({
   useEffect(() => {
     const units = getCompatibleUnits(baseUnit);
     setCompatibleUnits(units);
-  }, [baseUnit]);
+    
+    // Se selectedUnit non è nelle unità compatibili, usa l'unità base
+    if (!units.includes(selectedUnit)) {
+      onUnitChange(baseUnit);
+    }
+  }, [baseUnit, selectedUnit, onUnitChange]);
 
   useEffect(() => {
     if (selectedUnit !== baseUnit && quantity > 0) {
-      const convertedQuantity = convertUnit(quantity, selectedUnit, baseUnit);
-      setConversionInfo(`= ${formatQuantityWithUnit(convertedQuantity, baseUnit)}`);
+      try {
+        const convertedQuantity = convertUnit(quantity, selectedUnit, baseUnit);
+        setConversionInfo(`= ${formatQuantityWithUnit(convertedQuantity, baseUnit)}`);
+      } catch (error) {
+        console.error("Conversion error:", error);
+        setConversionInfo("");
+      }
     } else {
       setConversionInfo("");
     }
   }, [selectedUnit, baseUnit, quantity]);
 
   const handleUnitChange = (newUnit: string) => {
-    if (newUnit !== selectedUnit && quantity > 0) {
-      // Converte la quantità corrente nella nuova unità
-      const convertedQuantity = convertUnit(quantity, selectedUnit, newUnit);
-      onQuantityChange(convertedQuantity);
-    }
+    // Non convertire automaticamente la quantità quando cambia l'unità
+    // Lasciamo che l'utente inserisca la quantità nella nuova unità
     onUnitChange(newUnit);
   };
 

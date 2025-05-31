@@ -5,7 +5,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { X } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import UnitSelector from "@/components/UnitSelector";
-import { calculateIngredientCost } from "./utils/ingredientCostCalculator";
+import { convertUnit, areUnitsCompatible } from "@/utils/unitConversion";
 
 interface Ingredient {
   id: string;
@@ -54,7 +54,39 @@ const RecipeIngredientItem = ({
   onUpdateUnit,
   onUpdateQuantity
 }: RecipeIngredientItemProps) => {
-  const ingredientCost = calculateIngredientCost(recipeIngredient);
+  
+  const calculateIngredientCost = () => {
+    if (!recipeIngredient.ingredient) return 0;
+    
+    const effectiveCost = recipeIngredient.ingredient.effective_cost_per_unit ?? recipeIngredient.ingredient.cost_per_unit;
+    
+    // Se è un semilavorato, usa direttamente il costo per porzione
+    if (recipeIngredient.is_semilavorato) {
+      return effectiveCost * recipeIngredient.quantity;
+    }
+    
+    // Se l'unità della ricetta è diversa da quella base dell'ingrediente, converti
+    if (recipeIngredient.unit && recipeIngredient.unit !== recipeIngredient.ingredient.unit) {
+      if (areUnitsCompatible(recipeIngredient.unit, recipeIngredient.ingredient.unit)) {
+        try {
+          // Converti la quantità dall'unità della ricetta all'unità base dell'ingrediente
+          const convertedQuantity = convertUnit(recipeIngredient.quantity, recipeIngredient.unit, recipeIngredient.ingredient.unit);
+          console.log(`Convertendo ${recipeIngredient.quantity} ${recipeIngredient.unit} a ${convertedQuantity} ${recipeIngredient.ingredient.unit} per ${recipeIngredient.ingredient.name}`);
+          return effectiveCost * convertedQuantity;
+        } catch (error) {
+          console.error("Errore nella conversione:", error);
+          return effectiveCost * recipeIngredient.quantity;
+        }
+      } else {
+        console.warn(`Unità incompatibili per ${recipeIngredient.ingredient.name}: ${recipeIngredient.unit} vs ${recipeIngredient.ingredient.unit}`);
+        return effectiveCost * recipeIngredient.quantity;
+      }
+    }
+    
+    return effectiveCost * recipeIngredient.quantity;
+  };
+
+  const ingredientCost = calculateIngredientCost();
 
   return (
     <div className="space-y-2 p-3 border rounded-lg">

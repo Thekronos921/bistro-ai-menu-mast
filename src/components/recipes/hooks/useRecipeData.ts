@@ -56,12 +56,17 @@ export const useRecipeIngredients = (recipeId: string) => {
         // Gestisci il caso in cui ingredients potrebbe essere un array o un oggetto
         const ingredientData = Array.isArray(ri.ingredients) ? ri.ingredients[0] : ri.ingredients;
         
+        // IMPORTANTE: Usa sempre l'unità salvata nella ricetta se disponibile
+        // Se non c'è, usa quella base dell'ingrediente come fallback
+        const unitToUse = ri.unit || ingredientData?.unit || '';
+        
+        console.log(`Caricando ${ingredientData?.name}: unità salvata nella ricetta: ${ri.unit}, unità base ingrediente: ${ingredientData?.unit}, unità finale: ${unitToUse}`);
+        
         return {
           id: ri.id,
           ingredient_id: ri.ingredient_id,
           quantity: ri.quantity,
-          // IMPORTANTE: usa sempre l'unità salvata nella ricetta se disponibile
-          unit: ri.unit || ingredientData?.unit || '',
+          unit: unitToUse, // Usa l'unità specifica della ricetta
           is_semilavorato: ri.is_semilavorato || false,
           ingredient: ingredientData ? {
             id: ingredientData.id,
@@ -73,7 +78,7 @@ export const useRecipeIngredients = (recipeId: string) => {
         };
       });
 
-      console.log("Mapped ingredients with units:", mappedIngredients);
+      console.log("Mapped ingredients with correct units:", mappedIngredients);
       setRecipeIngredients(mappedIngredients);
     };
 

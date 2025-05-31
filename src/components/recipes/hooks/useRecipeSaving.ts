@@ -113,17 +113,24 @@ export const useRecipeSaving = () => {
         throw deleteIngredientsError;
       }
 
-      console.log("Inserting new recipe ingredients with custom units:", validIngredients);
-      const ingredientsData = validIngredients.map(ing => ({
-        recipe_id: recipeId,
-        ingredient_id: ing.ingredient_id,
-        quantity: ing.quantity,
-        // Salva sempre l'unità specifica usata nella ricetta
-        unit: ing.unit || ing.ingredient?.unit || '',
-        is_semilavorato: ing.is_semilavorato || false
-      }));
+      console.log("Preparing ingredients data with custom units:", validIngredients);
+      const ingredientsData = validIngredients.map(ing => {
+        // IMPORTANTE: Salva sempre l'unità specifica usata nella ricetta
+        // Se non c'è un'unità specifica, usa quella base dell'ingrediente
+        const unitToSave = ing.unit || ing.ingredient?.unit || '';
+        
+        console.log(`Ingrediente ${ing.ingredient?.name}: quantità ${ing.quantity}, unità da salvare: ${unitToSave}, unità base: ${ing.ingredient?.unit}`);
+        
+        return {
+          recipe_id: recipeId,
+          ingredient_id: ing.ingredient_id,
+          quantity: ing.quantity,
+          unit: unitToSave, // Salva l'unità specifica della ricetta
+          is_semilavorato: ing.is_semilavorato || false
+        };
+      });
 
-      console.log("Ingredients data to insert:", ingredientsData);
+      console.log("Final ingredients data to insert:", ingredientsData);
 
       const { error: ingredientsError } = await supabase
         .from('recipe_ingredients')

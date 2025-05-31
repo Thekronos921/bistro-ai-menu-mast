@@ -3,10 +3,11 @@ import React, { useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { QrCode, Package, ChefHat, Snowflake } from 'lucide-react';
+import { QrCode, Package, ChefHat, Snowflake, BookOpen } from 'lucide-react';
 import SemilavoratoLabelForm from './SemilavoratoLabelForm';
 import LavoratoLabelForm from './LavoratoLabelForm';
 import DefrostedLabelForm from './DefrostedLabelForm';
+import RecipeLabelForm from './RecipeLabelForm';
 
 const LabelGenerator = () => {
   const [open, setOpen] = useState(false);
@@ -28,7 +29,7 @@ const LabelGenerator = () => {
         </DialogHeader>
         
         <Tabs defaultValue="semilavorato" className="w-full">
-          <TabsList className="grid w-full grid-cols-3">
+          <TabsList className="grid w-full grid-cols-4">
             <TabsTrigger value="semilavorato" className="flex items-center space-x-2">
               <Package className="w-4 h-4" />
               <span>Semilavorati</span>
@@ -36,6 +37,10 @@ const LabelGenerator = () => {
             <TabsTrigger value="lavorato" className="flex items-center space-x-2">
               <ChefHat className="w-4 h-4" />
               <span>Lavorati</span>
+            </TabsTrigger>
+            <TabsTrigger value="recipe" className="flex items-center space-x-2">
+              <BookOpen className="w-4 h-4" />
+              <span>Ricette</span>
             </TabsTrigger>
             <TabsTrigger value="defrosted" className="flex items-center space-x-2">
               <Snowflake className="w-4 h-4" />
@@ -49,6 +54,10 @@ const LabelGenerator = () => {
           
           <TabsContent value="lavorato">
             <LavoratoLabelForm onClose={() => setOpen(false)} />
+          </TabsContent>
+          
+          <TabsContent value="recipe">
+            <RecipeLabelForm onClose={() => setOpen(false)} />
           </TabsContent>
           
           <TabsContent value="defrosted">

@@ -183,7 +183,7 @@ const AddRecipeDialog: React.FC<AddRecipeDialogProps> = ({ onAddRecipe }) => {
     setRecipeInstructions([{ step_number: 1, instruction: '' }]);
   };
 
-  const calculateTotalCost = () => {
+  const calculateTotalCostInDialog = () => {
     return recipeIngredients.reduce((total, ri) => {
       const ingredient = ingredients.find(ing => ing.id === ri.ingredient_id);
       if (ingredient) {
@@ -498,88 +498,97 @@ const AddRecipeDialog: React.FC<AddRecipeDialogProps> = ({ onAddRecipe }) => {
                       )}
                     </div>
                     
-                    <div className="flex items-center space-x-2">
-                      <Switch
-                        checked={ingredient.is_semilavorato}
-                        onCheckedChange={(checked) => updateIngredient(index, 'is_semilavorato', checked)}
-                      />
-                      <label className="text-xs">È semilavorato</label>
-                    </div>
-                    
-                    <Select value={ingredient.ingredient_id} onValueChange={(value) => updateIngredient(index, 'ingredient_id', value)}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Seleziona ingrediente" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {ingredients.map(ing => (
-                          <SelectItem key={ing.id} value={ing.id}>
-                            {ing.name} (€{(ing.effective_cost_per_unit ?? ing.cost_per_unit).toFixed(2)}/{ing.unit})
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    
-                    <div className="grid grid-cols-2 gap-2">
-                      {selectedIngredient && !ingredient.is_semilavorato ? (
+                    <div className="grid grid-cols-1 gap-2">
+                      <Select
+                        value={ingredient.ingredient_id}
+                        onValueChange={(value) => updateIngredient(index, 'ingredient_id', value)}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Seleziona ingrediente" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {ingredients.map(ing => (
+                            <SelectItem key={ing.id} value={ing.id}>
+                              {ing.name} ({ing.unit})
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+
+                      {selectedIngredient && !ingredient.is_semilavorato && (
                         <UnitSelector
                           baseUnit={selectedIngredient.unit}
-                          selectedUnit={ingredient.unit || selectedIngredient.unit}
+                          selectedUnit={ingredient.unit || selectedIngredient.unit} // Usa l'unità dell'ingrediente se definita, altrimenti quella base
                           quantity={ingredient.quantity}
                           onUnitChange={(unit) => updateIngredientUnit(index, unit)}
                           onQuantityChange={(quantity) => updateIngredientQuantity(index, quantity)}
                         />
-                      ) : (
+                      )}
+                      {(!selectedIngredient || ingredient.is_semilavorato) && (
                         <Input
                           type="number"
-                          step="0.1"
-                          placeholder={`Quantità ${selectedIngredient?.unit ? `(${selectedIngredient.unit})` : ''}`}
+                          placeholder="Quantità"
                           value={ingredient.quantity}
                           onChange={(e) => updateIngredient(index, 'quantity', parseFloat(e.target.value) || 0)}
+                          min={0}
+                          step={0.01}
                         />
                       )}
-                      <div className="text-right flex items-center">
-                        <span className="text-sm font-medium">€{cost.toFixed(2)}</span>
-                      </div>
                     </div>
+
+                    <div className="flex items-center space-x-2">
+                      <Switch
+                        id={`isSemilavorato-${index}`}
+                        checked={ingredient.is_semilavorato}
+                        onCheckedChange={(checked) => updateIngredient(index, 'is_semilavorato', checked)}
+                      />
+                      <Label htmlFor={`isSemilavorato-${index}`} className="text-xs">È un semilavorato</Label>
+                    </div>
+                    
+                    {selectedIngredient && (
+                      <p className="text-xs text-gray-500">
+                        Costo: €{cost.toFixed(2)}
+                      </p>
+                    )}
                   </div>
                 );
               })}
             </div>
 
-            <div className="bg-purple-50 p-3 rounded-lg space-y-2">
-              <div className="flex justify-between">
-                <span className="font-medium">Costo Produzione Totale:</span>
-                <span className="font-bold text-purple-600">€{calculateTotalCost().toFixed(2)}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="font-medium">Costo per Porzione:</span>
-                <span className="font-bold text-purple-600">
-                  €{formData.portions > 0 ? (calculateTotalCost() / formData.portions).toFixed(2) : '0.00'}
-                </span>
-              </div>
+            <div className="mt-4 p-3 border rounded-lg bg-gray-50">
+              <h4 className="font-medium text-sm">Costo Totale Ricetta</h4>
+              <p className="text-lg font-semibold">€{calculateTotalCostInDialog().toFixed(2)}</p>
+            </div>
+
+            <div>
+              <Label htmlFor="sellingPrice">Prezzo di Vendita (€)</Label>
+              <Input
+                type="number"
+                id="sellingPrice"
+                name="sellingPrice"
+                value={formData.sellingPrice}
+                onChange={handleInputChange}
+                min={0}
+                step={0.01}
+              />
             </div>
           </div>
 
-          {/* Colonna 3: Preparazione */}
+          {/* Colonna 3: Istruzioni e Azioni */} 
           <div className="space-y-4">
             <div className="flex justify-between items-center">
-              <h3 className="font-semibold text-lg">Preparazione</h3>
+              <h3 className="font-semibold text-lg">Istruzioni di Preparazione</h3>
               <Button type="button" onClick={addInstruction} size="sm" variant="outline">
                 <Plus className="w-4 h-4 mr-1" />
-                Step
+                Aggiungi
               </Button>
             </div>
 
             <div className="space-y-3 max-h-96 overflow-y-auto">
               {recipeInstructions.map((instruction, index) => (
-                <div key={index} className="space-y-2">
+                <div key={index} className="space-y-1 p-3 border rounded-lg">
                   <div className="flex justify-between items-center">
-                    <span className="text-sm font-medium flex items-center">
-                      <span className="w-6 h-6 bg-purple-100 text-purple-600 rounded-full flex items-center justify-center text-xs font-medium mr-2">
-                        {index + 1}
-                      </span>
-                      Step {index + 1}
-                    </span>
+                    <Label htmlFor={`instruction-${index}`} className="text-sm font-medium">Passaggio {instruction.step_number}</Label>
                     {recipeInstructions.length > 1 && (
                       <Button type="button" onClick={() => removeInstruction(index)} size="sm" variant="outline">
                         <X className="w-4 h-4" />
@@ -587,28 +596,19 @@ const AddRecipeDialog: React.FC<AddRecipeDialogProps> = ({ onAddRecipe }) => {
                     )}
                   </div>
                   <Textarea
-                    placeholder="Descrivi questo passaggio..."
+                    id={`instruction-${index}`}
                     value={instruction.instruction}
                     onChange={(e) => updateInstruction(index, e.target.value)}
+                    placeholder={`Descrivi il passaggio ${instruction.step_number}...`}
                     rows={3}
                   />
                 </div>
               ))}
             </div>
-          </div>
 
-          {/* Footer con pulsanti */}
-          <div className="col-span-full flex justify-between items-center pt-4 border-t">
-            <p className="text-xs text-slate-500">
-              Costi ingredienti aggiornati al: {new Date().toLocaleString('it-IT')}
-            </p>
-            <div className="flex space-x-2">
-              <Button type="button" variant="outline" onClick={() => setOpen(false)}>
-                Annulla
-              </Button>
-              <Button type="submit" disabled={loading}>
-                {loading && <ChefHat className="mr-2 h-4 w-4 animate-spin" />}
-                Aggiungi Ricetta
+            <div className="mt-6 pt-6 border-t">
+              <Button type="submit" disabled={loading} className="w-full">
+                {loading ? 'Salvataggio...' : 'Salva Ricetta'}
               </Button>
             </div>
           </div>

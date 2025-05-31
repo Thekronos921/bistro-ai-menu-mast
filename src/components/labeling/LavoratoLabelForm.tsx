@@ -61,10 +61,14 @@ const LavoratoLabelForm = () => {
 
       if (error) throw error;
 
-      // Trasforma i dati per adattarli alla struttura prevista
+      // Transform the data to match our interface - ingredients comes as an object, not array
       const transformedData = data?.map(recipe => ({
         ...recipe,
-        recipe_ingredients: recipe.recipe_ingredients || []
+        recipe_ingredients: recipe.recipe_ingredients?.map(ri => ({
+          ingredient_id: ri.ingredient_id,
+          quantity: ri.quantity,
+          ingredients: ri.ingredients // This is already an object, not an array
+        })) || []
       })) || [];
 
       setRecipes(transformedData);

@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -22,7 +23,7 @@ interface LabelRecipe {
   }[];
 }
 
-// Raw data type from Supabase
+// Raw data type from Supabase with proper typing
 interface RawRecipeData {
   id: string;
   name: string;
@@ -33,10 +34,7 @@ interface RawRecipeData {
     ingredients: {
       name: string;
       supplier: string;
-    } | {
-      name: string;
-      supplier: string;
-    }[];
+    } | null;
   }[];
 }
 
@@ -84,10 +82,8 @@ const LavoratoLabelForm = () => {
         name: recipe.name,
         allergens: recipe.allergens || '',
         recipe_ingredients: (recipe.recipe_ingredients || []).map(ri => {
-          // Handle both array and object cases for ingredients
-          const ingredientData = Array.isArray(ri.ingredients) 
-            ? ri.ingredients[0] 
-            : ri.ingredients;
+          // Safely handle the ingredients data
+          const ingredientData = ri.ingredients;
           
           return {
             ingredient_id: ri.ingredient_id,

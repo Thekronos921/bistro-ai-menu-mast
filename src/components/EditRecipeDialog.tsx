@@ -1,33 +1,16 @@
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { ChefHat } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
-import { useToast } from "@/hooks/use-toast";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import type { Recipe, RecipeIngredient } from '@/types/recipe';
+import type { Recipe } from '@/types/recipe';
 import RecipeBasicInfoForm from "@/components/recipes/RecipeBasicInfoForm";
 import NutritionalInfoForm from "@/components/recipes/NutritionalInfoForm";
 import RecipeIngredientsForm from "@/components/recipes/RecipeIngredientsForm";
 import RecipeInstructionsForm from "@/components/recipes/RecipeInstructionsForm";
-
-interface Ingredient {
-  id: string;
-  name: string;
-  unit: string;
-  cost_per_unit: number;
-  effective_cost_per_unit?: number;
-}
-
-interface LocalRecipeIngredient {
-  id: string;
-  ingredient_id: string;
-  quantity: number;
-  unit?: string;
-  is_semilavorato?: boolean;
-  ingredient: Ingredient | null;
-}
+import { useRecipeIngredients } from "@/components/recipes/hooks/useRecipeData";
+import { useRecipeSaving } from "@/components/recipes/hooks/useRecipeSaving";
 
 interface RecipeInstruction {
   id: string;
@@ -41,8 +24,8 @@ interface EditRecipeDialogProps {
 }
 
 const EditRecipeDialog = ({ recipe, onClose, onRecipeUpdated }: EditRecipeDialogProps) => {
-  const [loading, setLoading] = useState(false);
-  const { toast } = useToast();
+  const { saveRecipe, loading } = useRecipeSaving();
+  const { recipeIngredients, setRecipeIngredients } = useRecipeIngredients(recipe.id);
   
   const [formData, setFormData] = useState({
     name: recipe.name,
@@ -55,8 +38,6 @@ const EditRecipeDialog = ({ recipe, onClose, onRecipeUpdated }: EditRecipeDialog
     isSemilavorato: recipe.is_semilavorato || false,
     notesChef: recipe.notes_chef || ""
   });
-  
-  const [recipeIngredients, setRecipeIngredients] = useState<LocalRecipeIngredient[]>([]);
 
   const [instructions, setInstructions] = useState(
     recipe.recipe_instructions
@@ -71,191 +52,18 @@ const EditRecipeDialog = ({ recipe, onClose, onRecipeUpdated }: EditRecipeDialog
     fat: recipe.fat || 0
   });
 
-  useEffect(() => {
-    const loadRecipeIngredients = async () => {
-      console.log("Loading recipe ingredients for recipe:", recipe.id);
-      
-      const { data: recipeIngredientsData, error } = await supabase
-        .from('recipe_ingredients')
-        .select(`
-          id,
-          ingredient_id,
-          quantity,
-          unit,
-          is_semilavorato,
-          ingredients!inner(
-            id,
-            name,
-            unit,
-            cost_per_unit,
-            effective_cost_per_unit
-          )
-        `)
-        .eq('recipe_id', recipe.id);
-
-      if (error) {
-        console.error("Error loading recipe ingredients:", error);
-        return;
-      }
-
-      console.log("Loaded recipe ingredients:", recipeIngredientsData);
-      
-      const mappedIngredients = (recipeIngredientsData || []).map(ri => {
-        // Gestisci il caso in cui ingredients potrebbe essere un array o un oggetto
-        const ingredientData = Array.isArray(ri.ingredients) ? ri.ingredients[0] : ri.ingredients;
-        
-        return {
-          id: ri.id,
-          ingredient_id: ri.ingredient_id,
-          quantity: ri.quantity,
-          // IMPORTANTE: usa sempre l'unità salvata nella ricetta se disponibile
-          unit: ri.unit || ingredientData?.unit || '',
-          is_semilavorato: ri.is_semilavorato || false,
-          ingredient: ingredientData ? {
-            id: ingredientData.id,
-            name: ingredientData.name,
-            unit: ingredientData.unit,
-            cost_per_unit: ingredientData.cost_per_unit,
-            effective_cost_per_unit: ingredientData.effective_cost_per_unit
-          } : null
-        };
-      });
-
-      console.log("Mapped ingredients with units:", mappedIngredients);
-      setRecipeIngredients(mappedIngredients);
-    };
-
-    loadRecipeIngredients();
-  }, [recipe.id]);
-
   const handleSubmit = async () => {
-    if (!formData.name || !formData.category) {
-      toast({
-        title: "Errore",
-        description: "Nome e categoria sono obbligatori",
-        variant: "destructive"
-      });
-      return;
-    }
+    const success = await saveRecipe(
+      recipe.id,
+      formData,
+      nutritionalInfo,
+      recipeIngredients,
+      instructions
+    );
 
-    const validIngredients = recipeIngredients.filter(ing => ing.ingredient_id && ing.quantity > 0);
-    if (validIngredients.length === 0) {
-      toast({
-        title: "Errore",
-        description: "Aggiungi almeno un ingrediente",
-        variant: "destructive"
-      });
-      return;
-    }
-
-    setLoading(true);
-    try {
-      console.log("Updating recipe with data:", formData);
-      
-      const { error: recipeError } = await supabase
-        .from('recipes')
-        .update({
-          name: formData.name,
-          category: formData.category,
-          preparation_time: formData.preparationTime,
-          difficulty: formData.difficulty,
-          portions: formData.portions,
-          description: formData.description,
-          allergens: formData.allergens,
-          calories: nutritionalInfo.calories,
-          protein: nutritionalInfo.protein,
-          carbs: nutritionalInfo.carbs,
-          fat: nutritionalInfo.fat,
-          is_semilavorato: formData.isSemilavorato,
-          notes_chef: formData.notesChef
-        })
-        .eq('id', recipe.id);
-
-      if (recipeError) {
-        console.error("Recipe update error:", recipeError);
-        throw recipeError;
-      }
-
-      console.log("Deleting old recipe ingredients");
-      const { error: deleteIngredientsError } = await supabase
-        .from('recipe_ingredients')
-        .delete()
-        .eq('recipe_id', recipe.id);
-
-      if (deleteIngredientsError) {
-        console.error("Delete ingredients error:", deleteIngredientsError);
-        throw deleteIngredientsError;
-      }
-
-      console.log("Inserting new recipe ingredients with custom units:", validIngredients);
-      const ingredientsData = validIngredients.map(ing => ({
-        recipe_id: recipe.id,
-        ingredient_id: ing.ingredient_id,
-        quantity: ing.quantity,
-        // Salva sempre l'unità specifica usata nella ricetta
-        unit: ing.unit || ing.ingredient?.unit || '',
-        is_semilavorato: ing.is_semilavorato || false
-      }));
-
-      console.log("Ingredients data to insert:", ingredientsData);
-
-      const { error: ingredientsError } = await supabase
-        .from('recipe_ingredients')
-        .insert(ingredientsData);
-
-      if (ingredientsError) {
-        console.error("Ingredients insert error:", ingredientsError);
-        throw ingredientsError;
-      }
-
-      console.log("Deleting old recipe instructions");
-      const { error: deleteInstructionsError } = await supabase
-        .from('recipe_instructions')
-        .delete()
-        .eq('recipe_id', recipe.id);
-
-      if (deleteInstructionsError) {
-        console.error("Delete instructions error:", deleteInstructionsError);
-        throw deleteInstructionsError;
-      }
-
-      const validInstructions = instructions.filter(inst => inst.instruction.trim());
-      if (validInstructions.length > 0) {
-        console.log("Inserting new recipe instructions:", validInstructions);
-        const instructionsData = validInstructions.map((inst, index) => ({
-          recipe_id: recipe.id,
-          step_number: index + 1,
-          instruction: inst.instruction
-        }));
-
-        const { error: instructionsError } = await supabase
-          .from('recipe_instructions')
-          .insert(instructionsData);
-
-        if (instructionsError) {
-          console.error("Instructions insert error:", instructionsError);
-          throw instructionsError;
-        }
-      }
-
-      toast({
-        title: "Successo",
-        description: "Ricetta aggiornata con successo"
-      });
-
-      // Chiudi il dialog senza ricaricare i dati - questo preserva le modifiche
+    if (success) {
       onClose();
-      // Ricarica i dati della lista ricette
       onRecipeUpdated();
-    } catch (error) {
-      console.error("Submit error:", error);
-      toast({
-        title: "Errore",
-        description: "Errore durante l'aggiornamento della ricetta",
-        variant: "destructive"
-      });
-    } finally {
-      setLoading(false);
     }
   };
 

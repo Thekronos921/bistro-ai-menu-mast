@@ -1,15 +1,13 @@
 
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Checkbox } from "@/components/ui/checkbox";
-import { Plus, X } from "lucide-react";
-import { Input } from "@/components/ui/input";
-import UnitSelector from "@/components/UnitSelector";
-import { convertUnit } from "@/utils/unitConversion";
+import { Plus } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useRestaurant } from "@/hooks/useRestaurant";
 import { useToast } from "@/hooks/use-toast";
+import { convertUnit } from "@/utils/unitConversion";
+import RecipeIngredientItem from "./RecipeIngredientItem";
+import { calculateTotalCost } from "./utils/ingredientCostCalculator";
 
 interface Ingredient {
   id: string;
@@ -187,32 +185,7 @@ const RecipeIngredientsForm = ({ recipeIngredients, onIngredientsChange, recipeI
     onIngredientsChange(updated);
   };
 
-  const calculateIngredientCost = (recipeIng: LocalRecipeIngredient) => {
-    if (!recipeIng.ingredient) return 0;
-    
-    const effectiveCost = recipeIng.ingredient.effective_cost_per_unit ?? recipeIng.ingredient.cost_per_unit;
-    
-    // Se l'unità della ricetta è diversa da quella base dell'ingrediente, converti
-    if (recipeIng.unit && recipeIng.unit !== recipeIng.ingredient.unit) {
-      try {
-        // Converti la quantità dall'unità della ricetta all'unità base dell'ingrediente
-        const convertedQuantity = convertUnit(recipeIng.quantity, recipeIng.unit, recipeIng.ingredient.unit);
-        return effectiveCost * convertedQuantity;
-      } catch (error) {
-        console.error("Errore nella conversione:", error);
-        // Fallback: usa la quantità originale
-        return effectiveCost * recipeIng.quantity;
-      }
-    }
-    
-    return effectiveCost * recipeIng.quantity;
-  };
-
-  const calculateTotalCost = () => {
-    return recipeIngredients.reduce((total, recipeIng) => {
-      return total + calculateIngredientCost(recipeIng);
-    }, 0);
-  };
+  const totalCost = calculateTotalCost(recipeIngredients);
 
   return (
     <div className="space-y-4">
@@ -225,99 +198,31 @@ const RecipeIngredientsForm = ({ recipeIngredients, onIngredientsChange, recipeI
       </div>
 
       <div className="space-y-3 max-h-96 overflow-y-auto">
-        {recipeIngredients.map((recipeIngredient, index) => {
-          const ingredientCost = calculateIngredientCost(recipeIngredient);
-          
-          return (
-            <div key={recipeIngredient.id} className="space-y-2 p-3 border rounded-lg">
-              <div className="flex justify-between items-center">
-                <span className="text-sm font-medium">Ingrediente {index + 1}</span>
-                {recipeIngredients.length > 1 && (
-                  <Button onClick={() => removeIngredient(index)} size="sm" variant="outline">
-                    <X className="w-4 h-4" />
-                  </Button>
-                )}
-              </div>
-              
-              <div className="flex items-center space-x-2">
-                <Checkbox 
-                  checked={recipeIngredient.is_semilavorato}
-                  onCheckedChange={(checked) => updateIngredient(index, 'is_semilavorato', !!checked)}
-                />
-                <label className="text-xs">È semilavorato</label>
-              </div>
-              
-              <Select 
-                value={recipeIngredient.ingredient_id} 
-                onValueChange={(value) => updateIngredient(index, 'ingredient_id', value)}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder={
-                    recipeIngredient.is_semilavorato 
-                      ? "Seleziona semilavorato" 
-                      : "Seleziona ingrediente"
-                  } />
-                </SelectTrigger>
-                <SelectContent>
-                  {recipeIngredient.is_semilavorato 
-                    ? semilavorati.map(sem => (
-                        <SelectItem key={sem.id} value={sem.id}>
-                          [S] {sem.name} (€{sem.cost_per_portion.toFixed(2)}/porzione)
-                        </SelectItem>
-                      ))
-                    : ingredients.map(ingredient => (
-                        <SelectItem key={ingredient.id} value={ingredient.id}>
-                          {ingredient.name} (€{(ingredient.effective_cost_per_unit ?? ingredient.cost_per_unit).toFixed(2)}/{ingredient.unit})
-                        </SelectItem>
-                      ))
-                  }
-                </SelectContent>
-              </Select>
-              
-              {recipeIngredient.ingredient && !recipeIngredient.is_semilavorato && (
-                <UnitSelector
-                  baseUnit={recipeIngredient.ingredient.unit}
-                  selectedUnit={recipeIngredient.unit || recipeIngredient.ingredient.unit}
-                  quantity={recipeIngredient.quantity}
-                  onUnitChange={(unit) => updateIngredientUnit(index, unit)}
-                  onQuantityChange={(quantity) => updateIngredientQuantity(index, quantity)}
-                />
-              )}
-              
-              {recipeIngredient.is_semilavorato && (
-                <div className="grid grid-cols-2 gap-2">
-                  <Input
-                    type="number"
-                    step="0.1"
-                    placeholder="Quantità (porzioni)"
-                    value={recipeIngredient.quantity}
-                    onChange={(e) => updateIngredientQuantity(index, parseFloat(e.target.value) || 0)}
-                  />
-                  <div className="text-right flex items-center">
-                    <span className="text-sm font-medium">€{ingredientCost.toFixed(2)}</span>
-                  </div>
-                </div>
-              )}
-              
-              {!recipeIngredient.is_semilavorato && recipeIngredient.ingredient && (
-                <div className="text-right">
-                  <span className="text-sm font-medium">€{ingredientCost.toFixed(2)}</span>
-                </div>
-              )}
-            </div>
-          );
-        })}
+        {recipeIngredients.map((recipeIngredient, index) => (
+          <RecipeIngredientItem
+            key={recipeIngredient.id}
+            recipeIngredient={recipeIngredient}
+            index={index}
+            ingredients={ingredients}
+            semilavorati={semilavorati}
+            canRemove={recipeIngredients.length > 1}
+            onRemove={removeIngredient}
+            onUpdate={updateIngredient}
+            onUpdateUnit={updateIngredientUnit}
+            onUpdateQuantity={updateIngredientQuantity}
+          />
+        ))}
       </div>
 
       <div className="bg-slate-50 p-3 rounded-lg space-y-2">
         <div className="flex justify-between">
           <span className="font-medium">Costo Produzione Totale:</span>
-          <span className="font-bold text-purple-600">€{calculateTotalCost().toFixed(2)}</span>
+          <span className="font-bold text-purple-600">€{totalCost.toFixed(2)}</span>
         </div>
         <div className="flex justify-between">
           <span className="font-medium">Costo per Porzione:</span>
           <span className="font-bold text-purple-600">
-            €{portions > 0 ? (calculateTotalCost() / portions).toFixed(2) : '0.00'}
+            €{portions > 0 ? (totalCost / portions).toFixed(2) : '0.00'}
           </span>
         </div>
       </div>

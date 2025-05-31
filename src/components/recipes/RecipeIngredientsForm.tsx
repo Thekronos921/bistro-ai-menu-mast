@@ -159,6 +159,8 @@ const RecipeIngredientsForm = ({ recipeIngredients, onIngredientsChange, recipeI
             const ingredient = ingredients.find(ingredient => ingredient.id === value);
             if (ingredient) {
               updatedIng.ingredient = ingredient;
+              // IMPORTANTE: quando selezioni un nuovo ingrediente, usa l'unità base come default
+              // ma l'utente può poi cambiarla tramite UnitSelector
               updatedIng.unit = ingredient.unit;
             }
           }
@@ -172,6 +174,7 @@ const RecipeIngredientsForm = ({ recipeIngredients, onIngredientsChange, recipeI
   };
 
   const updateIngredientUnit = (index: number, unit: string) => {
+    console.log(`Updating ingredient ${index} unit to: ${unit}`);
     const updated = recipeIngredients.map((ing, i) => 
       i === index ? { ...ing, unit } : ing
     );
@@ -179,6 +182,7 @@ const RecipeIngredientsForm = ({ recipeIngredients, onIngredientsChange, recipeI
   };
 
   const updateIngredientQuantity = (index: number, quantity: number) => {
+    console.log(`Updating ingredient ${index} quantity to: ${quantity}`);
     const updated = recipeIngredients.map((ing, i) => 
       i === index ? { ...ing, quantity } : ing
     );

@@ -113,21 +113,28 @@ export const useRecipeSaving = () => {
         throw deleteIngredientsError;
       }
 
-      console.log("Preparing ingredients data with custom units:", validIngredients);
+      console.log("Preparing ingredients data to save:");
       const ingredientsData = validIngredients.map(ing => {
-        // IMPORTANTE: Salva sempre l'unità specifica usata nella ricetta
-        // Se non c'è un'unità specifica, usa quella base dell'ingrediente
-        const unitToSave = ing.unit || ing.ingredient?.unit || '';
+        // CRITICO: Salva SEMPRE l'unità attualmente selezionata nel form
+        // NON usare mai l'unità base dell'ingrediente come fallback
+        const unitToSave = ing.unit; // Usa esattamente l'unità selezionata
         
-        console.log(`Ingrediente ${ing.ingredient?.name}: quantità ${ing.quantity}, unità da salvare: ${unitToSave}, unità base: ${ing.ingredient?.unit}`);
+        console.log(`Salvando ingrediente ${ing.ingredient?.name}:`);
+        console.log(`- Quantità: ${ing.quantity}`);
+        console.log(`- Unità selezionata: "${ing.unit}"`);
+        console.log(`- Unità base ingrediente: "${ing.ingredient?.unit}"`);
+        console.log(`- Unità che verrà salvata: "${unitToSave}"`);
         
-        return {
+        const dataToSave = {
           recipe_id: recipeId,
           ingredient_id: ing.ingredient_id,
           quantity: ing.quantity,
-          unit: unitToSave, // Salva l'unità specifica della ricetta
+          unit: unitToSave, // Salva l'unità esatta selezionata nel form
           is_semilavorato: ing.is_semilavorato || false
         };
+        
+        console.log("Data to save:", dataToSave);
+        return dataToSave;
       });
 
       console.log("Final ingredients data to insert:", ingredientsData);

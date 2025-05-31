@@ -50,23 +50,27 @@ export const useRecipeIngredients = (recipeId: string) => {
         return;
       }
 
-      console.log("Loaded recipe ingredients:", recipeIngredientsData);
+      console.log("Loaded recipe ingredients raw data:", recipeIngredientsData);
       
       const mappedIngredients = (recipeIngredientsData || []).map(ri => {
         // Gestisci il caso in cui ingredients potrebbe essere un array o un oggetto
         const ingredientData = Array.isArray(ri.ingredients) ? ri.ingredients[0] : ri.ingredients;
         
-        // IMPORTANTE: Usa sempre l'unità salvata nella ricetta se disponibile
-        // Se non c'è, usa quella base dell'ingrediente come fallback
+        // IMPORTANTE: usa SEMPRE l'unità salvata nel database se disponibile
+        // Se l'unità salvata è null o undefined, usa quella base dell'ingrediente
         const unitToUse = ri.unit || ingredientData?.unit || '';
         
-        console.log(`Caricando ${ingredientData?.name}: unità salvata nella ricetta: ${ri.unit}, unità base ingrediente: ${ingredientData?.unit}, unità finale: ${unitToUse}`);
+        console.log(`Caricando ${ingredientData?.name}:`);
+        console.log(`- Quantità salvata: ${ri.quantity}`);
+        console.log(`- Unità salvata nel DB: "${ri.unit}"`);
+        console.log(`- Unità base ingrediente: "${ingredientData?.unit}"`);
+        console.log(`- Unità finale utilizzata: "${unitToUse}"`);
         
         return {
           id: ri.id,
           ingredient_id: ri.ingredient_id,
           quantity: ri.quantity,
-          unit: unitToUse, // Usa l'unità specifica della ricetta
+          unit: unitToUse, // Usa SEMPRE l'unità salvata nel database
           is_semilavorato: ri.is_semilavorato || false,
           ingredient: ingredientData ? {
             id: ingredientData.id,
@@ -78,11 +82,13 @@ export const useRecipeIngredients = (recipeId: string) => {
         };
       });
 
-      console.log("Mapped ingredients with correct units:", mappedIngredients);
+      console.log("Final mapped ingredients with units:", mappedIngredients);
       setRecipeIngredients(mappedIngredients);
     };
 
-    loadRecipeIngredients();
+    if (recipeId) {
+      loadRecipeIngredients();
+    }
   }, [recipeId]);
 
   return { recipeIngredients, setRecipeIngredients };

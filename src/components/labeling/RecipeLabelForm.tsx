@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -19,7 +20,7 @@ interface RecipeForLabel {
   difficulty: string | null;
   category: string | null;
   recipe_ingredients: Array<{
-    ingredient: {
+    ingredients: {
       name: string;
       supplier: string;
     };
@@ -67,7 +68,7 @@ const RecipeLabelForm = ({ onClose }: RecipeLabelFormProps) => {
           difficulty,
           category,
           recipe_ingredients(
-            ingredient:ingredients(name, supplier)
+            ingredients(name, supplier)
           )
         `)
         .eq('restaurant_id', restaurantId)
@@ -114,8 +115,8 @@ const RecipeLabelForm = ({ onClose }: RecipeLabelFormProps) => {
   const generateQRData = () => {
     const recipe = recipes.find(r => r.id === formData.recipeId);
     const ingredients = recipe?.recipe_ingredients?.map(ri => ({
-      name: ri.ingredient.name,
-      supplier: ri.ingredient.supplier
+      name: ri.ingredients.name,
+      supplier: ri.ingredients.supplier
     })) || [];
 
     return JSON.stringify({

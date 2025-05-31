@@ -1,5 +1,5 @@
 
-import { convertUnit } from "@/utils/unitConversion";
+import { convertUnit, areUnitsCompatible } from '@/utils/unitConversion';
 
 interface Ingredient {
   id: string;
@@ -18,29 +18,42 @@ interface LocalRecipeIngredient {
   ingredient: Ingredient | null;
 }
 
-export const calculateIngredientCost = (recipeIng: LocalRecipeIngredient): number => {
-  if (!recipeIng.ingredient) return 0;
+export const calculateTotalCost = (recipeIngredients: LocalRecipeIngredient[]) => {
+  if (!recipeIngredients) return 0;
   
-  const effectiveCost = recipeIng.ingredient.effective_cost_per_unit ?? recipeIng.ingredient.cost_per_unit;
-  
-  // Se l'unità della ricetta è diversa da quella base dell'ingrediente, converti
-  if (recipeIng.unit && recipeIng.unit !== recipeIng.ingredient.unit) {
-    try {
-      // Converti la quantità dall'unità della ricetta all'unità base dell'ingrediente
-      const convertedQuantity = convertUnit(recipeIng.quantity, recipeIng.unit, recipeIng.ingredient.unit);
-      return effectiveCost * convertedQuantity;
-    } catch (error) {
-      console.error("Errore nella conversione:", error);
-      // Fallback: usa la quantità originale
-      return effectiveCost * recipeIng.quantity;
+  return recipeIngredients.reduce((total, recipeIngredient) => {
+    if (!recipeIngredient.ingredient) return total;
+    
+    const effectiveCost = recipeIngredient.ingredient.effective_cost_per_unit ?? recipeIngredient.ingredient.cost_per_unit;
+    
+    // Se è un semilavorato, usa direttamente il costo per porzione
+    if (recipeIngredient.is_semilavorato) {
+      return total + (effectiveCost * recipeIngredient.quantity);
     }
-  }
-  
-  return effectiveCost * recipeIng.quantity;
-};
-
-export const calculateTotalCost = (recipeIngredients: LocalRecipeIngredient[]): number => {
-  return recipeIngredients.reduce((total, recipeIng) => {
-    return total + calculateIngredientCost(recipeIng);
+    
+    // Il costo dell'ingrediente è sempre per l'unità base dell'ingrediente
+    // Se l'unità della ricetta è diversa da quella base, converti la quantità
+    const recipeUnit = recipeIngredient.unit || recipeIngredient.ingredient.unit;
+    const baseUnit = recipeIngredient.ingredient.unit;
+    
+    if (recipeUnit !== baseUnit && areUnitsCompatible(recipeUnit, baseUnit)) {
+      try {
+        // Converti la quantità dall'unità della ricetta all'unità base dell'ingrediente
+        const quantityInBaseUnit = convertUnit(recipeIngredient.quantity, recipeUnit, baseUnit);
+        console.log(`Calcolo costo totale per ${recipeIngredient.ingredient.name}:`);
+        console.log(`- Quantità ricetta: ${recipeIngredient.quantity} ${recipeUnit}`);
+        console.log(`- Quantità convertita: ${quantityInBaseUnit} ${baseUnit}`);
+        console.log(`- Costo per ${baseUnit}: €${effectiveCost}`);
+        console.log(`- Costo parziale: €${(effectiveCost * quantityInBaseUnit).toFixed(2)}`);
+        
+        return total + (effectiveCost * quantityInBaseUnit);
+      } catch (error) {
+        console.error("Errore nella conversione per calcolo costo totale:", error);
+        return total + (effectiveCost * recipeIngredient.quantity);
+      }
+    }
+    
+    // Se le unità sono uguali o non compatibili, usa la quantità direttamente
+    return total + (effectiveCost * recipeIngredient.quantity);
   }, 0);
 };

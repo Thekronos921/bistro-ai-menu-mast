@@ -65,24 +65,29 @@ const RecipeIngredientItem = ({
       return effectiveCost * recipeIngredient.quantity;
     }
     
-    // Se l'unità della ricetta è diversa da quella base dell'ingrediente, converti
-    if (recipeIngredient.unit && recipeIngredient.unit !== recipeIngredient.ingredient.unit) {
-      if (areUnitsCompatible(recipeIngredient.unit, recipeIngredient.ingredient.unit)) {
-        try {
-          // Converti la quantità dall'unità della ricetta all'unità base dell'ingrediente
-          const convertedQuantity = convertUnit(recipeIngredient.quantity, recipeIngredient.unit, recipeIngredient.ingredient.unit);
-          console.log(`Convertendo ${recipeIngredient.quantity} ${recipeIngredient.unit} a ${convertedQuantity} ${recipeIngredient.ingredient.unit} per ${recipeIngredient.ingredient.name}`);
-          return effectiveCost * convertedQuantity;
-        } catch (error) {
-          console.error("Errore nella conversione:", error);
-          return effectiveCost * recipeIngredient.quantity;
-        }
-      } else {
-        console.warn(`Unità incompatibili per ${recipeIngredient.ingredient.name}: ${recipeIngredient.unit} vs ${recipeIngredient.ingredient.unit}`);
+    // Il costo dell'ingrediente è sempre per l'unità base dell'ingrediente
+    // Se l'unità della ricetta è diversa da quella base, converti la quantità
+    const recipeUnit = recipeIngredient.unit || recipeIngredient.ingredient.unit;
+    const baseUnit = recipeIngredient.ingredient.unit;
+    
+    if (recipeUnit !== baseUnit && areUnitsCompatible(recipeUnit, baseUnit)) {
+      try {
+        // Converti la quantità dall'unità della ricetta all'unità base dell'ingrediente
+        const quantityInBaseUnit = convertUnit(recipeIngredient.quantity, recipeUnit, baseUnit);
+        console.log(`Calcolo costo per ${recipeIngredient.ingredient.name}:`);
+        console.log(`- Quantità ricetta: ${recipeIngredient.quantity} ${recipeUnit}`);
+        console.log(`- Quantità convertita: ${quantityInBaseUnit} ${baseUnit}`);
+        console.log(`- Costo per ${baseUnit}: €${effectiveCost}`);
+        console.log(`- Costo totale: €${(effectiveCost * quantityInBaseUnit).toFixed(2)}`);
+        
+        return effectiveCost * quantityInBaseUnit;
+      } catch (error) {
+        console.error("Errore nella conversione per calcolo costo:", error);
         return effectiveCost * recipeIngredient.quantity;
       }
     }
     
+    // Se le unità sono uguali o non compatibili, usa la quantità direttamente
     return effectiveCost * recipeIngredient.quantity;
   };
 

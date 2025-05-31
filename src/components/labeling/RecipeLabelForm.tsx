@@ -10,14 +10,29 @@ import { supabase } from '@/integrations/supabase/client';
 import { useRestaurant } from '@/hooks/useRestaurant';
 import { useToast } from '@/hooks/use-toast';
 import LabelPreview from './LabelPreview';
-import type { Recipe } from '@/types/recipe';
+
+interface RecipeForLabel {
+  id: string;
+  name: string;
+  allergens: string | null;
+  portions: number | null;
+  preparation_time: number | null;
+  difficulty: string | null;
+  category: string | null;
+  recipe_ingredients: Array<{
+    ingredient: {
+      name: string;
+      supplier: string;
+    };
+  }>;
+}
 
 interface RecipeLabelFormProps {
   onClose: () => void;
 }
 
 const RecipeLabelForm = ({ onClose }: RecipeLabelFormProps) => {
-  const [recipes, setRecipes] = useState<Recipe[]>([]);
+  const [recipes, setRecipes] = useState<RecipeForLabel[]>([]);
   const [formData, setFormData] = useState({
     recipeId: '',
     recipeName: '',

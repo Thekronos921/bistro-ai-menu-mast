@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Search, Edit, Trash2, AlertTriangle, ExternalLink, Calendar, Package2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
@@ -11,6 +10,7 @@ import AddIngredientDialog from "./AddIngredientDialog";
 import EditIngredientDialog from "./EditIngredientDialog";
 import InventoryKPIs from "./InventoryKPIs";
 import StockStatusBadge, { StockStatus } from "./StockStatusBadge";
+import LabelGenerator from "./labeling/LabelGenerator";
 
 interface Ingredient {
   id: string;
@@ -162,7 +162,10 @@ const IngredientsManagement = () => {
       {/* Header */}
       <div className="flex items-center justify-between">
         <h2 className="text-2xl font-bold text-slate-800">Gestione Ingredienti</h2>
-        <AddIngredientDialog onAddIngredient={fetchIngredients} />
+        <div className="flex space-x-2">
+          <LabelGenerator />
+          <AddIngredientDialog onAddIngredient={fetchIngredients} />
+        </div>
       </div>
 
       {/* Alert per scadenze */}

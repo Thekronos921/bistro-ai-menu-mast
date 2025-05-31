@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -23,7 +22,7 @@ interface LabelRecipe {
   }[];
 }
 
-// Raw data type from Supabase with proper typing
+// Raw data type from Supabase - ingredients can be array or single object
 interface RawRecipeData {
   id: string;
   name: string;
@@ -32,6 +31,9 @@ interface RawRecipeData {
     ingredient_id: string;
     quantity: number;
     ingredients: {
+      name: string;
+      supplier: string;
+    }[] | {
       name: string;
       supplier: string;
     } | null;
@@ -77,24 +79,38 @@ const LavoratoLabelForm = () => {
       if (error) throw error;
 
       // Transform the data to properly handle the joined ingredients
-      const transformedData: LabelRecipe[] = (data as RawRecipeData[] || []).map(recipe => ({
-        id: recipe.id,
-        name: recipe.name,
-        allergens: recipe.allergens || '',
-        recipe_ingredients: (recipe.recipe_ingredients || []).map(ri => {
-          // Safely handle the ingredients data
-          const ingredientData = ri.ingredients;
-          
-          return {
-            ingredient_id: ri.ingredient_id,
-            quantity: ri.quantity,
-            ingredients: {
-              name: ingredientData?.name || '',
-              supplier: ingredientData?.supplier || ''
+      const transformedData: LabelRecipe[] = (data || []).map(recipe => {
+        const typedRecipe = recipe as any; // Use any to bypass strict typing for transformation
+        
+        return {
+          id: typedRecipe.id,
+          name: typedRecipe.name,
+          allergens: typedRecipe.allergens || '',
+          recipe_ingredients: (typedRecipe.recipe_ingredients || []).map((ri: any) => {
+            // Handle ingredients - can be array, object, or null
+            let ingredientData = { name: '', supplier: '' };
+            
+            if (ri.ingredients) {
+              if (Array.isArray(ri.ingredients)) {
+                // If it's an array, take the first item
+                ingredientData = ri.ingredients[0] || { name: '', supplier: '' };
+              } else {
+                // If it's an object, use it directly
+                ingredientData = ri.ingredients;
+              }
             }
-          };
-        })
-      }));
+            
+            return {
+              ingredient_id: ri.ingredient_id,
+              quantity: ri.quantity,
+              ingredients: {
+                name: ingredientData.name || '',
+                supplier: ingredientData.supplier || ''
+              }
+            };
+          })
+        };
+      });
 
       setRecipes(transformedData);
     } catch (error) {

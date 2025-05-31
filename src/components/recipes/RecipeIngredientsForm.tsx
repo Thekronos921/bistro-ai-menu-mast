@@ -187,19 +187,30 @@ const RecipeIngredientsForm = ({ recipeIngredients, onIngredientsChange, recipeI
     onIngredientsChange(updated);
   };
 
+  const calculateIngredientCost = (recipeIng: LocalRecipeIngredient) => {
+    if (!recipeIng.ingredient) return 0;
+    
+    const effectiveCost = recipeIng.ingredient.effective_cost_per_unit ?? recipeIng.ingredient.cost_per_unit;
+    
+    // Se l'unità della ricetta è diversa da quella base dell'ingrediente, converti
+    if (recipeIng.unit && recipeIng.unit !== recipeIng.ingredient.unit) {
+      try {
+        // Converti la quantità dall'unità della ricetta all'unità base dell'ingrediente
+        const convertedQuantity = convertUnit(recipeIng.quantity, recipeIng.unit, recipeIng.ingredient.unit);
+        return effectiveCost * convertedQuantity;
+      } catch (error) {
+        console.error("Errore nella conversione:", error);
+        // Fallback: usa la quantità originale
+        return effectiveCost * recipeIng.quantity;
+      }
+    }
+    
+    return effectiveCost * recipeIng.quantity;
+  };
+
   const calculateTotalCost = () => {
     return recipeIngredients.reduce((total, recipeIng) => {
-      if (recipeIng.ingredient) {
-        const effectiveCost = recipeIng.ingredient.effective_cost_per_unit ?? recipeIng.ingredient.cost_per_unit;
-        
-        let finalQuantity = recipeIng.quantity;
-        if (recipeIng.unit && recipeIng.unit !== recipeIng.ingredient.unit) {
-          finalQuantity = convertUnit(recipeIng.quantity, recipeIng.unit, recipeIng.ingredient.unit);
-        }
-        
-        return total + (effectiveCost * finalQuantity);
-      }
-      return total;
+      return total + calculateIngredientCost(recipeIng);
     }, 0);
   };
 
@@ -215,15 +226,7 @@ const RecipeIngredientsForm = ({ recipeIngredients, onIngredientsChange, recipeI
 
       <div className="space-y-3 max-h-96 overflow-y-auto">
         {recipeIngredients.map((recipeIngredient, index) => {
-          const cost = recipeIngredient.ingredient 
-            ? recipeIngredient.ingredient.effective_cost_per_unit ?? recipeIngredient.ingredient.cost_per_unit
-            : 0;
-          
-          let finalCost = cost * recipeIngredient.quantity;
-          if (recipeIngredient.unit && recipeIngredient.ingredient && recipeIngredient.unit !== recipeIngredient.ingredient.unit) {
-            const convertedQuantity = convertUnit(recipeIngredient.quantity, recipeIngredient.unit, recipeIngredient.ingredient.unit);
-            finalCost = cost * convertedQuantity;
-          }
+          const ingredientCost = calculateIngredientCost(recipeIngredient);
           
           return (
             <div key={recipeIngredient.id} className="space-y-2 p-3 border rounded-lg">
@@ -291,14 +294,14 @@ const RecipeIngredientsForm = ({ recipeIngredients, onIngredientsChange, recipeI
                     onChange={(e) => updateIngredientQuantity(index, parseFloat(e.target.value) || 0)}
                   />
                   <div className="text-right flex items-center">
-                    <span className="text-sm font-medium">€{finalCost.toFixed(2)}</span>
+                    <span className="text-sm font-medium">€{ingredientCost.toFixed(2)}</span>
                   </div>
                 </div>
               )}
               
               {!recipeIngredient.is_semilavorato && recipeIngredient.ingredient && (
                 <div className="text-right">
-                  <span className="text-sm font-medium">€{finalCost.toFixed(2)}</span>
+                  <span className="text-sm font-medium">€{ingredientCost.toFixed(2)}</span>
                 </div>
               )}
             </div>

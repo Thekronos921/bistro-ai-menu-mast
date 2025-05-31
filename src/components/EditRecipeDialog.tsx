@@ -108,7 +108,7 @@ const EditRecipeDialog = ({ recipe, onClose, onRecipeUpdated }: EditRecipeDialog
           id: ri.id,
           ingredient_id: ri.ingredient_id,
           quantity: ri.quantity,
-          // Usa l'unità salvata nella ricetta, altrimenti quella base dell'ingrediente
+          // IMPORTANTE: usa sempre l'unità salvata nella ricetta se disponibile
           unit: ri.unit || ingredientData?.unit || '',
           is_semilavorato: ri.is_semilavorato || false,
           ingredient: ingredientData ? {
@@ -121,6 +121,7 @@ const EditRecipeDialog = ({ recipe, onClose, onRecipeUpdated }: EditRecipeDialog
         };
       });
 
+      console.log("Mapped ingredients with units:", mappedIngredients);
       setRecipeIngredients(mappedIngredients);
     };
 

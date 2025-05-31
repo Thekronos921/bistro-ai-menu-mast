@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -60,10 +61,17 @@ const LavoratoLabelForm = () => {
 
       if (error) throw error;
 
-      // Transform the data to match our interface - no transformation needed since ingredients is already an object
-      const transformedData = (data || []) as LabelRecipe[];
+      // Transform the data to properly handle the joined ingredients
+      const transformedData = data?.map(recipe => ({
+        ...recipe,
+        recipe_ingredients: recipe.recipe_ingredients?.map(ri => ({
+          ingredient_id: ri.ingredient_id,
+          quantity: ri.quantity,
+          ingredients: Array.isArray(ri.ingredients) ? ri.ingredients[0] : ri.ingredients
+        })) || []
+      })) || [];
 
-      setRecipes(transformedData);
+      setRecipes(transformedData as LabelRecipe[]);
     } catch (error) {
       console.error('Error fetching recipes:', error);
       toast({

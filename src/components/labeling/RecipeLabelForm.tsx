@@ -18,6 +18,8 @@ interface RecipeForLabel {
   difficulty: string;
   category: string;
   recipe_ingredients: {
+    ingredient_id: string;
+    quantity: number;
     ingredients: {
       name: string;
       supplier: string;
@@ -54,6 +56,8 @@ const RecipeLabelForm = () => {
           difficulty,
           category,
           recipe_ingredients (
+            ingredient_id,
+            quantity,
             ingredients (
               name,
               supplier
@@ -64,7 +68,13 @@ const RecipeLabelForm = () => {
 
       if (error) throw error;
 
-      setRecipes(data || []);
+      // Trasforma i dati per adattarli alla struttura prevista
+      const transformedData = data?.map(recipe => ({
+        ...recipe,
+        recipe_ingredients: recipe.recipe_ingredients || []
+      })) || [];
+
+      setRecipes(transformedData);
     } catch (error) {
       console.error('Error fetching recipes:', error);
       toast({

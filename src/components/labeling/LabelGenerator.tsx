@@ -49,7 +49,7 @@ const LabelGenerator = () => {
           </TabsList>
           
           <TabsContent value="semilavorato">
-            <SemilavoratoLabelForm />
+            <SemilavoratoLabelForm onClose={() => setOpen(false)} />
           </TabsContent>
           
           <TabsContent value="lavorato">
@@ -61,7 +61,7 @@ const LabelGenerator = () => {
           </TabsContent>
           
           <TabsContent value="defrosted">
-            <DefrostedLabelForm />
+            <DefrostedLabelForm onClose={() => setOpen(false)} />
           </TabsContent>
         </Tabs>
       </DialogContent>

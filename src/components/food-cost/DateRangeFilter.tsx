@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { CalendarIcon, X } from 'lucide-react';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
+import { DateRange as ReactDayPickerDateRange } from 'react-day-picker';
 
 interface DateRange {
   from: Date | undefined;
@@ -20,6 +21,13 @@ interface DateRangeFilterProps {
 const DateRangeFilter = ({ dateRange, onDateRangeChange }: DateRangeFilterProps) => {
   const handleClearDates = () => {
     onDateRangeChange({ from: undefined, to: undefined });
+  };
+
+  const handleDateSelect = (range: ReactDayPickerDateRange | undefined) => {
+    onDateRangeChange({
+      from: range?.from,
+      to: range?.to
+    });
   };
 
   return (
@@ -51,8 +59,8 @@ const DateRangeFilter = ({ dateRange, onDateRangeChange }: DateRangeFilterProps)
           <Calendar
             mode="range"
             defaultMonth={dateRange.from}
-            selected={dateRange}
-            onSelect={(range) => onDateRangeChange(range || { from: undefined, to: undefined })}
+            selected={{ from: dateRange.from, to: dateRange.to }}
+            onSelect={handleDateSelect}
             numberOfMonths={2}
             className={cn("p-3 pointer-events-auto")}
           />

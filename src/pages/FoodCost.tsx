@@ -21,7 +21,7 @@ interface Dish {
   recipes?: Recipe;
 }
 
-interface SalesData {
+interface FoodCostSalesData {
   dishName: string;
   unitsSold: number;
   saleDate: string;
@@ -146,6 +146,18 @@ const FoodCost = () => {
     }
   };
 
+  const handleSalesImportWrapper = (importedSales: FoodCostSalesData[]) => {
+    // Convert to the format expected by useFoodCostData
+    const convertedSales = importedSales.map(sale => ({
+      dishName: sale.dishName,
+      unitsSold: sale.unitsSold,
+      saleDate: sale.saleDate,
+      period: sale.period || 'imported'
+    }));
+    
+    handleSalesImport(convertedSales);
+  };
+
   // Combina piatti e ricette per il filtro
   const allItems = [
     ...dishes.map(dish => ({ 
@@ -258,7 +270,7 @@ const FoodCost = () => {
           onAdvancedFiltersChange={setAdvancedFilters}
           showAdvancedFilters={showAdvancedFilters}
           onToggleAdvancedFilters={() => setShowAdvancedFilters(!showAdvancedFilters)}
-          onImportSales={handleSalesImport}
+          onImportSales={handleSalesImportWrapper}
           onExportCSV={exportToCSV}
           onRefresh={fetchData}
           dateRange={dateRange}

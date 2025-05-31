@@ -130,6 +130,8 @@ const FoodCostFilters = ({
           <AdvancedFilters
             filters={advancedFilters}
             onFiltersChange={onAdvancedFiltersChange}
+            isOpen={showAdvancedFilters}
+            onToggle={onToggleAdvancedFilters}
           />
         </div>
       )}

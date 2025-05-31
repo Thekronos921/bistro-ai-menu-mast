@@ -11,7 +11,7 @@ import { useRestaurant } from '@/hooks/useRestaurant';
 import { useToast } from '@/hooks/use-toast';
 import LabelPreview from './LabelPreview';
 
-interface Recipe {
+interface LabelRecipe {
   id: string;
   name: string;
   allergens: string;
@@ -28,7 +28,7 @@ interface LavoratoLabelFormProps {
 }
 
 const LavoratoLabelForm = ({ onClose }: LavoratoLabelFormProps) => {
-  const [recipes, setRecipes] = useState<Recipe[]>([]);
+  const [recipes, setRecipes] = useState<LabelRecipe[]>([]);
   const [formData, setFormData] = useState({
     recipeId: '',
     recipeName: '',

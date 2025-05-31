@@ -2,7 +2,7 @@
 import React, { useEffect, useState } from 'react';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Calendar, Package, AlertTriangle, qrcode } from 'lucide-react';
+import { Calendar, Package, AlertTriangle, QrCode } from 'lucide-react';
 import QRCode from 'qrcode';
 
 interface LabelPreviewProps {
@@ -169,7 +169,7 @@ const LabelPreview = ({
           {/* Footer con QR info */}
           <div className="border-t pt-2 text-center">
             <div className="flex items-center justify-center space-x-1 text-xs text-gray-500">
-              <qrcode className="w-3 h-3" />
+              <QrCode className="w-3 h-3" />
               <span>Scansiona per tracciabilità completa</span>
             </div>
           </div>

@@ -10,6 +10,8 @@ import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { Switch } from '@/components/ui/switch';
 import { useRestaurant } from '@/hooks/useRestaurant';
+import { convertUnit } from '@/utils/unitConversion';
+import UnitSelector from "@/components/UnitSelector";
 
 interface Ingredient {
   id: string;
@@ -23,6 +25,7 @@ interface RecipeIngredient {
   ingredient_id: string;
   quantity: number;
   is_semilavorato: boolean;
+  unit?: string; // Aggiungo l'unità di misura specifica per questo ingrediente nella ricetta
 }
 
 interface RecipeInstruction {
@@ -104,17 +107,38 @@ const AddRecipeDialog: React.FC<AddRecipeDialogProps> = ({ onAddRecipe }) => {
   };
 
   const addIngredient = () => {
-    setRecipeIngredients([...recipeIngredients, { ingredient_id: '', quantity: 1, is_semilavorato: false }]);
+    setRecipeIngredients([...recipeIngredients, { ingredient_id: '', quantity: 1, is_semilavorato: false, unit: '' }]);
   };
 
   const updateIngredient = (index: number, field: string, value: any) => {
     const updatedIngredients = [...recipeIngredients];
     updatedIngredients[index] = { ...updatedIngredients[index], [field]: value };
+    
+    // Se viene selezionato un nuovo ingrediente, imposta l'unità di misura predefinita
+    if (field === 'ingredient_id') {
+      const selectedIngredient = ingredients.find(ing => ing.id === value);
+      if (selectedIngredient) {
+        updatedIngredients[index].unit = selectedIngredient.unit;
+      }
+    }
+    
     setRecipeIngredients(updatedIngredients);
   };
 
   const removeIngredient = (index: number) => {
     const updatedIngredients = recipeIngredients.filter((_, i) => i !== index);
+    setRecipeIngredients(updatedIngredients);
+  };
+
+  const updateIngredientUnit = (index: number, unit: string) => {
+    const updatedIngredients = [...recipeIngredients];
+    updatedIngredients[index].unit = unit;
+    setRecipeIngredients(updatedIngredients);
+  };
+
+  const updateIngredientQuantity = (index: number, quantity: number) => {
+    const updatedIngredients = [...recipeIngredients];
+    updatedIngredients[index].quantity = quantity;
     setRecipeIngredients(updatedIngredients);
   };
 
@@ -164,7 +188,14 @@ const AddRecipeDialog: React.FC<AddRecipeDialogProps> = ({ onAddRecipe }) => {
       const ingredient = ingredients.find(ing => ing.id === ri.ingredient_id);
       if (ingredient) {
         const effectiveCost = ingredient.effective_cost_per_unit ?? ingredient.cost_per_unit;
-        return total + (effectiveCost * ri.quantity);
+        
+        // Se l'unità della ricetta è diversa da quella base, converte
+        let finalQuantity = ri.quantity;
+        if (ri.unit && ri.unit !== ingredient.unit) {
+          finalQuantity = convertUnit(ri.quantity, ri.unit, ingredient.unit);
+        }
+        
+        return total + (effectiveCost * finalQuantity);
       }
       return total;
     }, 0);
@@ -206,6 +237,7 @@ const AddRecipeDialog: React.FC<AddRecipeDialogProps> = ({ onAddRecipe }) => {
           recipe_id: recipe.id,
           ingredient_id: ri.ingredient_id,
           quantity: ri.quantity,
+          unit: ri.unit, // Aggiungo l'unità di misura
           is_semilavorato: ri.is_semilavorato
         }));
 
@@ -441,7 +473,19 @@ const AddRecipeDialog: React.FC<AddRecipeDialogProps> = ({ onAddRecipe }) => {
             <div className="space-y-3 max-h-96 overflow-y-auto">
               {recipeIngredients.map((ingredient, index) => {
                 const selectedIngredient = ingredients.find(ing => ing.id === ingredient.ingredient_id);
-                const cost = selectedIngredient ? selectedIngredient.cost_per_unit * ingredient.quantity : 0;
+                let cost = 0;
+                
+                if (selectedIngredient) {
+                  const effectiveCost = selectedIngredient.effective_cost_per_unit ?? selectedIngredient.cost_per_unit;
+                  // Converti la quantità se l'unità è diversa
+                  if (ingredient.unit && ingredient.unit !== selectedIngredient.unit) {
+                    // Converte la quantità dall'unità della ricetta all'unità base dell'ingrediente
+                    const convertedQuantity = convertUnit(ingredient.quantity, ingredient.unit, selectedIngredient.unit);
+                    cost = effectiveCost * convertedQuantity;
+                  } else {
+                    cost = effectiveCost * ingredient.quantity;
+                  }
+                }
                 
                 return (
                   <div key={index} className="space-y-2 p-3 border rounded-lg">
@@ -476,13 +520,23 @@ const AddRecipeDialog: React.FC<AddRecipeDialogProps> = ({ onAddRecipe }) => {
                     </Select>
                     
                     <div className="grid grid-cols-2 gap-2">
-                      <Input
-                        type="number"
-                        step="0.1"
-                        placeholder={`Quantità ${selectedIngredient?.unit ? `(${selectedIngredient.unit})` : ''}`}
-                        value={ingredient.quantity}
-                        onChange={(e) => updateIngredient(index, 'quantity', parseFloat(e.target.value) || 0)}
-                      />
+                      {selectedIngredient && !ingredient.is_semilavorato ? (
+                        <UnitSelector
+                          baseUnit={selectedIngredient.unit}
+                          selectedUnit={ingredient.unit || selectedIngredient.unit}
+                          quantity={ingredient.quantity}
+                          onUnitChange={(unit) => updateIngredientUnit(index, unit)}
+                          onQuantityChange={(quantity) => updateIngredientQuantity(index, quantity)}
+                        />
+                      ) : (
+                        <Input
+                          type="number"
+                          step="0.1"
+                          placeholder={`Quantità ${selectedIngredient?.unit ? `(${selectedIngredient.unit})` : ''}`}
+                          value={ingredient.quantity}
+                          onChange={(e) => updateIngredient(index, 'quantity', parseFloat(e.target.value) || 0)}
+                        />
+                      )}
                       <div className="text-right flex items-center">
                         <span className="text-sm font-medium">€{cost.toFixed(2)}</span>
                       </div>

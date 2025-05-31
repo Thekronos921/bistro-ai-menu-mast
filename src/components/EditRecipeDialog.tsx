@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -107,6 +108,7 @@ const EditRecipeDialog = ({ recipe, onClose, onRecipeUpdated }: EditRecipeDialog
           id: ri.id,
           ingredient_id: ri.ingredient_id,
           quantity: ri.quantity,
+          // Usa l'unità salvata nella ricetta, altrimenti quella base dell'ingrediente
           unit: ri.unit || ingredientData?.unit || '',
           is_semilavorato: ri.is_semilavorato || false,
           ingredient: ingredientData ? {
@@ -184,14 +186,17 @@ const EditRecipeDialog = ({ recipe, onClose, onRecipeUpdated }: EditRecipeDialog
         throw deleteIngredientsError;
       }
 
-      console.log("Inserting new recipe ingredients:", validIngredients);
+      console.log("Inserting new recipe ingredients with custom units:", validIngredients);
       const ingredientsData = validIngredients.map(ing => ({
         recipe_id: recipe.id,
         ingredient_id: ing.ingredient_id,
         quantity: ing.quantity,
-        unit: ing.unit,
+        // Salva sempre l'unità specifica usata nella ricetta
+        unit: ing.unit || ing.ingredient?.unit || '',
         is_semilavorato: ing.is_semilavorato || false
       }));
+
+      console.log("Ingredients data to insert:", ingredientsData);
 
       const { error: ingredientsError } = await supabase
         .from('recipe_ingredients')
@@ -237,7 +242,9 @@ const EditRecipeDialog = ({ recipe, onClose, onRecipeUpdated }: EditRecipeDialog
         description: "Ricetta aggiornata con successo"
       });
 
+      // Chiudi il dialog senza ricaricare i dati - questo preserva le modifiche
       onClose();
+      // Ricarica i dati della lista ricette
       onRecipeUpdated();
     } catch (error) {
       console.error("Submit error:", error);

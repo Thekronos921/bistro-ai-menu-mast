@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { Package, Info } from "lucide-react";
+import { Package, Info, Calendar } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
@@ -27,6 +27,10 @@ interface Ingredient {
   external_id: string;
   notes: string;
   last_synced_at: string;
+  batch_number: string;
+  expiry_date: string;
+  storage_instructions: string;
+  origin_certification: string;
 }
 
 interface EditIngredientDialogProps {
@@ -50,7 +54,11 @@ const EditIngredientDialog = ({ ingredient, onClose, onIngredientUpdated }: Edit
     par_level: ingredient.par_level || 0,
     category: ingredient.category || '',
     external_id: ingredient.external_id || '',
-    notes: ingredient.notes || ''
+    notes: ingredient.notes || '',
+    batch_number: ingredient.batch_number || '',
+    expiry_date: ingredient.expiry_date || '',
+    storage_instructions: ingredient.storage_instructions || '',
+    origin_certification: ingredient.origin_certification || ''
   });
 
   const units = ["g", "kg", "ml", "l", "pz", "cucchiai", "cucchiaini", "tazze"];
@@ -59,6 +67,21 @@ const EditIngredientDialog = ({ ingredient, onClose, onIngredientUpdated }: Edit
   const calculateEffectiveCost = () => {
     if (formData.cost_per_unit <= 0 || formData.yield_percentage <= 0) return 0;
     return formData.cost_per_unit / (formData.yield_percentage / 100);
+  };
+
+  const isExpiringSoon = () => {
+    if (!formData.expiry_date) return false;
+    const expiryDate = new Date(formData.expiry_date);
+    const today = new Date();
+    const daysUntilExpiry = Math.ceil((expiryDate.getTime() - today.getTime()) / (1000 * 3600 * 24));
+    return daysUntilExpiry <= 7 && daysUntilExpiry >= 0;
+  };
+
+  const isExpired = () => {
+    if (!formData.expiry_date) return false;
+    const expiryDate = new Date(formData.expiry_date);
+    const today = new Date();
+    return expiryDate < today;
   };
 
   const handleSubmit = async () => {
@@ -96,7 +119,11 @@ const EditIngredientDialog = ({ ingredient, onClose, onIngredientUpdated }: Edit
           par_level: formData.par_level || null,
           category: formData.category || null,
           external_id: formData.external_id || null,
-          notes: formData.notes || null
+          notes: formData.notes || null,
+          batch_number: formData.batch_number || null,
+          expiry_date: formData.expiry_date || null,
+          storage_instructions: formData.storage_instructions || null,
+          origin_certification: formData.origin_certification || null
         })
         .eq('id', ingredient.id);
 
@@ -123,7 +150,7 @@ const EditIngredientDialog = ({ ingredient, onClose, onIngredientUpdated }: Edit
   return (
     <TooltipProvider>
       <Dialog open={true} onOpenChange={onClose}>
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center space-x-2">
               <Package className="w-5 h-5" />
@@ -132,6 +159,23 @@ const EditIngredientDialog = ({ ingredient, onClose, onIngredientUpdated }: Edit
           </DialogHeader>
           
           <div className="space-y-6">
+            {/* Allarme Scadenza */}
+            {(isExpired() || isExpiringSoon()) && (
+              <div className={`p-4 rounded-lg border ${isExpired() ? 'bg-red-50 border-red-200' : 'bg-yellow-50 border-yellow-200'}`}>
+                <div className="flex items-center">
+                  <Calendar className={`w-5 h-5 mr-2 ${isExpired() ? 'text-red-600' : 'text-yellow-600'}`} />
+                  <h3 className={`font-semibold ${isExpired() ? 'text-red-800' : 'text-yellow-800'}`}>
+                    {isExpired() ? 'Prodotto Scaduto' : 'Prodotto in Scadenza'}
+                  </h3>
+                </div>
+                <p className={`mt-1 ${isExpired() ? 'text-red-700' : 'text-yellow-700'}`}>
+                  {isExpired() 
+                    ? 'Questo ingrediente è scaduto e non dovrebbe essere utilizzato.' 
+                    : 'Questo ingrediente scadrà entro 7 giorni. Utilizzare con priorità.'}
+                </p>
+              </div>
+            )}
+
             {/* Informazioni Base */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
@@ -154,6 +198,53 @@ const EditIngredientDialog = ({ ingredient, onClose, onIngredientUpdated }: Edit
                     ))}
                   </SelectContent>
                 </Select>
+              </div>
+            </div>
+
+            {/* Gestione Lotti e Scadenze */}
+            <div className="bg-blue-50 p-4 rounded-lg space-y-4">
+              <div className="flex items-center space-x-2 mb-4">
+                <Package className="w-5 h-5 text-blue-600" />
+                <h3 className="font-semibold text-blue-800">Gestione Lotti e Scadenze</h3>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <Label className="block text-sm font-medium mb-1">Numero Lotto</Label>
+                  <Input
+                    value={formData.batch_number}
+                    onChange={(e) => setFormData({...formData, batch_number: e.target.value})}
+                    placeholder="Es. LOT240131"
+                  />
+                </div>
+                <div>
+                  <div className="flex items-center space-x-1 mb-1">
+                    <Label className="block text-sm font-medium">Data di Scadenza</Label>
+                    <Calendar className="w-4 h-4 text-gray-400" />
+                  </div>
+                  <Input
+                    type="date"
+                    value={formData.expiry_date}
+                    onChange={(e) => setFormData({...formData, expiry_date: e.target.value})}
+                  />
+                </div>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <Label className="block text-sm font-medium mb-1">Istruzioni di Conservazione</Label>
+                  <Input
+                    value={formData.storage_instructions}
+                    onChange={(e) => setFormData({...formData, storage_instructions: e.target.value})}
+                    placeholder="Es. Conservare in frigorifero a 4°C"
+                  />
+                </div>
+                <div>
+                  <Label className="block text-sm font-medium mb-1">Certificazione Origine</Label>
+                  <Input
+                    value={formData.origin_certification}
+                    onChange={(e) => setFormData({...formData, origin_certification: e.target.value})}
+                    placeholder="Es. DOP, IGP, Biologico"
+                  />
+                </div>
               </div>
             </div>
 
@@ -205,11 +296,11 @@ const EditIngredientDialog = ({ ingredient, onClose, onIngredientUpdated }: Edit
             </div>
 
             {/* Costo Effettivo Calcolato */}
-            <div className="bg-blue-50 p-4 rounded-lg">
-              <Label className="text-blue-800 font-semibold">
+            <div className="bg-green-50 p-4 rounded-lg">
+              <Label className="text-green-800 font-semibold">
                 Costo Effettivo per Unità: €{calculateEffectiveCost().toFixed(2)}
               </Label>
-              <p className="text-sm text-blue-600 mt-1">
+              <p className="text-sm text-green-600 mt-1">
                 Questo è il costo reale che verrà utilizzato nei calcoli delle ricette
               </p>
             </div>

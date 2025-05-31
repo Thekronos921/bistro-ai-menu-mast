@@ -1,6 +1,6 @@
 
 import { useState, useEffect } from "react";
-import { Search, Edit, Trash2, AlertTriangle, ExternalLink } from "lucide-react";
+import { Search, Edit, Trash2, AlertTriangle, ExternalLink, Calendar, Package2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -29,6 +29,10 @@ interface Ingredient {
   notes: string;
   last_synced_at: string;
   restaurant_id: string;
+  batch_number: string;
+  expiry_date: string;
+  storage_instructions: string;
+  origin_certification: string;
 }
 
 const IngredientsManagement = () => {
@@ -109,6 +113,18 @@ const IngredientsManagement = () => {
     return "ok";
   };
 
+  const getExpiryStatus = (expiryDate: string) => {
+    if (!expiryDate) return null;
+    const expiry = new Date(expiryDate);
+    const today = new Date();
+    const daysUntilExpiry = Math.ceil((expiry.getTime() - today.getTime()) / (1000 * 3600 * 24));
+    
+    if (daysUntilExpiry < 0) return 'expired';
+    if (daysUntilExpiry <= 3) return 'expiring';
+    if (daysUntilExpiry <= 7) return 'warning';
+    return 'ok';
+  };
+
   useEffect(() => {
     if (restaurantId) {
       fetchIngredients();
@@ -124,6 +140,11 @@ const IngredientsManagement = () => {
   const lowStockIngredients = ingredients.filter(ing => 
     ing.current_stock <= ing.min_stock_threshold && ing.min_stock_threshold > 0
   );
+
+  const expiringIngredients = ingredients.filter(ing => {
+    const status = getExpiryStatus(ing.expiry_date);
+    return status === 'expired' || status === 'expiring';
+  });
 
   if (loading) {
     return <div className="text-center py-8">Caricamento ingredienti...</div>;
@@ -143,6 +164,34 @@ const IngredientsManagement = () => {
         <h2 className="text-2xl font-bold text-slate-800">Gestione Ingredienti</h2>
         <AddIngredientDialog onAddIngredient={fetchIngredients} />
       </div>
+
+      {/* Alert per scadenze */}
+      {expiringIngredients.length > 0 && (
+        <div className="bg-orange-50 border border-orange-200 rounded-lg p-4">
+          <div className="flex items-center">
+            <Calendar className="w-5 h-5 text-orange-600 mr-2" />
+            <h3 className="font-semibold text-orange-800">Allarme Scadenze</h3>
+          </div>
+          <p className="text-orange-700 mt-1">
+            {expiringIngredients.length} ingredienti sono scaduti o in scadenza
+          </p>
+          <div className="mt-2 space-y-1">
+            {expiringIngredients.slice(0, 3).map(ing => (
+              <div key={ing.id} className="text-sm text-orange-600">
+                {ing.name}: {ing.expiry_date ? new Date(ing.expiry_date).toLocaleDateString('it-IT') : 'N/A'}
+                {getExpiryStatus(ing.expiry_date) === 'expired' && (
+                  <span className="ml-2 text-red-600 font-semibold">SCADUTO</span>
+                )}
+              </div>
+            ))}
+            {expiringIngredients.length > 3 && (
+              <div className="text-sm text-orange-600">
+                ...e altri {expiringIngredients.length - 3} ingredienti
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Alert per scorte basse */}
       {lowStockIngredients.length > 0 && (
@@ -183,6 +232,7 @@ const IngredientsManagement = () => {
               <tr>
                 <th className="text-left px-6 py-3 text-sm font-medium text-slate-500">Nome</th>
                 <th className="text-left px-6 py-3 text-sm font-medium text-slate-500">Categoria</th>
+                <th className="text-center px-6 py-3 text-sm font-medium text-slate-500">Lotto/Scadenza</th>
                 <th className="text-right px-6 py-3 text-sm font-medium text-slate-500">Costo Acquisto</th>
                 <th className="text-right px-6 py-3 text-sm font-medium text-slate-500">Resa %</th>
                 <th className="text-right px-6 py-3 text-sm font-medium text-slate-500">Costo Effettivo</th>
@@ -197,11 +247,19 @@ const IngredientsManagement = () => {
             <tbody className="divide-y divide-stone-200">
               {filteredIngredients.map((ingredient) => {
                 const stockStatus = getStockStatus(ingredient.current_stock, ingredient.min_stock_threshold);
+                const expiryStatus = getExpiryStatus(ingredient.expiry_date);
                 return (
                   <tr key={ingredient.id} className="hover:bg-slate-50">
                     <td className="px-6 py-4 font-medium text-slate-800">
                       <div>
-                        <div>{ingredient.name}</div>
+                        <div className="flex items-center">
+                          {ingredient.origin_certification && (
+                            <Badge variant="outline" className="mr-2 text-xs">
+                              {ingredient.origin_certification}
+                            </Badge>
+                          )}
+                          <span>{ingredient.name}</span>
+                        </div>
                         {ingredient.external_id && (
                           <div className="flex items-center mt-1">
                             <ExternalLink className="w-3 h-3 text-gray-400 mr-1" />
@@ -211,6 +269,30 @@ const IngredientsManagement = () => {
                       </div>
                     </td>
                     <td className="px-6 py-4 text-slate-600">{ingredient.category || '-'}</td>
+                    <td className="px-6 py-4 text-center">
+                      <div className="space-y-1">
+                        {ingredient.batch_number && (
+                          <div className="flex items-center justify-center">
+                            <Package2 className="w-3 h-3 text-gray-400 mr-1" />
+                            <span className="text-xs text-gray-600">{ingredient.batch_number}</span>
+                          </div>
+                        )}
+                        {ingredient.expiry_date && (
+                          <div className="flex items-center justify-center">
+                            <Calendar className="w-3 h-3 text-gray-400 mr-1" />
+                            <span className={`text-xs ${
+                              expiryStatus === 'expired' ? 'text-red-600 font-semibold' :
+                              expiryStatus === 'expiring' ? 'text-orange-600 font-semibold' :
+                              expiryStatus === 'warning' ? 'text-yellow-600' : 'text-gray-600'
+                            }`}>
+                              {new Date(ingredient.expiry_date).toLocaleDateString('it-IT')}
+                              {expiryStatus === 'expired' && <span className="ml-1">⚠️</span>}
+                              {expiryStatus === 'expiring' && <span className="ml-1">🔔</span>}
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                    </td>
                     <td className="px-6 py-4 text-right font-medium">€{ingredient.cost_per_unit.toFixed(2)}</td>
                     <td className="px-6 py-4 text-right">
                       <Badge variant={ingredient.yield_percentage < 80 ? "destructive" : ingredient.yield_percentage < 90 ? "secondary" : "default"}>
@@ -227,7 +309,14 @@ const IngredientsManagement = () => {
                       </span>
                     </td>
                     <td className="px-6 py-4 text-center">
-                      <StockStatusBadge status={stockStatus} />
+                      <div className="space-y-1">
+                        <StockStatusBadge status={stockStatus} />
+                        {expiryStatus && expiryStatus !== 'ok' && (
+                          <Badge variant={expiryStatus === 'expired' ? "destructive" : "secondary"} className="text-xs">
+                            {expiryStatus === 'expired' ? 'Scaduto' : 'Scade presto'}
+                          </Badge>
+                        )}
+                      </div>
                     </td>
                     <td className="px-6 py-4 text-slate-600">
                       <div>

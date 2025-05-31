@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
-import { Plus, Info } from 'lucide-react';
+import { Plus, Info, Calendar, Package } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useRestaurant } from '@/hooks/useRestaurant';
@@ -34,7 +34,11 @@ const AddIngredientDialog: React.FC<AddIngredientDialogProps> = ({ onAddIngredie
     parLevel: 0,
     category: '',
     externalId: '',
-    notes: ''
+    notes: '',
+    batchNumber: '',
+    expiryDate: '',
+    storageInstructions: '',
+    originCertification: ''
   });
 
   const units = ["g", "kg", "ml", "l", "pz", "cucchiai", "cucchiaini", "tazze"];
@@ -65,7 +69,11 @@ const AddIngredientDialog: React.FC<AddIngredientDialogProps> = ({ onAddIngredie
       parLevel: 0,
       category: '',
       externalId: '',
-      notes: ''
+      notes: '',
+      batchNumber: '',
+      expiryDate: '',
+      storageInstructions: '',
+      originCertification: ''
     });
   };
 
@@ -112,7 +120,11 @@ const AddIngredientDialog: React.FC<AddIngredientDialogProps> = ({ onAddIngredie
         par_level: formData.parLevel || null,
         category: formData.category || null,
         external_id: formData.externalId || null,
-        notes: formData.notes || null
+        notes: formData.notes || null,
+        batch_number: formData.batchNumber || null,
+        expiry_date: formData.expiryDate || null,
+        storage_instructions: formData.storageInstructions || null,
+        origin_certification: formData.originCertification || null
       });
 
       const { error } = await supabase
@@ -150,7 +162,7 @@ const AddIngredientDialog: React.FC<AddIngredientDialogProps> = ({ onAddIngredie
             Aggiungi Ingrediente
           </Button>
         </DialogTrigger>
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Aggiungi Nuovo Ingrediente</DialogTitle>
           </DialogHeader>
@@ -179,6 +191,57 @@ const AddIngredientDialog: React.FC<AddIngredientDialogProps> = ({ onAddIngredie
                     ))}
                   </SelectContent>
                 </Select>
+              </div>
+            </div>
+
+            {/* Gestione Lotti e Scadenze */}
+            <div className="bg-blue-50 p-4 rounded-lg space-y-4">
+              <div className="flex items-center space-x-2 mb-4">
+                <Package className="w-5 h-5 text-blue-600" />
+                <h3 className="font-semibold text-blue-800">Gestione Lotti e Scadenze</h3>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="batchNumber">Numero Lotto</Label>
+                  <Input
+                    id="batchNumber"
+                    value={formData.batchNumber}
+                    onChange={(e) => handleChange('batchNumber', e.target.value)}
+                    placeholder="Es. LOT240131"
+                  />
+                </div>
+                <div>
+                  <div className="flex items-center space-x-1">
+                    <Label htmlFor="expiryDate">Data di Scadenza</Label>
+                    <Calendar className="w-4 h-4 text-gray-400" />
+                  </div>
+                  <Input
+                    id="expiryDate"
+                    type="date"
+                    value={formData.expiryDate}
+                    onChange={(e) => handleChange('expiryDate', e.target.value)}
+                  />
+                </div>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="storageInstructions">Istruzioni di Conservazione</Label>
+                  <Input
+                    id="storageInstructions"
+                    value={formData.storageInstructions}
+                    onChange={(e) => handleChange('storageInstructions', e.target.value)}
+                    placeholder="Es. Conservare in frigorifero a 4°C"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="originCertification">Certificazione Origine</Label>
+                  <Input
+                    id="originCertification"
+                    value={formData.originCertification}
+                    onChange={(e) => handleChange('originCertification', e.target.value)}
+                    placeholder="Es. DOP, IGP, Biologico"
+                  />
+                </div>
               </div>
             </div>
 
@@ -234,11 +297,11 @@ const AddIngredientDialog: React.FC<AddIngredientDialogProps> = ({ onAddIngredie
             </div>
 
             {/* Costo Effettivo Calcolato */}
-            <div className="bg-blue-50 p-4 rounded-lg">
-              <Label className="text-blue-800 font-semibold">
+            <div className="bg-green-50 p-4 rounded-lg">
+              <Label className="text-green-800 font-semibold">
                 Costo Effettivo per Unità: €{calculateEffectiveCost().toFixed(2)}
               </Label>
-              <p className="text-sm text-blue-600 mt-1">
+              <p className="text-sm text-green-600 mt-1">
                 Questo è il costo reale che verrà utilizzato nei calcoli delle ricette
               </p>
             </div>

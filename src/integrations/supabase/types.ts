@@ -57,21 +57,85 @@ export type Database = {
           },
         ]
       }
+      ingredient_batches: {
+        Row: {
+          batch_number: string
+          created_at: string
+          expiry_date: string
+          id: string
+          ingredient_id: string | null
+          notes: string | null
+          quantity_received: number
+          quantity_remaining: number
+          restaurant_id: string | null
+          storage_location: string | null
+          supplier_delivery_date: string | null
+          updated_at: string
+        }
+        Insert: {
+          batch_number: string
+          created_at?: string
+          expiry_date: string
+          id?: string
+          ingredient_id?: string | null
+          notes?: string | null
+          quantity_received?: number
+          quantity_remaining?: number
+          restaurant_id?: string | null
+          storage_location?: string | null
+          supplier_delivery_date?: string | null
+          updated_at?: string
+        }
+        Update: {
+          batch_number?: string
+          created_at?: string
+          expiry_date?: string
+          id?: string
+          ingredient_id?: string | null
+          notes?: string | null
+          quantity_received?: number
+          quantity_remaining?: number
+          restaurant_id?: string | null
+          storage_location?: string | null
+          supplier_delivery_date?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ingredient_batches_ingredient_id_fkey"
+            columns: ["ingredient_id"]
+            isOneToOne: false
+            referencedRelation: "ingredients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ingredient_batches_restaurant_id_fkey"
+            columns: ["restaurant_id"]
+            isOneToOne: false
+            referencedRelation: "restaurants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       ingredients: {
         Row: {
+          batch_number: string | null
           category: string | null
           cost_per_unit: number
           created_at: string
           current_stock: number | null
           effective_cost_per_unit: number | null
+          expiry_date: string | null
           external_id: string | null
           id: string
           last_synced_at: string | null
           min_stock_threshold: number | null
           name: string
           notes: string | null
+          origin_certification: string | null
           par_level: number | null
           restaurant_id: string
+          storage_instructions: string | null
           supplier: string | null
           supplier_product_code: string | null
           unit: string
@@ -79,19 +143,23 @@ export type Database = {
           yield_percentage: number
         }
         Insert: {
+          batch_number?: string | null
           category?: string | null
           cost_per_unit: number
           created_at?: string
           current_stock?: number | null
           effective_cost_per_unit?: number | null
+          expiry_date?: string | null
           external_id?: string | null
           id?: string
           last_synced_at?: string | null
           min_stock_threshold?: number | null
           name: string
           notes?: string | null
+          origin_certification?: string | null
           par_level?: number | null
           restaurant_id: string
+          storage_instructions?: string | null
           supplier?: string | null
           supplier_product_code?: string | null
           unit?: string
@@ -99,19 +167,23 @@ export type Database = {
           yield_percentage?: number
         }
         Update: {
+          batch_number?: string | null
           category?: string | null
           cost_per_unit?: number
           created_at?: string
           current_stock?: number | null
           effective_cost_per_unit?: number | null
+          expiry_date?: string | null
           external_id?: string | null
           id?: string
           last_synced_at?: string | null
           min_stock_threshold?: number | null
           name?: string
           notes?: string | null
+          origin_certification?: string | null
           par_level?: number | null
           restaurant_id?: string
+          storage_instructions?: string | null
           supplier?: string | null
           supplier_product_code?: string | null
           unit?: string

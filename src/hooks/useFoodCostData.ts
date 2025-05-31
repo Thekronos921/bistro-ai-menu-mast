@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -29,11 +30,11 @@ interface Dish {
   recipes?: Recipe;
 }
 
-interface SalesData {
+interface FoodCostSalesData {
   dishName: string;
   unitsSold: number;
   saleDate: string;
-  period?: string;
+  period: string;
 }
 
 interface DateRange {
@@ -44,7 +45,7 @@ interface DateRange {
 export const useFoodCostData = () => {
   const [dishes, setDishes] = useState<Dish[]>([]);
   const [recipes, setRecipes] = useState<Recipe[]>([]);
-  const [salesData, setSalesData] = useState<SalesData[]>([]);
+  const [salesData, setSalesData] = useState<FoodCostSalesData[]>([]);
   const [dateRange, setDateRange] = useState<DateRange>({ from: undefined, to: undefined });
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
@@ -195,7 +196,7 @@ export const useFoodCostData = () => {
     }
   };
 
-  const handleSalesImport = (importedSales: SalesData[]) => {
+  const handleSalesImport = (importedSales: FoodCostSalesData[]) => {
     setSalesData(prev => {
       // Rimuovi dati esistenti per le stesse date e aggiungi nuovi dati
       const existingDates = new Set(importedSales.map(s => s.saleDate));

@@ -49,19 +49,19 @@ const LabelGenerator = () => {
           </TabsList>
           
           <TabsContent value="semilavorato">
-            <SemilavoratoLabelForm onClose={() => setOpen(false)} />
+            <SemilavoratoLabelForm />
           </TabsContent>
           
           <TabsContent value="lavorato">
-            <LavoratoLabelForm onClose={() => setOpen(false)} />
+            <LavoratoLabelForm />
           </TabsContent>
           
           <TabsContent value="recipe">
-            <RecipeLabelForm onClose={() => setOpen(false)} />
+            <RecipeLabelForm />
           </TabsContent>
           
           <TabsContent value="defrosted">
-            <DefrostedLabelForm onClose={() => setOpen(false)} />
+            <DefrostedLabelForm />
           </TabsContent>
         </Tabs>
       </DialogContent>

@@ -24,7 +24,13 @@ interface Dish {
 interface SalesData {
   dishName: string;
   unitsSold: number;
-  period: string;
+  saleDate: string;
+  period?: string;
+}
+
+interface DateRange {
+  from: Date | undefined;
+  to: Date | undefined;
 }
 
 interface SettingsConfig {
@@ -77,6 +83,9 @@ const FoodCost = () => {
     dishes, 
     recipes, 
     salesData, 
+    allSalesData,
+    dateRange,
+    setDateRange,
     loading, 
     fetchData, 
     createDishFromRecipe, 
@@ -159,6 +168,7 @@ const FoodCost = () => {
       }))
   ];
 
+  // Enhanced filtering with date range consideration
   const filteredItems = allItems.filter(({ name, category, analysis, menuCategory }) => {
     const matchesSearch = name.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesCategory = selectedCategory === "all" || category === selectedCategory;
@@ -186,7 +196,10 @@ const FoodCost = () => {
       'Food Cost %': analysis.foodCostPercentage.toFixed(1),
       'Margine €': analysis.margin.toFixed(2),
       'Menu Engineering': menuCategory,
-      'Popolarità Score': analysis.popularity
+      'Popolarità Score': analysis.popularity,
+      'Periodo Analisi': dateRange.from && dateRange.to 
+        ? `${dateRange.from.toLocaleDateString()} - ${dateRange.to.toLocaleDateString()}`
+        : 'Tutti i dati'
     }));
 
     const csv = [
@@ -248,6 +261,8 @@ const FoodCost = () => {
           onImportSales={handleSalesImport}
           onExportCSV={exportToCSV}
           onRefresh={fetchData}
+          dateRange={dateRange}
+          onDateRangeChange={setDateRange}
         />
 
         <FoodCostTable

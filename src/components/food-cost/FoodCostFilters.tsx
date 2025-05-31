@@ -1,29 +1,39 @@
 
-import { useState } from "react";
-import { Search, Download, RefreshCw } from "lucide-react";
+import { Search, Filter, Download, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import SalesDataImportDialog from "@/components/SalesDataImportDialog";
+import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import AdvancedFilters, { FilterConfig } from "@/components/AdvancedFilters";
+import EnhancedSalesImportDialog from "./EnhancedSalesImportDialog";
+import DateRangeFilter from "./DateRangeFilter";
+
+interface DateRange {
+  from: Date | undefined;
+  to: Date | undefined;
+}
 
 interface SalesData {
   dishName: string;
   unitsSold: number;
-  period: string;
+  saleDate: string;
+  period?: string;
 }
 
 interface FoodCostFiltersProps {
   searchTerm: string;
   onSearchChange: (value: string) => void;
   selectedCategory: string;
-  onCategoryChange: (category: string) => void;
+  onCategoryChange: (value: string) => void;
   categories: string[];
   advancedFilters: FilterConfig;
   onAdvancedFiltersChange: (filters: FilterConfig) => void;
   showAdvancedFilters: boolean;
   onToggleAdvancedFilters: () => void;
-  onImportSales: (sales: SalesData[]) => void;
+  onImportSales: (salesData: SalesData[]) => void;
   onExportCSV: () => void;
   onRefresh: () => void;
+  dateRange: DateRange;
+  onDateRangeChange: (range: DateRange) => void;
 }
 
 const FoodCostFilters = ({
@@ -38,57 +48,91 @@ const FoodCostFilters = ({
   onToggleAdvancedFilters,
   onImportSales,
   onExportCSV,
-  onRefresh
+  onRefresh,
+  dateRange,
+  onDateRangeChange
 }: FoodCostFiltersProps) => {
   return (
-    <div className="bg-white rounded-2xl border border-stone-200 p-6 mb-6 space-y-4">
-      <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between space-y-4 lg:space-y-0">
-        <div className="flex-1 relative max-w-md">
-          <Search className="w-5 h-5 text-slate-400 absolute left-3 top-3" />
-          <input
-            type="text"
+    <div className="bg-white rounded-2xl border border-stone-200 p-6 space-y-4">
+      <div className="flex flex-col lg:flex-row gap-4">
+        {/* Search */}
+        <div className="relative flex-1">
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 w-4 h-4" />
+          <Input
             placeholder="Cerca piatti o ricette..."
             value={searchTerm}
             onChange={(e) => onSearchChange(e.target.value)}
-            className="w-full pl-10 pr-4 py-2 border border-stone-200 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+            className="pl-10"
           />
         </div>
-        
-        <div className="flex items-center space-x-3">
-          <SalesDataImportDialog onImportSales={onImportSales} />
-          <Button variant="outline" onClick={onExportCSV}>
-            <Download className="w-4 h-4 mr-2" />
-            Esporta CSV
+
+        {/* Category Filter */}
+        <Select value={selectedCategory} onValueChange={onCategoryChange}>
+          <SelectTrigger className="w-full lg:w-48">
+            <SelectValue placeholder="Categoria" />
+          </SelectTrigger>
+          <SelectContent>
+            {categories.map(category => (
+              <SelectItem key={category} value={category}>
+                {category === "all" ? "Tutte le categorie" : category}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+
+        {/* Date Range Filter */}
+        <DateRangeFilter 
+          dateRange={dateRange}
+          onDateRangeChange={onDateRangeChange}
+        />
+      </div>
+
+      <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center justify-between">
+        <div className="flex flex-wrap gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={onToggleAdvancedFilters}
+            className="flex items-center"
+          >
+            <Filter className="w-4 h-4 mr-2" />
+            Filtri Avanzati
           </Button>
-          <Button variant="outline" onClick={onRefresh}>
+          
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={onRefresh}
+            className="flex items-center"
+          >
             <RefreshCw className="w-4 h-4 mr-2" />
             Aggiorna
           </Button>
         </div>
-      </div>
 
-      <div className="flex flex-wrap gap-2">
-        {categories.map(category => (
-          <button
-            key={category}
-            onClick={() => onCategoryChange(category)}
-            className={`px-4 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-colors ${
-              selectedCategory === category
-                ? "bg-emerald-600 text-white"
-                : "bg-stone-100 text-slate-600 hover:bg-stone-200"
-            }`}
+        <div className="flex flex-wrap gap-2">
+          <EnhancedSalesImportDialog onImportSales={onImportSales} />
+          
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={onExportCSV}
+            className="flex items-center"
           >
-            {category === "all" ? "Tutte" : category}
-          </button>
-        ))}
+            <Download className="w-4 h-4 mr-2" />
+            Esporta CSV
+          </Button>
+        </div>
       </div>
 
-      <AdvancedFilters
-        filters={advancedFilters}
-        onFiltersChange={onAdvancedFiltersChange}
-        isOpen={showAdvancedFilters}
-        onToggle={onToggleAdvancedFilters}
-      />
+      {showAdvancedFilters && (
+        <div className="pt-4 border-t border-stone-200">
+          <AdvancedFilters
+            filters={advancedFilters}
+            onFiltersChange={onAdvancedFiltersChange}
+          />
+        </div>
+      )}
     </div>
   );
 };

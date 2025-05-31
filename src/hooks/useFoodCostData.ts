@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -33,13 +32,20 @@ interface Dish {
 interface SalesData {
   dishName: string;
   unitsSold: number;
-  period: string;
+  saleDate: string;
+  period?: string;
+}
+
+interface DateRange {
+  from: Date | undefined;
+  to: Date | undefined;
 }
 
 export const useFoodCostData = () => {
   const [dishes, setDishes] = useState<Dish[]>([]);
   const [recipes, setRecipes] = useState<Recipe[]>([]);
   const [salesData, setSalesData] = useState<SalesData[]>([]);
+  const [dateRange, setDateRange] = useState<DateRange>({ from: undefined, to: undefined });
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
   const { restaurantId } = useRestaurant();
@@ -191,12 +197,37 @@ export const useFoodCostData = () => {
 
   const handleSalesImport = (importedSales: SalesData[]) => {
     setSalesData(prev => {
-      // Remove existing data for the same period and add new data
-      const otherPeriods = prev.filter(s => !importedSales.some(is => is.period === s.period));
-      return [...otherPeriods, ...importedSales];
+      // Rimuovi dati esistenti per le stesse date e aggiungi nuovi dati
+      const existingDates = new Set(importedSales.map(s => s.saleDate));
+      const otherDates = prev.filter(s => !existingDates.has(s.saleDate));
+      return [...otherDates, ...importedSales];
     });
     
     console.log('Sales data imported:', importedSales);
+    toast({
+      title: "Successo",
+      description: `Importati ${importedSales.length} record di vendita`
+    });
+  };
+
+  const getFilteredSalesData = () => {
+    if (!dateRange.from && !dateRange.to) {
+      return salesData;
+    }
+
+    return salesData.filter(sale => {
+      const saleDate = new Date(sale.saleDate);
+      
+      if (dateRange.from && saleDate < dateRange.from) {
+        return false;
+      }
+      
+      if (dateRange.to && saleDate > dateRange.to) {
+        return false;
+      }
+      
+      return true;
+    });
   };
 
   useEffect(() => {
@@ -208,7 +239,10 @@ export const useFoodCostData = () => {
   return {
     dishes,
     recipes,
-    salesData,
+    salesData: getFilteredSalesData(),
+    allSalesData: salesData,
+    dateRange,
+    setDateRange,
     loading,
     fetchData,
     createDishFromRecipe,

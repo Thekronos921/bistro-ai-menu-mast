@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -57,7 +56,7 @@ const EditRecipeDialog = ({ recipe, onClose, onRecipeUpdated }: EditRecipeDialog
   });
   
   const [recipeIngredients, setRecipeIngredients] = useState<LocalRecipeIngredient[]>([]);
-  
+
   const [instructions, setInstructions] = useState(
     recipe.recipe_instructions
       .sort((a, b) => a.step_number - b.step_number)
@@ -100,14 +99,25 @@ const EditRecipeDialog = ({ recipe, onClose, onRecipeUpdated }: EditRecipeDialog
 
       console.log("Loaded recipe ingredients:", recipeIngredientsData);
       
-      const mappedIngredients = (recipeIngredientsData || []).map(ri => ({
-        id: ri.id,
-        ingredient_id: ri.ingredient_id,
-        quantity: ri.quantity,
-        unit: ri.unit || ri.ingredients.unit,
-        is_semilavorato: ri.is_semilavorato || false,
-        ingredient: ri.ingredients
-      }));
+      const mappedIngredients = (recipeIngredientsData || []).map(ri => {
+        // Gestisci il caso in cui ingredients potrebbe essere un array o un oggetto
+        const ingredientData = Array.isArray(ri.ingredients) ? ri.ingredients[0] : ri.ingredients;
+        
+        return {
+          id: ri.id,
+          ingredient_id: ri.ingredient_id,
+          quantity: ri.quantity,
+          unit: ri.unit || ingredientData?.unit || '',
+          is_semilavorato: ri.is_semilavorato || false,
+          ingredient: ingredientData ? {
+            id: ingredientData.id,
+            name: ingredientData.name,
+            unit: ingredientData.unit,
+            cost_per_unit: ingredientData.cost_per_unit,
+            effective_cost_per_unit: ingredientData.effective_cost_per_unit
+          } : null
+        };
+      });
 
       setRecipeIngredients(mappedIngredients);
     };

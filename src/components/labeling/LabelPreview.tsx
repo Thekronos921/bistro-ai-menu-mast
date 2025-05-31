@@ -61,6 +61,7 @@ const LabelPreview = ({
       case 'Semilavorato': return 'bg-blue-100 text-blue-800 border-blue-200';
       case 'Lavorato': return 'bg-green-100 text-green-800 border-green-200';
       case 'Decongelato': return 'bg-cyan-100 text-cyan-800 border-cyan-200';
+      case 'Ricetta': return 'bg-orange-100 text-orange-800 border-orange-200';
       default: return 'bg-gray-100 text-gray-800 border-gray-200';
     }
   };
@@ -83,7 +84,11 @@ const LabelPreview = ({
       <h4 className="font-semibold text-gray-700">Anteprima Etichetta</h4>
       
       {/* Etichetta stampabile */}
-      <Card className="p-4 bg-white border-2 border-dashed border-gray-300 print:border-solid print:border-black print:shadow-none" style={{ width: '8cm', minHeight: '6cm' }}>
+      <Card 
+        data-label-preview 
+        className="p-4 bg-white border-2 border-dashed border-gray-300 print:border-solid print:border-black print:shadow-none" 
+        style={{ width: '8cm', minHeight: '6cm' }}
+      >
         <div className="space-y-3 text-sm">
           {/* Header */}
           <div className="flex justify-between items-start">

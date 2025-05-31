@@ -147,7 +147,49 @@ const RecipeLabelForm = ({ onClose }: RecipeLabelFormProps) => {
       return;
     }
 
+    // Crea un nuovo stile CSS specifico per la stampa
+    const printStyles = `
+      @media print {
+        body * {
+          visibility: hidden;
+        }
+        .print-content, .print-content * {
+          visibility: visible;
+        }
+        .print-content {
+          position: absolute;
+          left: 0;
+          top: 0;
+          width: 8cm;
+          height: 6cm;
+        }
+        @page {
+          size: 8cm 6cm;
+          margin: 0;
+        }
+      }
+    `;
+
+    // Aggiunge gli stili alla head
+    const styleSheet = document.createElement('style');
+    styleSheet.innerText = printStyles;
+    document.head.appendChild(styleSheet);
+
+    // Aggiunge la classe per la stampa all'anteprima
+    const labelPreview = document.querySelector('[data-label-preview]');
+    if (labelPreview) {
+      labelPreview.classList.add('print-content');
+    }
+
     window.print();
+
+    // Rimuove gli stili e la classe dopo la stampa
+    setTimeout(() => {
+      document.head.removeChild(styleSheet);
+      if (labelPreview) {
+        labelPreview.classList.remove('print-content');
+      }
+    }, 1000);
   };
 
   return (

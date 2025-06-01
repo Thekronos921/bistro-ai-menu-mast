@@ -9,6 +9,7 @@ import { Switch } from "@/components/ui/switch";
 import { Plus, DollarSign, Calculator, ExternalLink, AlertTriangle, CheckCircle, Zap, Edit } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { useRestaurant } from "@/hooks/useRestaurant";
 
 interface Recipe {
   id: string;
@@ -31,9 +32,11 @@ interface AddDishDialogProps {
 const AddDishDialog = ({ onAddDish, onEditRecipe }: AddDishDialogProps) => {
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [fetchingRecipes, setFetchingRecipes] = useState(false);
   const [recipes, setRecipes] = useState<Recipe[]>([]);
   const [selectedRecipe, setSelectedRecipe] = useState<Recipe | null>(null);
   const { toast } = useToast();
+  const { restaurantId } = useRestaurant();
   
   const [formData, setFormData] = useState({
     name: "",
@@ -46,14 +49,16 @@ const AddDishDialog = ({ onAddDish, onEditRecipe }: AddDishDialogProps) => {
 
   const categories = ["Antipasti", "Primi Piatti", "Secondi Piatti", "Dolci", "Contorni", "Bevande"];
 
-  useEffect(() => {
-    if (open) {
-      fetchRecipes();
-    }
-  }, [open]);
-
   const fetchRecipes = async () => {
+    if (!restaurantId) {
+      console.log("No restaurant ID available for fetching recipes");
+      return;
+    }
+
+    setFetchingRecipes(true);
     try {
+      console.log("Fetching recipes for restaurant:", restaurantId);
+      
       const { data, error } = await supabase
         .from('recipes')
         .select(`
@@ -68,23 +73,32 @@ const AddDishDialog = ({ onAddDish, onEditRecipe }: AddDishDialogProps) => {
             )
           )
         `)
+        .eq('restaurant_id', restaurantId)
         .eq('is_semilavorato', false)
         .order('name');
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error fetching recipes:', error);
+        throw error;
+      }
       
-      // Transform the data to match our Recipe interface
-      const transformedData = (data || []).map(recipe => ({
-        ...recipe,
-        recipe_ingredients: recipe.recipe_ingredients.map((ri: any) => ({
-          quantity: ri.quantity,
-          ingredients: {
-            cost_per_unit: ri.ingredients.cost_per_unit
-          }
-        }))
-      }));
+      console.log("Fetched recipes:", data);
       
-      setRecipes(transformedData);
+      // Transform and validate the data to match our Recipe interface
+      const validRecipes = (data || [])
+        .filter(recipe => recipe && recipe.id && recipe.name) // Filter out any invalid recipes
+        .map(recipe => ({
+          ...recipe,
+          recipe_ingredients: (recipe.recipe_ingredients || []).map((ri: any) => ({
+            quantity: ri?.quantity || 0,
+            ingredients: {
+              cost_per_unit: ri?.ingredients?.cost_per_unit || 0
+            }
+          }))
+        }));
+      
+      console.log("Valid recipes after filtering:", validRecipes);
+      setRecipes(validRecipes);
     } catch (error) {
       console.error('Error fetching recipes:', error);
       toast({
@@ -92,18 +106,46 @@ const AddDishDialog = ({ onAddDish, onEditRecipe }: AddDishDialogProps) => {
         description: "Errore nel caricamento delle ricette",
         variant: "destructive"
       });
+      setRecipes([]); // Set empty array on error
+    } finally {
+      setFetchingRecipes(false);
     }
   };
 
+  // Fetch recipes when dialog opens and restaurant ID is available
+  useEffect(() => {
+    if (open && restaurantId) {
+      fetchRecipes();
+    }
+  }, [open, restaurantId]);
+
+  // Reset form when dialog closes
+  useEffect(() => {
+    if (!open) {
+      setFormData({
+        name: "",
+        category: "",
+        selling_price: 0,
+        description: "",
+        recipe_id: "",
+        is_active: true
+      });
+      setSelectedRecipe(null);
+      setRecipes([]);
+    }
+  }, [open]);
+
   const calculateRecipeCost = (recipe: Recipe) => {
-    if (!recipe.recipe_ingredients) return 0;
+    if (!recipe.recipe_ingredients || !Array.isArray(recipe.recipe_ingredients)) return 0;
     return recipe.recipe_ingredients.reduce((total, ri) => {
+      if (!ri || !ri.ingredients) return total;
       return total + (ri.ingredients.cost_per_unit * ri.quantity);
     }, 0);
   };
 
   const handleRecipeChange = (recipeId: string) => {
     const recipe = recipes.find(r => r.id === recipeId);
+    console.log("Selected recipe:", recipe);
     setSelectedRecipe(recipe || null);
     setFormData({...formData, recipe_id: recipeId});
   };
@@ -162,6 +204,15 @@ const AddDishDialog = ({ onAddDish, onEditRecipe }: AddDishDialogProps) => {
       return;
     }
 
+    if (!restaurantId) {
+      toast({
+        title: "Errore",
+        description: "ID ristorante non trovato",
+        variant: "destructive"
+      });
+      return;
+    }
+
     setLoading(true);
     try {
       const { error } = await supabase
@@ -170,10 +221,14 @@ const AddDishDialog = ({ onAddDish, onEditRecipe }: AddDishDialogProps) => {
           name: formData.name,
           category: formData.category,
           selling_price: formData.selling_price,
-          recipe_id: formData.recipe_id
+          recipe_id: formData.recipe_id,
+          restaurant_id: restaurantId
         }]);
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error adding dish:', error);
+        throw error;
+      }
 
       toast({
         title: "Successo",
@@ -182,17 +237,6 @@ const AddDishDialog = ({ onAddDish, onEditRecipe }: AddDishDialogProps) => {
 
       setOpen(false);
       onAddDish();
-      
-      // Reset form
-      setFormData({
-        name: "",
-        category: "",
-        selling_price: 0,
-        description: "",
-        recipe_id: "",
-        is_active: true
-      });
-      setSelectedRecipe(null);
     } catch (error) {
       console.error('Error adding dish:', error);
       toast({
@@ -270,9 +314,17 @@ const AddDishDialog = ({ onAddDish, onEditRecipe }: AddDishDialogProps) => {
 
               <div>
                 <label className="block text-sm font-medium mb-2">Ricetta Associata *</label>
-                <Select value={formData.recipe_id} onValueChange={handleRecipeChange}>
+                <Select 
+                  value={formData.recipe_id} 
+                  onValueChange={handleRecipeChange}
+                  disabled={fetchingRecipes}
+                >
                   <SelectTrigger>
-                    <SelectValue placeholder="Seleziona ricetta" />
+                    <SelectValue placeholder={
+                      fetchingRecipes ? "Caricamento ricette..." : 
+                      recipes.length === 0 ? "Nessuna ricetta disponibile" :
+                      "Seleziona ricetta"
+                    } />
                   </SelectTrigger>
                   <SelectContent>
                     {recipes.map(recipe => {
@@ -286,7 +338,9 @@ const AddDishDialog = ({ onAddDish, onEditRecipe }: AddDishDialogProps) => {
                   </SelectContent>
                 </Select>
                 <p className="text-xs text-slate-500 mt-1">
-                  Solo ricette non marcate come semilavorato
+                  {fetchingRecipes ? "Caricamento in corso..." : 
+                   recipes.length === 0 ? "Crea prima delle ricette per poter aggiungere piatti" :
+                   "Solo ricette non marcate come semilavorato"}
                 </p>
               </div>
 
@@ -388,7 +442,11 @@ const AddDishDialog = ({ onAddDish, onEditRecipe }: AddDishDialogProps) => {
             ) : (
               <div className="bg-slate-100 p-8 rounded-lg text-center text-slate-500">
                 <Calculator className="w-12 h-12 mx-auto mb-3 opacity-50" />
-                <p className="text-sm">Seleziona una ricetta per vedere l'analisi dei costi</p>
+                <p className="text-sm">
+                  {fetchingRecipes ? "Caricamento ricette..." : 
+                   recipes.length === 0 ? "Nessuna ricetta disponibile. Crea prima delle ricette." :
+                   "Seleziona una ricetta per vedere l'analisi dei costi"}
+                </p>
               </div>
             )}
           </div>
@@ -400,7 +458,7 @@ const AddDishDialog = ({ onAddDish, onEditRecipe }: AddDishDialogProps) => {
           </Button>
           <Button 
             onClick={handleSubmit} 
-            disabled={loading || !formData.name || !formData.category || !formData.recipe_id || formData.selling_price <= 0}
+            disabled={loading || !formData.name || !formData.category || !formData.recipe_id || formData.selling_price <= 0 || fetchingRecipes}
           >
             {loading ? "Aggiunta..." : "Aggiungi Piatto"}
           </Button>

@@ -1,3 +1,4 @@
+
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -26,6 +27,7 @@ import DemandForecast from "./pages/DemandForecast";
 import CustomerAnalysis from "./pages/CustomerAnalysis";
 import ProductionPlanning from "./pages/ProductionPlanning";
 import StaffDashboard from "./pages/StaffDashboard";
+import EventCalendar from "./pages/EventCalendar";
 
 const queryClient = new QueryClient();
 
@@ -145,6 +147,15 @@ const App = () => (
                   <ProtectedRoute>
                     <Header />
                     <DemandForecast />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/event-calendar"
+                element={
+                  <ProtectedRoute>
+                    <Header />
+                    <EventCalendar />
                   </ProtectedRoute>
                 }
               />

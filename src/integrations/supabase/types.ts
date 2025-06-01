@@ -314,48 +314,66 @@ export type Database = {
         Row: {
           created_at: string
           date: string
+          description: string | null
+          end_date: string | null
           end_time: string | null
           event_type: string
           expected_impact: string | null
           id: string
           impact_percentage: number | null
           is_active: boolean | null
+          is_recurring: boolean | null
           location: string | null
           name: string
           radius_km: number | null
+          recurrence_rule: string | null
           restaurant_id: string
+          source: string | null
+          start_date: string | null
           start_time: string | null
           updated_at: string
         }
         Insert: {
           created_at?: string
           date: string
+          description?: string | null
+          end_date?: string | null
           end_time?: string | null
           event_type: string
           expected_impact?: string | null
           id?: string
           impact_percentage?: number | null
           is_active?: boolean | null
+          is_recurring?: boolean | null
           location?: string | null
           name: string
           radius_km?: number | null
+          recurrence_rule?: string | null
           restaurant_id: string
+          source?: string | null
+          start_date?: string | null
           start_time?: string | null
           updated_at?: string
         }
         Update: {
           created_at?: string
           date?: string
+          description?: string | null
+          end_date?: string | null
           end_time?: string | null
           event_type?: string
           expected_impact?: string | null
           id?: string
           impact_percentage?: number | null
           is_active?: boolean | null
+          is_recurring?: boolean | null
           location?: string | null
           name?: string
           radius_km?: number | null
+          recurrence_rule?: string | null
           restaurant_id?: string
+          source?: string | null
+          start_date?: string | null
           start_time?: string | null
           updated_at?: string
         }

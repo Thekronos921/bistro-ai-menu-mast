@@ -1,5 +1,5 @@
 
-import { ArrowLeft, TrendingUp, Cloud, Calendar, Users, Upload, Plus } from "lucide-react";
+import { ArrowLeft, TrendingUp, Cloud, Calendar, Users, Upload, Plus, CalendarDays } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useDemandForecast } from "@/hooks/useDemandForecast";
 import SalesDataImportDialog from "@/components/demand-forecast/SalesDataImportDialog";
@@ -119,6 +119,12 @@ const DemandForecast = () => {
             
             {/* Action Buttons */}
             <div className="flex items-center space-x-3">
+              <Link to="/event-calendar">
+                <Button variant="outline" className="flex items-center space-x-2">
+                  <CalendarDays className="w-4 h-4" />
+                  <span>Calendario Eventi</span>
+                </Button>
+              </Link>
               <SalesDataImportDialog />
               <LocalEventDialog />
             </div>

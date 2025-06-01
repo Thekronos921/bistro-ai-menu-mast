@@ -1,4 +1,3 @@
-
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useRestaurant } from './useRestaurant';
@@ -25,14 +24,20 @@ export interface SalesData {
 export interface LocalEvent {
   id: string;
   name: string;
+  description?: string;
   event_type: string;
   date: string;
+  start_date?: string;
+  end_date?: string;
   start_time?: string;
   end_time?: string;
   location?: string;
   expected_impact?: string;
   impact_percentage?: number;
   radius_km?: number;
+  source?: string;
+  is_recurring?: boolean;
+  recurrence_rule?: string;
   is_active?: boolean;
 }
 
@@ -123,7 +128,7 @@ export const useDemandForecast = () => {
     enabled: !!getRestaurantId()
   });
 
-  // Fetch local events
+  // Fetch local events - aggiornato per i nuovi campi
   const {
     data: localEvents,
     isLoading: eventsLoading
@@ -204,7 +209,7 @@ export const useDemandForecast = () => {
     }
   });
 
-  // Create local event
+  // Create local event - aggiornato per i nuovi campi
   const createLocalEvent = useMutation({
     mutationFn: async (eventInput: Omit<LocalEvent, 'id'>) => {
       const { data, error } = await supabase
@@ -221,6 +226,7 @@ export const useDemandForecast = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['local-events'] });
+      queryClient.invalidateQueries({ queryKey: ['calendar-events'] });
       toast({
         title: "Successo",
         description: "Evento locale aggiunto con successo"

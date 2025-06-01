@@ -9,6 +9,116 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
+      demand_forecasts: {
+        Row: {
+          confidence_percentage: number
+          created_at: string
+          events_impact: string | null
+          forecast_date: string
+          generated_at: string
+          id: string
+          inventory_suggestions: string | null
+          is_active: boolean | null
+          key_factors: string[] | null
+          model_version: string | null
+          predicted_covers: number
+          predicted_covers_dinner: number | null
+          predicted_covers_lunch: number | null
+          predicted_revenue: number | null
+          recommended_dishes: Json | null
+          restaurant_id: string
+          staff_recommendations: string | null
+          updated_at: string
+          weather_impact: string | null
+        }
+        Insert: {
+          confidence_percentage?: number
+          created_at?: string
+          events_impact?: string | null
+          forecast_date: string
+          generated_at?: string
+          id?: string
+          inventory_suggestions?: string | null
+          is_active?: boolean | null
+          key_factors?: string[] | null
+          model_version?: string | null
+          predicted_covers: number
+          predicted_covers_dinner?: number | null
+          predicted_covers_lunch?: number | null
+          predicted_revenue?: number | null
+          recommended_dishes?: Json | null
+          restaurant_id: string
+          staff_recommendations?: string | null
+          updated_at?: string
+          weather_impact?: string | null
+        }
+        Update: {
+          confidence_percentage?: number
+          created_at?: string
+          events_impact?: string | null
+          forecast_date?: string
+          generated_at?: string
+          id?: string
+          inventory_suggestions?: string | null
+          is_active?: boolean | null
+          key_factors?: string[] | null
+          model_version?: string | null
+          predicted_covers?: number
+          predicted_covers_dinner?: number | null
+          predicted_covers_lunch?: number | null
+          predicted_revenue?: number | null
+          recommended_dishes?: Json | null
+          restaurant_id?: string
+          staff_recommendations?: string | null
+          updated_at?: string
+          weather_impact?: string | null
+        }
+        Relationships: []
+      }
+      dish_sales_data: {
+        Row: {
+          created_at: string
+          dish_category: string | null
+          dish_name: string
+          id: string
+          meal_period: string | null
+          quantity_sold: number
+          restaurant_id: string
+          revenue: number | null
+          sales_data_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          dish_category?: string | null
+          dish_name: string
+          id?: string
+          meal_period?: string | null
+          quantity_sold?: number
+          restaurant_id: string
+          revenue?: number | null
+          sales_data_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          dish_category?: string | null
+          dish_name?: string
+          id?: string
+          meal_period?: string | null
+          quantity_sold?: number
+          restaurant_id?: string
+          revenue?: number | null
+          sales_data_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "dish_sales_data_sales_data_id_fkey"
+            columns: ["sales_data_id"]
+            isOneToOne: false
+            referencedRelation: "sales_data"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       dishes: {
         Row: {
           category: string
@@ -199,6 +309,57 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      local_events: {
+        Row: {
+          created_at: string
+          date: string
+          end_time: string | null
+          event_type: string
+          expected_impact: string | null
+          id: string
+          impact_percentage: number | null
+          is_active: boolean | null
+          location: string | null
+          name: string
+          radius_km: number | null
+          restaurant_id: string
+          start_time: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          date: string
+          end_time?: string | null
+          event_type: string
+          expected_impact?: string | null
+          id?: string
+          impact_percentage?: number | null
+          is_active?: boolean | null
+          location?: string | null
+          name: string
+          radius_km?: number | null
+          restaurant_id: string
+          start_time?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          date?: string
+          end_time?: string | null
+          event_type?: string
+          expected_impact?: string | null
+          id?: string
+          impact_percentage?: number | null
+          is_active?: boolean | null
+          location?: string | null
+          name?: string
+          radius_km?: number | null
+          restaurant_id?: string
+          start_time?: string | null
+          updated_at?: string
+        }
+        Relationships: []
       }
       recipe_ingredients: {
         Row: {
@@ -405,6 +566,69 @@ export type Database = {
           },
         ]
       }
+      sales_data: {
+        Row: {
+          avg_spending_per_cover: number | null
+          covers_dinner: number | null
+          covers_lunch: number | null
+          covers_total: number
+          created_at: string
+          date: string
+          day_of_week: number
+          id: string
+          is_holiday: boolean | null
+          notes: string | null
+          restaurant_id: string
+          revenue_dinner: number | null
+          revenue_lunch: number | null
+          revenue_total: number | null
+          special_events: string[] | null
+          temperature: number | null
+          updated_at: string
+          weather_condition: string | null
+        }
+        Insert: {
+          avg_spending_per_cover?: number | null
+          covers_dinner?: number | null
+          covers_lunch?: number | null
+          covers_total?: number
+          created_at?: string
+          date: string
+          day_of_week: number
+          id?: string
+          is_holiday?: boolean | null
+          notes?: string | null
+          restaurant_id: string
+          revenue_dinner?: number | null
+          revenue_lunch?: number | null
+          revenue_total?: number | null
+          special_events?: string[] | null
+          temperature?: number | null
+          updated_at?: string
+          weather_condition?: string | null
+        }
+        Update: {
+          avg_spending_per_cover?: number | null
+          covers_dinner?: number | null
+          covers_lunch?: number | null
+          covers_total?: number
+          created_at?: string
+          date?: string
+          day_of_week?: number
+          id?: string
+          is_holiday?: boolean | null
+          notes?: string | null
+          restaurant_id?: string
+          revenue_dinner?: number | null
+          revenue_lunch?: number | null
+          revenue_total?: number | null
+          special_events?: string[] | null
+          temperature?: number | null
+          updated_at?: string
+          weather_condition?: string | null
+        }
+        Relationships: []
+      }
       users: {
         Row: {
           created_at: string
@@ -454,6 +678,51 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      weather_data: {
+        Row: {
+          condition: string
+          created_at: string
+          date: string
+          humidity_percentage: number | null
+          id: string
+          is_forecast: boolean | null
+          precipitation_mm: number | null
+          restaurant_id: string
+          temperature_max: number | null
+          temperature_min: number | null
+          updated_at: string
+          wind_speed_kmh: number | null
+        }
+        Insert: {
+          condition: string
+          created_at?: string
+          date: string
+          humidity_percentage?: number | null
+          id?: string
+          is_forecast?: boolean | null
+          precipitation_mm?: number | null
+          restaurant_id: string
+          temperature_max?: number | null
+          temperature_min?: number | null
+          updated_at?: string
+          wind_speed_kmh?: number | null
+        }
+        Update: {
+          condition?: string
+          created_at?: string
+          date?: string
+          humidity_percentage?: number | null
+          id?: string
+          is_forecast?: boolean | null
+          precipitation_mm?: number | null
+          restaurant_id?: string
+          temperature_max?: number | null
+          temperature_min?: number | null
+          updated_at?: string
+          wind_speed_kmh?: number | null
+        }
+        Relationships: []
       }
     }
     Views: {

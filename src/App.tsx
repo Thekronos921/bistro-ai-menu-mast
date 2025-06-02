@@ -1,4 +1,3 @@
-
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -28,6 +27,7 @@ import CustomerAnalysis from "./pages/CustomerAnalysis";
 import ProductionPlanning from "./pages/ProductionPlanning";
 import StaffDashboard from "./pages/StaffDashboard";
 import EventCalendar from "./pages/EventCalendar";
+import CassaInCloudIntegration from "./pages/CassaInCloudIntegration";
 
 const queryClient = new QueryClient();
 
@@ -183,6 +183,15 @@ const App = () => (
                   <ProtectedRoute>
                     <Header />
                     <StaffDashboard />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/cassaincloud-integration"
+                element={
+                  <ProtectedRoute>
+                    <Header />
+                    <CassaInCloudIntegration />
                   </ProtectedRoute>
                 }
               />

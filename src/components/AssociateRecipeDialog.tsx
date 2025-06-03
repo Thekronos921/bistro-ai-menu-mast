@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -42,13 +41,39 @@ const AssociateRecipeDialog = ({ dish, onClose, onAssociated }: AssociateRecipeD
           id,
           name,
           category,
+          preparation_time,
+          difficulty,
+          portions,
+          description,
+          allergens,
+          calories,
+          protein,
+          carbs,
+          fat,
           is_semilavorato,
+          notes_chef,
+          selling_price,
           recipe_ingredients (
+            id,
+            ingredient_id,
             quantity,
+            unit,
+            is_semilavorato,
             ingredients (
+              id,
+              name,
+              unit,
               cost_per_unit,
-              effective_cost_per_unit
+              effective_cost_per_unit,
+              current_stock,
+              min_stock_threshold,
+              yield_percentage
             )
+          ),
+          recipe_instructions (
+            id,
+            step_number,
+            instruction
           )
         `)
         .eq('restaurant_id', restaurantId)
@@ -57,7 +82,28 @@ const AssociateRecipeDialog = ({ dish, onClose, onAssociated }: AssociateRecipeD
 
       if (error) throw error;
       
-      setRecipes(data || []);
+      // Transform the data to match the Recipe interface with proper defaults
+      const transformedRecipes: Recipe[] = (data || []).map(recipe => ({
+        id: recipe.id,
+        name: recipe.name,
+        category: recipe.category,
+        preparation_time: recipe.preparation_time || 0,
+        difficulty: recipe.difficulty || 'Facile',
+        portions: recipe.portions || 1,
+        description: recipe.description || '',
+        allergens: recipe.allergens || '',
+        calories: recipe.calories || 0,
+        protein: recipe.protein || 0,
+        carbs: recipe.carbs || 0,
+        fat: recipe.fat || 0,
+        is_semilavorato: recipe.is_semilavorato || false,
+        notes_chef: recipe.notes_chef || '',
+        selling_price: recipe.selling_price || undefined,
+        recipe_ingredients: recipe.recipe_ingredients || [],
+        recipe_instructions: recipe.recipe_instructions || []
+      }));
+      
+      setRecipes(transformedRecipes);
     } catch (error) {
       console.error('Error fetching recipes:', error);
       toast({

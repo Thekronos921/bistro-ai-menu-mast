@@ -121,33 +121,84 @@ export type Database = {
       }
       dishes: {
         Row: {
-          category: string
+          availability_status: string | null
+          cic_department_id: string | null
+          cic_department_name: string | null
+          cic_has_variants: boolean | null
+          cic_notes: string | null
+          cic_price_includes_vat: boolean | null
+          cic_variants_count: number | null
+          cic_vat_percentage: number | null
           created_at: string
+          external_category_id: string | null
+          external_id: string | null
           id: string
+          image_url: string | null
+          is_enabled_for_restaurant: boolean | null
+          is_visible_on_ecommerce: boolean | null
+          is_visible_on_pos: boolean | null
+          last_synced_at: string | null
           name: string
           recipe_id: string | null
+          restaurant_category_id: string | null
+          restaurant_category_name: string | null
           restaurant_id: string
           selling_price: number
+          sync_status: string | null
           updated_at: string
         }
         Insert: {
-          category: string
+          availability_status?: string | null
+          cic_department_id?: string | null
+          cic_department_name?: string | null
+          cic_has_variants?: boolean | null
+          cic_notes?: string | null
+          cic_price_includes_vat?: boolean | null
+          cic_variants_count?: number | null
+          cic_vat_percentage?: number | null
           created_at?: string
+          external_category_id?: string | null
+          external_id?: string | null
           id?: string
+          image_url?: string | null
+          is_enabled_for_restaurant?: boolean | null
+          is_visible_on_ecommerce?: boolean | null
+          is_visible_on_pos?: boolean | null
+          last_synced_at?: string | null
           name: string
           recipe_id?: string | null
+          restaurant_category_id?: string | null
+          restaurant_category_name?: string | null
           restaurant_id: string
           selling_price: number
+          sync_status?: string | null
           updated_at?: string
         }
         Update: {
-          category?: string
+          availability_status?: string | null
+          cic_department_id?: string | null
+          cic_department_name?: string | null
+          cic_has_variants?: boolean | null
+          cic_notes?: string | null
+          cic_price_includes_vat?: boolean | null
+          cic_variants_count?: number | null
+          cic_vat_percentage?: number | null
           created_at?: string
+          external_category_id?: string | null
+          external_id?: string | null
           id?: string
+          image_url?: string | null
+          is_enabled_for_restaurant?: boolean | null
+          is_visible_on_ecommerce?: boolean | null
+          is_visible_on_pos?: boolean | null
+          last_synced_at?: string | null
           name?: string
           recipe_id?: string | null
+          restaurant_category_id?: string | null
+          restaurant_category_name?: string | null
           restaurant_id?: string
           selling_price?: number
+          sync_status?: string | null
           updated_at?: string
         }
         Relationships: [
@@ -163,6 +214,13 @@ export type Database = {
             columns: ["restaurant_id"]
             isOneToOne: false
             referencedRelation: "restaurants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fk_dishes_restaurant_category"
+            columns: ["restaurant_category_id"]
+            isOneToOne: false
+            referencedRelation: "restaurant_categories"
             referencedColumns: ["id"]
           },
         ]
@@ -829,6 +887,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      get_category_name: {
+        Args: { cat_id: string }
+        Returns: string
+      }
       get_current_user_restaurant_id: {
         Args: Record<PropertyKey, never>
         Returns: string

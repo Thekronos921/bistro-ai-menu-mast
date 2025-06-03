@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -31,6 +32,7 @@ interface EditDishDialogProps {
 const EditDishDialog = ({ dish, onClose, onDishUpdated, onEditRecipe }: EditDishDialogProps) => {
   const [loading, setLoading] = useState(false);
   const [recipes, setRecipes] = useState<RecipeType[]>([]);
+  const [categories, setCategories] = useState<string[]>([]);
   const [selectedRecipe, setSelectedRecipe] = useState<RecipeType | null>(null);
   const { toast } = useToast();
   const { restaurantId } = useRestaurant();
@@ -44,16 +46,49 @@ const EditDishDialog = ({ dish, onClose, onDishUpdated, onEditRecipe }: EditDish
     is_active: true
   });
 
-  const categories = ["Antipasti", "Primi Piatti", "Secondi Piatti", "Dolci", "Contorni"];
-
   useEffect(() => {
     if (restaurantId) {
       fetchRecipes();
+      fetchCategories();
     }
     if (dish.recipes) {
       setSelectedRecipe(dish.recipes);
     }
   }, [restaurantId]);
+
+  const fetchCategories = async () => {
+    try {
+      if (!restaurantId) {
+        console.log("No restaurant ID available for categories");
+        return;
+      }
+
+      const { data, error } = await supabase
+        .from('dishes')
+        .select('restaurant_category_name')
+        .eq('restaurant_id', restaurantId)
+        .not('restaurant_category_name', 'is', null);
+
+      if (error) throw error;
+      
+      // Estrai le categorie uniche e filtra quelle non null/undefined
+      const uniqueCategories = [...new Set(
+        data
+          .map(dish => dish.restaurant_category_name)
+          .filter(Boolean)
+      )].sort();
+      
+      setCategories(uniqueCategories);
+      console.log("Fetched categories:", uniqueCategories);
+    } catch (error) {
+      console.error('Error fetching categories:', error);
+      toast({
+        title: "Errore",
+        description: "Errore nel caricamento delle categorie",
+        variant: "destructive"
+      });
+    }
+  };
 
   const fetchRecipes = async () => {
     try {
@@ -193,7 +228,7 @@ const EditDishDialog = ({ dish, onClose, onDishUpdated, onEditRecipe }: EditDish
     try {
       const updateData: any = {
         name: formData.name,
-        category: formData.category,
+        restaurant_category_name: formData.category,
         selling_price: formData.selling_price
       };
 
@@ -262,11 +297,20 @@ const EditDishDialog = ({ dish, onClose, onDishUpdated, onEditRecipe }: EditDish
                     <SelectValue placeholder="Seleziona categoria" />
                   </SelectTrigger>
                   <SelectContent>
-                    {categories.map(cat => (
-                      <SelectItem key={cat} value={cat}>{cat}</SelectItem>
-                    ))}
+                    {categories.length === 0 ? (
+                      <SelectItem value="no-categories-available" disabled>Nessuna categoria disponibile</SelectItem>
+                    ) : (
+                      categories.map(cat => (
+                        <SelectItem key={cat} value={cat}>{cat}</SelectItem>
+                      ))
+                    )}
                   </SelectContent>
                 </Select>
+                {categories.length === 0 && (
+                  <p className="text-sm text-gray-500 mt-1">
+                    Nessuna categoria trovata. Le categorie vengono caricate dai piatti esistenti.
+                  </p>
+                )}
               </div>
 
               <div>

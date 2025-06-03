@@ -310,6 +310,50 @@ export type Database = {
           },
         ]
       }
+      integration_settings: {
+        Row: {
+          api_key: string | null
+          auto_sync_enabled: boolean | null
+          created_at: string
+          id: string
+          integration_type: string
+          last_sync_at: string | null
+          restaurant_id: string
+          settings: Json | null
+          updated_at: string
+        }
+        Insert: {
+          api_key?: string | null
+          auto_sync_enabled?: boolean | null
+          created_at?: string
+          id?: string
+          integration_type: string
+          last_sync_at?: string | null
+          restaurant_id: string
+          settings?: Json | null
+          updated_at?: string
+        }
+        Update: {
+          api_key?: string | null
+          auto_sync_enabled?: boolean | null
+          created_at?: string
+          id?: string
+          integration_type?: string
+          last_sync_at?: string | null
+          restaurant_id?: string
+          settings?: Json | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "integration_settings_restaurant_id_fkey"
+            columns: ["restaurant_id"]
+            isOneToOne: false
+            referencedRelation: "restaurants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       local_events: {
         Row: {
           created_at: string

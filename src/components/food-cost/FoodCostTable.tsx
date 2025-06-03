@@ -1,5 +1,5 @@
 
-import { DollarSign, Edit } from "lucide-react";
+import { DollarSign, Edit, Link2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import MenuEngineeringBadge, { MenuCategory } from "@/components/MenuEngineeringBadge";
@@ -48,6 +48,7 @@ interface FoodCostTableProps {
   onEditDish: (dish: Dish) => void;
   onEditRecipe: (recipe: Recipe) => void;
   onCreateDishFromRecipe: (recipe: Recipe) => void;
+  onAssociateRecipe?: (dish: Dish) => void;
 }
 
 const FoodCostTable = ({
@@ -58,7 +59,8 @@ const FoodCostTable = ({
   settings,
   onEditDish,
   onEditRecipe,
-  onCreateDishFromRecipe
+  onCreateDishFromRecipe,
+  onAssociateRecipe
 }: FoodCostTableProps) => {
   if (filteredItems.length === 0) {
     return (
@@ -111,11 +113,20 @@ const FoodCostTable = ({
             {filteredItems.map(({ type, item, analysis, menuCategory }) => {
               const dishSales = type === 'dish' ? getDishSalesData(item.name) : null;
               const salesMix = type === 'dish' ? getSalesMixPercentage(item.name) : 0;
+              const dish = item as Dish;
+              const hasRecipe = type === 'dish' && dish.recipe_id;
               
               return (
                 <TableRow key={`${type}-${item.id}`}>
                   <TableCell>
-                    <div className="font-medium text-slate-800">{item.name}</div>
+                    <div className="font-medium text-slate-800 flex items-center space-x-2">
+                      <span>{item.name}</span>
+                      {type === 'dish' && !hasRecipe && (
+                        <span className="inline-flex px-2 py-1 text-xs font-medium rounded-full bg-amber-100 text-amber-800">
+                          Senza ricetta
+                        </span>
+                      )}
+                    </div>
                   </TableCell>
                   <TableCell>
                     <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${
@@ -143,16 +154,28 @@ const FoodCostTable = ({
                     €{type === 'dish' ? (item as Dish).selling_price : analysis.assumedPrice?.toFixed(2)}
                     {type === 'recipe' && <span className="text-slate-500 text-xs ml-1">(stimato)</span>}
                   </TableCell>
-                  <TableCell className="text-right text-slate-600">€{analysis.foodCost.toFixed(2)}</TableCell>
-                  <TableCell className="text-right">
-                    <span className={`font-semibold ${
-                      analysis.foodCostPercentage > settings.criticalThreshold ? 'text-red-600' : 
-                      analysis.foodCostPercentage > 30 ? 'text-amber-600' : 'text-emerald-600'
-                    }`}>
-                      {analysis.foodCostPercentage.toFixed(1)}%
-                    </span>
+                  <TableCell className="text-right text-slate-600">
+                    {hasRecipe || type === 'recipe' ? (
+                      <>€{analysis.foodCost.toFixed(2)}</>
+                    ) : (
+                      <span className="text-slate-400 text-xs">Non calcolabile</span>
+                    )}
                   </TableCell>
-                  <TableCell className="text-right font-medium text-slate-800">€{analysis.margin.toFixed(2)}</TableCell>
+                  <TableCell className="text-right">
+                    {hasRecipe || type === 'recipe' ? (
+                      <span className={`font-semibold ${
+                        analysis.foodCostPercentage > settings.criticalThreshold ? 'text-red-600' : 
+                        analysis.foodCostPercentage > 30 ? 'text-amber-600' : 'text-emerald-600'
+                      }`}>
+                        {analysis.foodCostPercentage.toFixed(1)}%
+                      </span>
+                    ) : (
+                      <span className="text-slate-400 text-xs">N/A</span>
+                    )}
+                  </TableCell>
+                  <TableCell className="text-right font-medium text-slate-800">
+                    €{analysis.margin.toFixed(2)}
+                  </TableCell>
                   <TableCell className="text-center">
                     <MenuEngineeringBadge category={menuCategory} />
                   </TableCell>
@@ -174,7 +197,8 @@ const FoodCostTable = ({
                           >
                             <Edit className="w-4 h-4" />
                           </Button>
-                          {(item as Dish).recipes && (
+                          
+                          {hasRecipe ? (
                             <Button
                               onClick={() => {
                                 const recipe = (item as Dish).recipes!;
@@ -200,6 +224,18 @@ const FoodCostTable = ({
                             >
                               Modifica Ricetta
                             </Button>
+                          ) : (
+                            onAssociateRecipe && (
+                              <Button
+                                onClick={() => onAssociateRecipe(item as Dish)}
+                                size="sm"
+                                variant="outline"
+                                className="ml-1 border-emerald-200 text-emerald-600 hover:bg-emerald-50"
+                              >
+                                <Link2 className="w-4 h-4 mr-1" />
+                                Associa Ricetta
+                              </Button>
+                            )
                           )}
                         </>
                       ) : (

@@ -1,7 +1,7 @@
-
 import { useState } from "react";
 import EditRecipeDialog from "@/components/EditRecipeDialog";
 import EditDishDialog from "@/components/EditDishDialog";
+import AssociateRecipeDialog from "@/components/AssociateRecipeDialog";
 import { FilterConfig } from "@/components/AdvancedFilters";
 import { TimePeriod } from "@/components/PeriodSelector";
 import FoodCostHeader from "@/components/food-cost/FoodCostHeader";
@@ -59,6 +59,7 @@ const FoodCost = () => {
   const [selectedPeriod, setSelectedPeriod] = useState<TimePeriod>("last30days");
   const [editingRecipe, setEditingRecipe] = useState<Recipe | null>(null);
   const [editingDish, setEditingDish] = useState<Dish | null>(null);
+  const [associatingDish, setAssociatingDish] = useState<Dish | null>(null);
   const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
   const [advancedFilters, setAdvancedFilters] = useState<FilterConfig>({});
 
@@ -286,6 +287,7 @@ const FoodCost = () => {
           onEditDish={setEditingDish}
           onEditRecipe={setEditingRecipe}
           onCreateDishFromRecipe={createDishFromRecipe}
+          onAssociateRecipe={setAssociatingDish}
         />
       </main>
 
@@ -320,6 +322,13 @@ const FoodCost = () => {
           onEditRecipe={handleEditRecipeFromDialog}
         />
       )}
+
+      {/* Associate Recipe Dialog */}
+      <AssociateRecipeDialog
+        dish={associatingDish}
+        onClose={() => setAssociatingDish(null)}
+        onAssociated={fetchData}
+      />
     </div>
   );
 };

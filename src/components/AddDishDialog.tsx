@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -44,6 +43,7 @@ const AddDishDialog = ({ onAddDish, onEditRecipe }: AddDishDialogProps) => {
     selling_price: 0,
     description: "",
     recipe_id: "",
+    manual_cost: 0, // New field for manual cost estimation
     is_active: true
   });
 
@@ -128,6 +128,7 @@ const AddDishDialog = ({ onAddDish, onEditRecipe }: AddDishDialogProps) => {
         selling_price: 0,
         description: "",
         recipe_id: "",
+        manual_cost: 0,
         is_active: true
       });
       setSelectedRecipe(null);
@@ -144,6 +145,12 @@ const AddDishDialog = ({ onAddDish, onEditRecipe }: AddDishDialogProps) => {
   };
 
   const handleRecipeChange = (recipeId: string) => {
+    if (recipeId === "none") {
+      setSelectedRecipe(null);
+      setFormData({...formData, recipe_id: ""});
+      return;
+    }
+    
     const recipe = recipes.find(r => r.id === recipeId);
     console.log("Selected recipe:", recipe);
     setSelectedRecipe(recipe || null);
@@ -151,15 +158,27 @@ const AddDishDialog = ({ onAddDish, onEditRecipe }: AddDishDialogProps) => {
   };
 
   const getFoodCostPercentage = () => {
-    if (!selectedRecipe || formData.selling_price <= 0) return 0;
-    const recipeCost = calculateRecipeCost(selectedRecipe);
-    return (recipeCost / formData.selling_price) * 100;
+    if (formData.selling_price <= 0) return 0;
+    
+    if (selectedRecipe) {
+      const recipeCost = calculateRecipeCost(selectedRecipe);
+      return (recipeCost / formData.selling_price) * 100;
+    } else if (formData.manual_cost > 0) {
+      return (formData.manual_cost / formData.selling_price) * 100;
+    }
+    
+    return 0;
   };
 
   const getMargin = () => {
-    if (!selectedRecipe) return 0;
-    const recipeCost = calculateRecipeCost(selectedRecipe);
-    return formData.selling_price - recipeCost;
+    if (selectedRecipe) {
+      const recipeCost = calculateRecipeCost(selectedRecipe);
+      return formData.selling_price - recipeCost;
+    } else if (formData.manual_cost > 0) {
+      return formData.selling_price - formData.manual_cost;
+    }
+    
+    return formData.selling_price;
   };
 
   const getFoodCostAlert = () => {
@@ -195,10 +214,10 @@ const AddDishDialog = ({ onAddDish, onEditRecipe }: AddDishDialogProps) => {
   };
 
   const handleSubmit = async () => {
-    if (!formData.name || !formData.category || !formData.recipe_id || formData.selling_price <= 0) {
+    if (!formData.name || !formData.category || formData.selling_price <= 0) {
       toast({
         title: "Errore",
-        description: "Nome, categoria, ricetta e prezzo sono obbligatori",
+        description: "Nome, categoria e prezzo sono obbligatori",
         variant: "destructive"
       });
       return;
@@ -215,15 +234,21 @@ const AddDishDialog = ({ onAddDish, onEditRecipe }: AddDishDialogProps) => {
 
     setLoading(true);
     try {
+      const dishData: any = {
+        name: formData.name,
+        category: formData.category,
+        selling_price: formData.selling_price,
+        restaurant_id: restaurantId
+      };
+
+      // Only add recipe_id if a recipe is selected
+      if (formData.recipe_id) {
+        dishData.recipe_id = formData.recipe_id;
+      }
+
       const { error } = await supabase
         .from('dishes')
-        .insert([{
-          name: formData.name,
-          category: formData.category,
-          selling_price: formData.selling_price,
-          recipe_id: formData.recipe_id,
-          restaurant_id: restaurantId
-        }]);
+        .insert([dishData]);
 
       if (error) {
         console.error('Error adding dish:', error);
@@ -232,7 +257,9 @@ const AddDishDialog = ({ onAddDish, onEditRecipe }: AddDishDialogProps) => {
 
       toast({
         title: "Successo",
-        description: "Piatto aggiunto con successo"
+        description: formData.recipe_id 
+          ? "Piatto aggiunto con ricetta associata" 
+          : "Piatto aggiunto - potrai associare una ricetta in seguito"
       });
 
       setOpen(false);
@@ -251,6 +278,7 @@ const AddDishDialog = ({ onAddDish, onEditRecipe }: AddDishDialogProps) => {
 
   const alert = getFoodCostAlert();
   const AlertIcon = alert.icon;
+  const hasRecipeOrManualCost = selectedRecipe || formData.manual_cost > 0;
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -313,20 +341,22 @@ const AddDishDialog = ({ onAddDish, onEditRecipe }: AddDishDialogProps) => {
               </div>
 
               <div>
-                <label className="block text-sm font-medium mb-2">Ricetta Associata *</label>
+                <label className="block text-sm font-medium mb-2">Ricetta Associata (Opzionale)</label>
                 <Select 
-                  value={formData.recipe_id} 
+                  value={formData.recipe_id || "none"} 
                   onValueChange={handleRecipeChange}
                   disabled={fetchingRecipes}
                 >
                   <SelectTrigger>
                     <SelectValue placeholder={
                       fetchingRecipes ? "Caricamento ricette..." : 
-                      recipes.length === 0 ? "Nessuna ricetta disponibile" :
-                      "Seleziona ricetta"
+                      "Nessuna ricetta (configurabile in seguito)"
                     } />
                   </SelectTrigger>
                   <SelectContent>
+                    <SelectItem value="none">
+                      <span className="text-slate-500">Nessuna ricetta associata</span>
+                    </SelectItem>
                     {recipes.map(recipe => {
                       const cost = calculateRecipeCost(recipe);
                       return (
@@ -339,10 +369,28 @@ const AddDishDialog = ({ onAddDish, onEditRecipe }: AddDishDialogProps) => {
                 </Select>
                 <p className="text-xs text-slate-500 mt-1">
                   {fetchingRecipes ? "Caricamento in corso..." : 
-                   recipes.length === 0 ? "Crea prima delle ricette per poter aggiungere piatti" :
-                   "Solo ricette non marcate come semilavorato"}
+                   "Puoi associare una ricetta ora o configurarla in seguito"}
                 </p>
               </div>
+
+              {!selectedRecipe && (
+                <div>
+                  <label className="block text-sm font-medium mb-2">
+                    Costo Stimato Ingredienti (€) - Opzionale
+                  </label>
+                  <Input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={formData.manual_cost}
+                    onChange={(e) => setFormData({...formData, manual_cost: parseFloat(e.target.value) || 0})}
+                    placeholder="8.50"
+                  />
+                  <p className="text-xs text-slate-500 mt-1">
+                    Inserisci un costo stimato per calcolare il food cost anche senza ricetta
+                  </p>
+                </div>
+              )}
 
               <div>
                 <label className="block text-sm font-medium mb-2">Descrizione Piatto (per menu cliente)</label>
@@ -371,14 +419,18 @@ const AddDishDialog = ({ onAddDish, onEditRecipe }: AddDishDialogProps) => {
               Analisi Costi
             </h3>
 
-            {selectedRecipe ? (
+            {hasRecipeOrManualCost ? (
               <div className="space-y-4">
                 <div className="bg-white border border-slate-200 rounded-xl p-5 space-y-4">
                   <div className="flex justify-between items-center border-b border-slate-100 pb-3">
-                    <span className="text-sm font-medium text-slate-600">Ricetta Corrente:</span>
+                    <span className="text-sm font-medium text-slate-600">
+                      {selectedRecipe ? "Ricetta Associata:" : "Costo Stimato:"}
+                    </span>
                     <div className="flex items-center space-x-2">
-                      <span className="text-sm font-semibold text-slate-800">{selectedRecipe.name}</span>
-                      {onEditRecipe && (
+                      <span className="text-sm font-semibold text-slate-800">
+                        {selectedRecipe ? selectedRecipe.name : "Inserimento Manuale"}
+                      </span>
+                      {selectedRecipe && onEditRecipe && (
                         <Button
                           variant="ghost"
                           size="sm"
@@ -393,8 +445,10 @@ const AddDishDialog = ({ onAddDish, onEditRecipe }: AddDishDialogProps) => {
                   
                   <div className="grid grid-cols-1 gap-3">
                     <div className="flex justify-between items-center">
-                      <span className="text-sm text-slate-600">Costo Ricetta:</span>
-                      <span className="font-semibold text-lg">€{calculateRecipeCost(selectedRecipe).toFixed(2)}</span>
+                      <span className="text-sm text-slate-600">Costo Ingredienti:</span>
+                      <span className="font-semibold text-lg">
+                        €{selectedRecipe ? calculateRecipeCost(selectedRecipe).toFixed(2) : formData.manual_cost.toFixed(2)}
+                      </span>
                     </div>
                     
                     <div className="flex justify-between items-center">
@@ -427,7 +481,7 @@ const AddDishDialog = ({ onAddDish, onEditRecipe }: AddDishDialogProps) => {
                   </div>
                 </div>
 
-                {onEditRecipe && (
+                {selectedRecipe && onEditRecipe && (
                   <Button
                     variant="outline"
                     onClick={handleEditRecipe}
@@ -442,10 +496,11 @@ const AddDishDialog = ({ onAddDish, onEditRecipe }: AddDishDialogProps) => {
             ) : (
               <div className="bg-slate-100 p-8 rounded-lg text-center text-slate-500">
                 <Calculator className="w-12 h-12 mx-auto mb-3 opacity-50" />
-                <p className="text-sm">
-                  {fetchingRecipes ? "Caricamento ricette..." : 
-                   recipes.length === 0 ? "Nessuna ricetta disponibile. Crea prima delle ricette." :
-                   "Seleziona una ricetta per vedere l'analisi dei costi"}
+                <p className="text-sm mb-3">
+                  Seleziona una ricetta o inserisci un costo stimato per vedere l'analisi dei costi
+                </p>
+                <p className="text-xs text-slate-400">
+                  Potrai sempre configurare questi dati in seguito
                 </p>
               </div>
             )}
@@ -458,7 +513,7 @@ const AddDishDialog = ({ onAddDish, onEditRecipe }: AddDishDialogProps) => {
           </Button>
           <Button 
             onClick={handleSubmit} 
-            disabled={loading || !formData.name || !formData.category || !formData.recipe_id || formData.selling_price <= 0 || fetchingRecipes}
+            disabled={loading || !formData.name || !formData.category || formData.selling_price <= 0 || fetchingRecipes}
           >
             {loading ? "Aggiunta..." : "Aggiungi Piatto"}
           </Button>

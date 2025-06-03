@@ -49,6 +49,7 @@ interface FoodCostTableProps {
   onEditRecipe: (recipe: Recipe) => void;
   onCreateDishFromRecipe: (recipe: Recipe) => void;
   onAssociateRecipe?: (dish: Dish) => void;
+  onDeleteDish: (dishId: string, dishName: string) => void;
 }
 
 const FoodCostTable = ({
@@ -60,7 +61,8 @@ const FoodCostTable = ({
   onEditDish,
   onEditRecipe,
   onCreateDishFromRecipe,
-  onAssociateRecipe
+  onAssociateRecipe,
+  onDeleteDish
 }: FoodCostTableProps) => {
   if (filteredItems.length === 0) {
     return (
@@ -199,13 +201,7 @@ const FoodCostTable = ({
                           </Button>
                           
                           <Button
-                            onClick={() => {
-                              // Trigger delete dish function that will be passed as prop
-                              if (window.confirm(`Sei sicuro di voler eliminare il piatto "${item.name}"?`)) {
-                                // This will be handled by parent component
-                                console.log('Delete dish:', item.id);
-                              }
-                            }}
+                            onClick={() => onDeleteDish(item.id, item.name)}
                             size="sm"
                             variant="outline"
                             className="text-red-600 hover:bg-red-50"

@@ -83,41 +83,56 @@ const AssociateRecipeDialog = ({ dish, onClose, onAssociated }: AssociateRecipeD
       if (error) throw error;
       
       // Transform the data to match the Recipe interface with proper defaults
-      const transformedRecipes: Recipe[] = (data || []).map(recipe => ({
-        id: recipe.id,
-        name: recipe.name,
-        category: recipe.category,
-        preparation_time: recipe.preparation_time || 0,
-        difficulty: recipe.difficulty || 'Facile',
-        portions: recipe.portions || 1,
-        description: recipe.description || '',
-        allergens: recipe.allergens || '',
-        calories: recipe.calories || 0,
-        protein: recipe.protein || 0,
-        carbs: recipe.carbs || 0,
-        fat: recipe.fat || 0,
-        is_semilavorato: recipe.is_semilavorato || false,
-        notes_chef: recipe.notes_chef || '',
-        selling_price: recipe.selling_price || undefined,
-        recipe_ingredients: recipe.recipe_ingredients.map(ri => ({
-          id: ri.id,
-          ingredient_id: ri.ingredient_id,
-          quantity: ri.quantity,
-          unit: ri.unit,
-          is_semilavorato: ri.is_semilavorato,
-          ingredients: {
-            id: ri.ingredients[0].id,
-            name: ri.ingredients[0].name,
-            unit: ri.ingredients[0].unit,
-            cost_per_unit: ri.ingredients[0].cost_per_unit,
-            effective_cost_per_unit: ri.ingredients[0].effective_cost_per_unit,
-            current_stock: ri.ingredients[0].current_stock,
-            min_stock_threshold: ri.ingredients[0].min_stock_threshold,
-            yield_percentage: ri.ingredients[0].yield_percentage
-          }
-        })),
-        recipe_instructions: recipe.recipe_instructions || []
-      }));
+      const transformedRecipes: Recipe[] = (data || []).map(recipe => {
+        // Ensure recipe_ingredients is an array and map over it safely
+        const recipeIngredients = (recipe.recipe_ingredients || []).map(ri => {
+          const ingredientData = Array.isArray(ri.ingredients) ? ri.ingredients[0] : ri.ingredients;
+          
+          // Provide default values for ingredient properties if ingredientData is null/undefined
+          const defaultIngredient = {
+            id: '', name: '', unit: '', cost_per_unit: 0, effective_cost_per_unit: 0,
+            current_stock: 0, min_stock_threshold: 0, yield_percentage: 0
+          };
+
+          return {
+            id: ri.id || '',
+            ingredient_id: ri.ingredient_id || '',
+            quantity: ri.quantity || 0,
+            unit: ri.unit || '',
+            is_semilavorato: ri.is_semilavorato || false,
+            ingredients: {
+              id: ingredientData?.id || defaultIngredient.id,
+              name: ingredientData?.name || defaultIngredient.name,
+              unit: ingredientData?.unit || defaultIngredient.unit,
+              cost_per_unit: ingredientData?.cost_per_unit || defaultIngredient.cost_per_unit,
+              effective_cost_per_unit: ingredientData?.effective_cost_per_unit || defaultIngredient.effective_cost_per_unit,
+              current_stock: ingredientData?.current_stock || defaultIngredient.current_stock,
+              min_stock_threshold: ingredientData?.min_stock_threshold || defaultIngredient.min_stock_threshold,
+              yield_percentage: ingredientData?.yield_percentage || defaultIngredient.yield_percentage
+            }
+          };
+        });
+
+        return {
+          id: recipe.id,
+          name: recipe.name,
+          category: recipe.category || '', // Ensure category has a default
+          preparation_time: recipe.preparation_time || 0,
+          difficulty: recipe.difficulty || 'Facile',
+          portions: recipe.portions || 1,
+          description: recipe.description || '',
+          allergens: recipe.allergens || '',
+          calories: recipe.calories || 0,
+          protein: recipe.protein || 0,
+          carbs: recipe.carbs || 0,
+          fat: recipe.fat || 0,
+          is_semilavorato: recipe.is_semilavorato || false,
+          notes_chef: recipe.notes_chef || '',
+          selling_price: recipe.selling_price || undefined,
+          recipe_ingredients: recipeIngredients,
+          recipe_instructions: recipe.recipe_instructions || []
+        };
+      });
       
       setRecipes(transformedRecipes);
     } catch (error) {

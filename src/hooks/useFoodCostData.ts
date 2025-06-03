@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -231,6 +230,41 @@ export const useFoodCostData = () => {
     });
   };
 
+  const deleteDish = async (dishId: string) => {
+    try {
+      if (!restaurantId) {
+        toast({
+          title: "Errore",
+          description: "ID ristorante non trovato",
+          variant: "destructive"
+        });
+        return;
+      }
+
+      const { error } = await supabase
+        .from('dishes')
+        .delete()
+        .eq('id', dishId)
+        .eq('restaurant_id', restaurantId);
+
+      if (error) throw error;
+
+      toast({
+        title: "Successo",
+        description: "Piatto eliminato con successo"
+      });
+
+      fetchData();
+    } catch (error) {
+      console.error("Delete dish error:", error);
+      toast({
+        title: "Errore",
+        description: "Errore nell'eliminazione del piatto",
+        variant: "destructive"
+      });
+    }
+  };
+
   useEffect(() => {
     if (restaurantId) {
       fetchData();
@@ -247,6 +281,7 @@ export const useFoodCostData = () => {
     loading,
     fetchData,
     createDishFromRecipe,
-    handleSalesImport
+    handleSalesImport,
+    deleteDish
   };
 };

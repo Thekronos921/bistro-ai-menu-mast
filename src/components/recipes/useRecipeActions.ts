@@ -82,12 +82,40 @@ export const useRecipeActions = (fetchRecipes: () => void) => {
 
   const deleteRecipe = async (recipeId: string) => {
     try {
-      const { error } = await supabase
+      // Prima rimuoviamo l'associazione dai piatti
+      const { error: dishUpdateError } = await supabase
+        .from('dishes')
+        .update({ recipe_id: null })
+        .eq('recipe_id', recipeId);
+
+      if (dishUpdateError) {
+        console.warn("Warning updating dishes:", dishUpdateError);
+        // Continuiamo comunque, potrebbe non esserci nessun piatto associato
+      }
+
+      // Eliminiamo gli ingredienti della ricetta
+      const { error: ingredientsError } = await supabase
+        .from('recipe_ingredients')
+        .delete()
+        .eq('recipe_id', recipeId);
+
+      if (ingredientsError) throw ingredientsError;
+
+      // Eliminiamo le istruzioni della ricetta
+      const { error: instructionsError } = await supabase
+        .from('recipe_instructions')
+        .delete()
+        .eq('recipe_id', recipeId);
+
+      if (instructionsError) throw instructionsError;
+
+      // Infine eliminiamo la ricetta
+      const { error: recipeError } = await supabase
         .from('recipes')
         .delete()
         .eq('id', recipeId);
 
-      if (error) throw error;
+      if (recipeError) throw recipeError;
 
       toast({
         title: "Successo",
@@ -96,6 +124,7 @@ export const useRecipeActions = (fetchRecipes: () => void) => {
 
       fetchRecipes();
     } catch (error) {
+      console.error("Delete recipe error:", error);
       toast({
         title: "Errore",
         description: "Errore durante l'eliminazione della ricetta",

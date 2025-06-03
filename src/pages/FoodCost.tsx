@@ -90,7 +90,8 @@ const FoodCost = () => {
     loading, 
     fetchData, 
     createDishFromRecipe, 
-    handleSalesImport 
+    handleSalesImport,
+    deleteDish
   } = useFoodCostData();
 
   const {
@@ -229,6 +230,12 @@ const FoodCost = () => {
     window.URL.revokeObjectURL(url);
   };
 
+  const handleDeleteDish = (dishId: string, dishName: string) => {
+    if (window.confirm(`Sei sicuro di voler eliminare il piatto "${dishName}"?`)) {
+      deleteDish(dishId);
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-stone-50 flex items-center justify-center">
@@ -288,6 +295,7 @@ const FoodCost = () => {
           onEditRecipe={setEditingRecipe}
           onCreateDishFromRecipe={createDishFromRecipe}
           onAssociateRecipe={setAssociatingDish}
+          onDeleteDish={handleDeleteDish}
         />
       </main>
 

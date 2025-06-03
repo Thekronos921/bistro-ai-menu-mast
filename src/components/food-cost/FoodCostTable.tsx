@@ -1,5 +1,5 @@
 
-import { DollarSign, Edit, Link2 } from "lucide-react";
+import { DollarSign, Edit, Link2, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import MenuEngineeringBadge, { MenuCategory } from "@/components/MenuEngineeringBadge";
@@ -196,6 +196,21 @@ const FoodCostTable = ({
                             variant="outline"
                           >
                             <Edit className="w-4 h-4" />
+                          </Button>
+                          
+                          <Button
+                            onClick={() => {
+                              // Trigger delete dish function that will be passed as prop
+                              if (window.confirm(`Sei sicuro di voler eliminare il piatto "${item.name}"?`)) {
+                                // This will be handled by parent component
+                                console.log('Delete dish:', item.id);
+                              }
+                            }}
+                            size="sm"
+                            variant="outline"
+                            className="text-red-600 hover:bg-red-50"
+                          >
+                            <Trash2 className="w-4 h-4" />
                           </Button>
                           
                           {hasRecipe ? (

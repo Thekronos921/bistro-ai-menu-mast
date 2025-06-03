@@ -34,6 +34,7 @@ const AddDishDialog = ({ onAddDish, onEditRecipe }: AddDishDialogProps) => {
   const [fetchingRecipes, setFetchingRecipes] = useState(false);
   const [recipes, setRecipes] = useState<Recipe[]>([]);
   const [selectedRecipe, setSelectedRecipe] = useState<Recipe | null>(null);
+  const [categories, setCategories] = useState<string[]>([]); // New state for categories
   const { toast } = useToast();
   const { restaurantId } = useRestaurant();
   
@@ -47,7 +48,38 @@ const AddDishDialog = ({ onAddDish, onEditRecipe }: AddDishDialogProps) => {
     is_active: true
   });
 
-  const categories = ["Antipasti", "Primi Piatti", "Secondi Piatti", "Dolci", "Contorni", "Bevande"];
+  // Remove the hardcoded categories array
+  // const categories = ["Antipasti", "Primi Piatti", "Secondi Piatti", "Dolci", "Contorni", "Bevande"];
+
+  const fetchCategories = async () => {
+    if (!restaurantId) {
+      console.log("No restaurant ID available for fetching categories");
+      return;
+    }
+    try {
+      const { data, error } = await supabase
+        .from('restaurant_categories') // Assuming you have a 'restaurant_categories' table
+        .select('name')
+        .eq('restaurant_id', restaurantId)
+        .order('name');
+
+      if (error) {
+        console.error('Error fetching categories:', error);
+        throw error;
+      }
+      const fetchedCategories = data ? data.map(cat => cat.name) : [];
+      setCategories(fetchedCategories);
+      console.log("Fetched categories:", fetchedCategories);
+    } catch (error) {
+      console.error('Error fetching categories:', error);
+      toast({
+        title: "Errore",
+        description: "Errore nel caricamento delle categorie",
+        variant: "destructive"
+      });
+      setCategories([]); // Set empty array on error
+    }
+  };
 
   const fetchRecipes = async () => {
     if (!restaurantId) {
@@ -112,10 +144,11 @@ const AddDishDialog = ({ onAddDish, onEditRecipe }: AddDishDialogProps) => {
     }
   };
 
-  // Fetch recipes when dialog opens and restaurant ID is available
+  // Fetch recipes and categories when dialog opens and restaurant ID is available
   useEffect(() => {
     if (open && restaurantId) {
       fetchRecipes();
+      fetchCategories(); // Call fetchCategories
     }
   }, [open, restaurantId]);
 
@@ -133,6 +166,7 @@ const AddDishDialog = ({ onAddDish, onEditRecipe }: AddDishDialogProps) => {
       });
       setSelectedRecipe(null);
       setRecipes([]);
+      setCategories([]); // Reset categories as well
     }
   }, [open]);
 
@@ -318,6 +352,11 @@ const AddDishDialog = ({ onAddDish, onEditRecipe }: AddDishDialogProps) => {
                     <SelectValue placeholder="Seleziona categoria" />
                   </SelectTrigger>
                   <SelectContent>
+                    {categories.length === 0 && (
+                      <SelectItem value="loading" disabled>
+                        Caricamento categorie...
+                      </SelectItem>
+                    )}
                     {categories.map(cat => (
                       <SelectItem key={cat} value={cat}>{cat}</SelectItem>
                     ))}

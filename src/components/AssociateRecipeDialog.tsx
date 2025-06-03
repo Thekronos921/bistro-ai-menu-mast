@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -99,7 +100,23 @@ const AssociateRecipeDialog = ({ dish, onClose, onAssociated }: AssociateRecipeD
         is_semilavorato: recipe.is_semilavorato || false,
         notes_chef: recipe.notes_chef || '',
         selling_price: recipe.selling_price || undefined,
-        recipe_ingredients: recipe.recipe_ingredients || [],
+        recipe_ingredients: recipe.recipe_ingredients.map(ri => ({
+          id: ri.id,
+          ingredient_id: ri.ingredient_id,
+          quantity: ri.quantity,
+          unit: ri.unit,
+          is_semilavorato: ri.is_semilavorato,
+          ingredients: {
+            id: ri.ingredients.id,
+            name: ri.ingredients.name,
+            unit: ri.ingredients.unit,
+            cost_per_unit: ri.ingredients.cost_per_unit,
+            effective_cost_per_unit: ri.ingredients.effective_cost_per_unit,
+            current_stock: ri.ingredients.current_stock,
+            min_stock_threshold: ri.ingredients.min_stock_threshold,
+            yield_percentage: ri.ingredients.yield_percentage
+          }
+        })),
         recipe_instructions: recipe.recipe_instructions || []
       }));
       

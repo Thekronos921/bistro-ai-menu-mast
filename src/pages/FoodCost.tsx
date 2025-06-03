@@ -231,9 +231,7 @@ const FoodCost = () => {
   };
 
   const handleDeleteDish = (dishId: string, dishName: string) => {
-    if (window.confirm(`Sei sicuro di voler eliminare il piatto "${dishName}"?`)) {
-      deleteDish(dishId);
-    }
+    deleteDish(dishId);
   };
 
   if (loading) {

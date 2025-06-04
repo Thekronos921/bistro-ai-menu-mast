@@ -128,11 +128,17 @@ export const useFoodCostData = () => {
 
       if (dishesError) throw dishesError;
 
-      // Trasforma i dati dei piatti per appiattire la categoria
+      // Trasforma i dati dei piatti per appiattire la categoria e gestire correttamente le ricette
       const transformedDishesData = dishesData?.map(dish => ({
         ...dish,
-        // Fix: Access the category name correctly from the relationship
-        category: dish.restaurant_categories?.name || 'Senza categoria' 
+        // Fix: Access the first category name from the array or use default
+        category: Array.isArray(dish.restaurant_categories) && dish.restaurant_categories.length > 0 
+          ? dish.restaurant_categories[0].name 
+          : 'Senza categoria',
+        // Fix: Handle recipes as single object instead of array
+        recipes: Array.isArray(dish.recipes) && dish.recipes.length > 0 
+          ? dish.recipes[0] 
+          : dish.recipes
       }));
 
       // Fetch ricette standalone per il ristorante corrente (non ancora associate a piatti)

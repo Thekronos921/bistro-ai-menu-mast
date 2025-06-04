@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -88,7 +89,7 @@ export const useFoodCostData = () => {
           created_at,
           updated_at,
           restaurant_category_id,
-          category:restaurant_categories ( name ),
+          restaurant_category_name,
           recipes (
             id,
             name,
@@ -102,6 +103,9 @@ export const useFoodCostData = () => {
             protein,
             carbs,
             fat,
+            is_semilavorato,
+            notes_chef,
+            selling_price,
             recipe_ingredients (
               id,
               ingredient_id,
@@ -127,12 +131,38 @@ export const useFoodCostData = () => {
 
       if (dishesError) throw dishesError;
 
-      // Trasforma i dati dei piatti per appiattire la categoria
-      const transformedDishesData = dishesData?.map(dish => ({
-        ...dish,
-        // Modifica: accedi al nome della categoria tramite l'oggetto 'category' restituito dalla query
-        category: dish.category?.name || 'Senza categoria' 
-      }));
+      // Transform the data to match our Dish interface
+      const transformedDishesData: Dish[] = dishesData?.map(dish => ({
+        id: dish.id,
+        name: dish.name,
+        selling_price: dish.selling_price,
+        recipe_id: dish.recipe_id,
+        category: dish.restaurant_category_name || 'Senza categoria',
+        recipes: dish.recipes ? {
+          id: dish.recipes.id,
+          name: dish.recipes.name,
+          category: dish.recipes.category,
+          preparation_time: dish.recipes.preparation_time || 0,
+          difficulty: dish.recipes.difficulty || 'Facile',
+          portions: dish.recipes.portions || 1,
+          description: dish.recipes.description || '',
+          allergens: dish.recipes.allergens || '',
+          calories: dish.recipes.calories || 0,
+          protein: dish.recipes.protein || 0,
+          carbs: dish.recipes.carbs || 0,
+          fat: dish.recipes.fat || 0,
+          is_semilavorato: dish.recipes.is_semilavorato || false,
+          notes_chef: dish.recipes.notes_chef,
+          selling_price: dish.recipes.selling_price,
+          recipe_ingredients: dish.recipes.recipe_ingredients.map(ri => ({
+            id: ri.id,
+            ingredient_id: ri.ingredient_id,
+            quantity: ri.quantity,
+            ingredients: ri.ingredients
+          })),
+          recipe_instructions: dish.recipes.recipe_instructions || []
+        } : undefined
+      })) || [];
 
       // Fetch ricette standalone per il ristorante corrente (non ancora associate a piatti)
       const { data: recipesData, error: recipesError } = await supabase
@@ -166,7 +196,7 @@ export const useFoodCostData = () => {
       console.log("Fetched dishes:", transformedDishesData);
       console.log("Fetched recipes:", recipesData);
 
-      setDishes(transformedDishesData || []);
+      setDishes(transformedDishesData);
       setRecipes(recipesData || []);
     } catch (error) {
       console.error("Fetch data error:", error);
@@ -202,7 +232,7 @@ export const useFoodCostData = () => {
         .from('dishes')
         .insert([{
           name: recipe.name,
-          category: recipe.category,
+          restaurant_category_name: recipe.category,
           selling_price: suggestedPrice,
           recipe_id: recipe.id,
           restaurant_id: restaurantId

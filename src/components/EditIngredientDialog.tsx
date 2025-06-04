@@ -10,6 +10,7 @@ import { Package, Info, Calendar } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { useCategories } from '@/hooks/useCategories'; // Potrebbe essere necessario un hook specifico per le categorie di ingredienti
 
 interface Ingredient {
   id: string;
@@ -39,7 +40,8 @@ interface EditIngredientDialogProps {
   onIngredientUpdated: () => void;
 }
 
-const EditIngredientDialog = ({ ingredient, onClose, onIngredientUpdated }: EditIngredientDialogProps) => {
+const EditIngredientDialog = ({ open, onOpenChange, ingredient, onIngredientUpdated }: EditIngredientDialogProps) => {
+  const { categories } = useCategories(); // Adattare se si usa un hook specifico
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
   const [formData, setFormData] = useState({
@@ -62,7 +64,7 @@ const EditIngredientDialog = ({ ingredient, onClose, onIngredientUpdated }: Edit
   });
 
   const units = ["g", "kg", "ml", "l", "pz", "cucchiai", "cucchiaini", "tazze"];
-  const categories = ["Carni", "Pesce", "Verdure", "Frutta", "Cereali", "Latticini", "Spezie", "Condimenti", "Altro"];
+  // const categories = ["Carni", "Pesce", "Verdure", "Frutta", "Cereali", "Latticini", "Uova", "Legumi", "Oli e Grassi", "Bevande", "Dolci", "Salse", "Spezie", "Altro"];
 
   const calculateEffectiveCost = () => {
     if (formData.cost_per_unit <= 0 || formData.yield_percentage <= 0) return 0;

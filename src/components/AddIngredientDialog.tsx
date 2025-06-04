@@ -11,6 +11,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useRestaurant } from '@/hooks/useRestaurant';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { useCategories } from '@/hooks/useCategories'; // Potrebbe essere necessario un hook specifico per le categorie di ingredienti
 
 interface AddIngredientDialogProps {
   onAddIngredient: () => void;
@@ -42,7 +43,7 @@ const AddIngredientDialog: React.FC<AddIngredientDialogProps> = ({ onAddIngredie
   });
 
   const units = ["g", "kg", "ml", "l", "pz", "cucchiai", "cucchiaini", "tazze"];
-  const categories = ["Carni", "Pesce", "Verdure", "Frutta", "Cereali", "Latticini", "Spezie", "Condimenti", "Altro"];
+  const { categories } = useCategories(); // Adattare se si usa un hook specifico
 
   const calculateEffectiveCost = () => {
     if (formData.costPerUnit <= 0 || formData.yieldPercentage <= 0) return 0;

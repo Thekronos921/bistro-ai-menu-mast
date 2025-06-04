@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -45,8 +46,6 @@ const EditDishDialog = ({ dish, onClose, onDishUpdated, onEditRecipe }: EditDish
     is_active: true
   });
 
-
-
   useEffect(() => {
     if (restaurantId) {
       fetchRecipes();
@@ -72,11 +71,11 @@ const EditDishDialog = ({ dish, onClose, onDishUpdated, onEditRecipe }: EditDish
 
       if (error) throw error;
       
-      // Estrai le categorie uniche e filtra quelle non null/undefined
+      // Extract unique categories and filter out null/undefined/empty values
       const uniqueCategories = [...new Set(
         data
           .map(dish => dish.restaurant_category_name)
-          .filter(Boolean)
+          .filter(category => category && category.trim() !== '') // Filter out empty strings and null values
       )].sort();
       
       setCategories(uniqueCategories);
@@ -298,8 +297,8 @@ const EditDishDialog = ({ dish, onClose, onDishUpdated, onEditRecipe }: EditDish
                     <SelectValue placeholder="Seleziona categoria" />
                   </SelectTrigger>
                   <SelectContent>
-                  {categories.length === 0 ? (
-                      <SelectItem value="no-categories-available" disabled>Nessuna categoria disponibile</SelectItem>
+                    {categories.length === 0 ? (
+                      <SelectItem value="no-categories" disabled>Nessuna categoria disponibile</SelectItem>
                     ) : (
                       categories.map(cat => (
                         <SelectItem key={cat} value={cat}>{cat}</SelectItem>
@@ -315,6 +314,22 @@ const EditDishDialog = ({ dish, onClose, onDishUpdated, onEditRecipe }: EditDish
               </div>
 
               <div>
+                <label className="block text-sm font-medium mb-2">Prezzo di Vendita (€)</label>
+                <div className="relative">
+                  <DollarSign className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 w-4 h-4" />
+                  <Input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={formData.selling_price}
+                    onChange={(e) => setFormData({...formData, selling_price: parseFloat(e.target.value) || 0})}
+                    className="pl-10"
+                    placeholder="0.00"
+                  />
+                </div>
+              </div>
+
+              <div>
                 <label className="block text-sm font-medium mb-2">Ricetta Associata</label>
                 <Select value={formData.recipe_id} onValueChange={handleRecipeChange}>
                   <SelectTrigger>
@@ -322,7 +337,7 @@ const EditDishDialog = ({ dish, onClose, onDishUpdated, onEditRecipe }: EditDish
                   </SelectTrigger>
                   <SelectContent>
                     {recipes.length === 0 ? (
-                      <SelectItem value="no-recipes-available" disabled>Nessuna ricetta disponibile</SelectItem>
+                      <SelectItem value="no-recipes" disabled>Nessuna ricetta disponibile</SelectItem>
                     ) : (
                       recipes.map(recipe => {
                         const costPerPortion = calculateCostPerPortion(recipe.recipe_ingredients, recipe.portions);

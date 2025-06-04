@@ -1,32 +1,25 @@
-// Vecchio import:
-// import { supabase } from '@/integrations/supabase/supabaseClient'; 
 
-// Nuovo import corretto:
-import { supabase } from '@/integrations/supabase/client'; // Assicurati che il percorso sia corretto
+import { supabase } from '@/integrations/supabase/client';
 import {
   getCategories,
   type CassaInCloudCategory,
   type GetCategoriesParams,
   getProducts, 
-  type GetProductsParams, // Importa la nuova interfaccia per i parametri di getProducts
+  type GetProductsParams,
   type CassaInCloudProduct 
 } from './cassaInCloudService';
 import { mapCassaInCloudProductToInternalProduct } from './cassaInCloudDataMapper';
 import type { InternalProduct } from '@/types/internalProduct';
 
 export async function importRestaurantCategoriesFromCassaInCloud(
-  restaurantIdSupabase: string, // ID del ristorante su Supabase
-  cassaInCloudSalesPointIds?: string[], // Opzionale: array di ID dei punti vendita CassaInCloud per filtrare
-  apiKeyOverride?: string // Opzionale: per usare una API key specifica
+  restaurantIdSupabase: string,
+  cassaInCloudSalesPointIds?: string[],
+  apiKeyOverride?: string
 ): Promise<{ count: number; error?: Error }> {
   try {
     console.log(
       `Inizio importazione categorie da CassaInCloud per ristorante Supabase: ${restaurantIdSupabase}`
     );
-    console.log(`Utilizzando ID punto vendita per prezzatura: ${idSalesPointForPricing}`);
-    if (filterParams) {
-      console.log(`Utilizzando parametri di filtro aggiuntivi:`, filterParams);
-    }
 
     // 1. Recuperare le categorie da CassaInCloud
     const params: GetCategoriesParams = {};
@@ -46,25 +39,23 @@ export async function importRestaurantCategoriesFromCassaInCloud(
     // 2. Mappare i dati per Supabase
     const categoriesToUpsert = categoriesFromCassa.map((category) => ({
       restaurant_id: restaurantIdSupabase,
-      name: category.description, // Utilizziamo 'description' come 'name'
-      external_id: category.id, // L'ID di CassaInCloud diventa external_id
-      description: category.description, // Puoi decidere se usare la stessa descrizione o un altro campo
-      // Aggiungi altri campi se necessario, es. se CassaInCloudCategory avesse più dettagli
+      name: category.description,
+      external_id: category.id,
+      description: category.description,
     }));
 
     // 3. Eseguire l'upsert su Supabase
-    // Dato che external_id è globalmente univoco, lo usiamo come unico vincolo per onConflict.
     const { data, error } = await supabase
       .from('restaurant_categories')
       .upsert(categoriesToUpsert, {
-        onConflict: 'external_id', // Modificato per riflettere l'unicità globale di external_id
+        onConflict: 'external_id',
         ignoreDuplicates: false,
       })
-      .select(); // Aggiungiamo select() per avere i dati inseriti/aggiornati e il count
+      .select();
 
     if (error) {
       console.error("Errore durante l'upsert delle categorie su Supabase:", error);
-      throw error; // Rilancia l'errore per gestirlo nel chiamante
+      throw error;
     }
 
     const upsertedCount = data?.length || 0;
@@ -77,14 +68,13 @@ export async function importRestaurantCategoriesFromCassaInCloud(
   }
 }
 
-
 export async function importRestaurantProductsFromCassaInCloud(
   restaurantIdSupabase: string,
-  idSalesPointForPricing: string, // ID del punto vendita specifico per la determinazione del prezzo
-  filterParams?: GetProductsParams, // Parametri di filtro opzionali per getProducts
+  idSalesPointForPricing: string,
+  filterParams?: GetProductsParams,
   apiKeyOverride?: string
-): Promise<{ count: number; error?: Error; message?: string; warnings?: string[] }> { // Aggiunto warnings
-  const warnings: string[] = []; // Array per collezionare avvisi
+): Promise<{ count: number; error?: Error; message?: string; warnings?: string[] }> {
+  const warnings: string[] = [];
   try {
     console.log(
       `Inizio importazione prodotti da CassaInCloud per ristorante Supabase: ${restaurantIdSupabase}`
@@ -95,8 +85,6 @@ export async function importRestaurantProductsFromCassaInCloud(
     }
 
     // 1. Recuperare i prodotti da CassaInCloud
-    // Passiamo idSalesPointForPricing a getProducts, che a sua volta lo passerà al mapper.
-    // filterParams viene passato per filtrare la chiamata API.
     const internalProductsFromCassa: InternalProduct[] = await getProducts(idSalesPointForPricing, filterParams, apiKeyOverride); 
 
     if (!internalProductsFromCassa || internalProductsFromCassa.length === 0) {
@@ -107,7 +95,6 @@ export async function importRestaurantProductsFromCassaInCloud(
     console.log(`Recuperati e mappati ${internalProductsFromCassa.length} prodotti da CassaInCloud.`);
 
     // 2. Preparare i dati per Supabase dalla lista di InternalProduct
-    // e arricchire con restaurant_category_id
     const productsToUpsert = await Promise.all(internalProductsFromCassa.map(async (internalProduct) => {
       let restaurantCategoryId: string | null = null;
       let restaurantCategoryName: string | null = null;
@@ -119,48 +106,41 @@ export async function importRestaurantProductsFromCassaInCloud(
           .eq('restaurant_id', restaurantIdSupabase)
           .single();
 
-        if (categoryError && categoryError.code !== 'PGRST116') { // PGRST116: no rows found
+        if (categoryError && categoryError.code !== 'PGRST116') {
           console.warn(`Errore durante la ricerca della categoria per external_id ${internalProduct.external_category_id}:`, categoryError);
           warnings.push(`Errore ricerca categoria per prodotto ${internalProduct.name} (ExtCatID: ${internalProduct.external_category_id}): ${categoryError.message}`);
         } else if (categoryData) {
           restaurantCategoryId = categoryData.id;
           restaurantCategoryName = categoryData.name;
         } else {
-          // Categoria non trovata, external_category_id presente ma non nel DB
           warnings.push(`Categoria esterna con ID ${internalProduct.external_category_id} per il prodotto '${internalProduct.name}' non trovata nel database. Il prodotto sarà importato senza categoria interna.`);
         }
       }
 
       return {
         restaurant_id: restaurantIdSupabase,
-        external_id: internalProduct.cassaInCloudId, // CORRETTO: Usiamo cassaInCloudId come external_id per il prodotto
+        external_id: internalProduct.cassaInCloudId,
         name: internalProduct.name,
-        selling_price: internalProduct.price, // CORRETTO: Usiamo price dall'InternalProduct
-        restaurant_category_id: restaurantCategoryId, // ID della categoria interna o null
-        restaurant_category_name: restaurantCategoryName, // Added
-        cic_notes: internalProduct.descriptionLabel, // Mappato a cic_notes
-        cic_department_name: internalProduct.departmentName, // CORRETTO: nome colonna db
-        // tax_rate: internalProduct.taxRate, // Rimosso, già coperto da cic_vat_percentage
-        // is_sold_by_weight: internalProduct.isSoldByWeight, // Rimosso, colonna non presente nello schema
-        cic_has_variants: internalProduct.isMultivariant, // Mappato a cic_has_variants
+        selling_price: internalProduct.price,
+        restaurant_category_id: restaurantCategoryId,
+        restaurant_category_name: restaurantCategoryName,
+        cic_notes: internalProduct.descriptionLabel,
+        cic_department_name: internalProduct.departmentName,
+        cic_has_variants: internalProduct.isMultivariant,
         is_enabled_for_restaurant: internalProduct.isEnabledForRestaurant,
-        // id_sales_point_cic: idSalesPointForPricing, // Rimosso, colonna non presente nello schema
         last_synced_at: (() => {
           if (internalProduct.cicLastUpdate && typeof internalProduct.cicLastUpdate === 'number' && internalProduct.cicLastUpdate > 0) {
-            const date = new Date(internalProduct.cicLastUpdate); // Rimosso * 1000
+            const date = new Date(internalProduct.cicLastUpdate);
             const isoString = date.toISOString();
-            // console.log(`[DEBUG last_synced_at] cicLastUpdate: ${internalProduct.cicLastUpdate}, ISO: ${isoString}, Product Name: ${internalProduct.name}`); // Log per debug, può essere rimosso o commentato dopo la correzione
             if (isNaN(date.getTime())) {
-                // console.warn(`[DEBUG last_synced_at] Invalid date generated for cicLastUpdate: ${internalProduct.cicLastUpdate}, Product Name: ${internalProduct.name}`);
                 return null;
             }
             return isoString;
           }
           return null;
         })(),
-        cic_vat_percentage: internalProduct.taxRate, // Assumendo che taxRate sia la percentuale IVA
-        cic_variants_count: internalProduct.variants?.length || 0, // Conteggio delle varianti
-        // Aggiungere qui altri campi mappati se la tabella 'dishes' li supporta
+        cic_vat_percentage: internalProduct.taxRate,
+        cic_variants_count: internalProduct.variants?.length || 0,
       };
     }));
 
@@ -168,7 +148,7 @@ export async function importRestaurantProductsFromCassaInCloud(
     const { data: upsertedData, error: upsertError } = await supabase
       .from('dishes')
       .upsert(productsToUpsert, {
-        onConflict: 'restaurant_id, external_id', // Conflitto su external_id per uno specifico ristorante
+        onConflict: 'restaurant_id, external_id',
         ignoreDuplicates: false,
       })
       .select('id, external_id');
@@ -181,11 +161,10 @@ export async function importRestaurantProductsFromCassaInCloud(
     const upsertedCount = upsertedData?.length || 0;
     console.log(`Completata importazione: ${upsertedCount} prodotti processati per il ristorante ${restaurantIdSupabase}.`);
 
-    // 4. Gestire i prodotti non più esistenti in CassaInCloud (marcare come "to be verified")
+    // 4. Gestire i prodotti non più esistenti in CassaInCloud
     if (upsertedData && upsertedData.length > 0) {
-      const cicProductExternalIds = new Set(internalProductsFromCassa.map(p => p.cassaInCloudId)); // Usa cassaInCloudId da InternalProduct
+      const cicProductExternalIds = new Set(internalProductsFromCassa.map(p => p.cassaInCloudId));
       
-      // Recupera tutti i piatti del ristorante che hanno un external_id
       const { data: localDishes, error: localDishesError } = await supabase
         .from('dishes')
         .select('id, external_id')
@@ -194,16 +173,13 @@ export async function importRestaurantProductsFromCassaInCloud(
 
       if (localDishesError) {
         console.error("Errore nel recuperare i piatti locali per la verifica:", localDishesError);
-        // Non bloccare il flusso per questo, ma loggare l'errore
       } else if (localDishes) {
-        const dishesToUpdatePayloads = []; // Array per i payload di aggiornamento
+        const dishesToUpdatePayloads = [];
         for (const localDish of localDishes) {
           if (localDish.external_id && !cicProductExternalIds.has(localDish.external_id)) {
-            // Questo piatto esiste localmente con un external_id ma non è più in CassaInCloud
-            // Creiamo un oggetto payload per l'aggiornamento
             dishesToUpdatePayloads.push({
-              id: localDish.id, // Specifichiamo l'ID per l'upsert
-              availability_status: 'to_be_verified_cic_sync' // Il campo da aggiornare
+              id: localDish.id,
+              availability_status: 'to_be_verified_cic_sync'
             });
             warnings.push(`Piatto locale '${localDish.id}' (ExtID: ${localDish.external_id}) non trovato in CassaInCloud. Marcato come 'to_be_verified_cic_sync' in availability_status.`);
           }
@@ -218,7 +194,6 @@ export async function importRestaurantProductsFromCassaInCloud(
               .eq('id', payload.id);
             if (updateError) {
               console.error(`Errore nell'aggiornare il piatto locale ${payload.id} come 'to_be_verified':`, updateError);
-              // Considera se vuoi accumulare questi errori o interrompere il processo
             }
           }
         }
@@ -228,7 +203,7 @@ export async function importRestaurantProductsFromCassaInCloud(
     return { 
       count: upsertedCount, 
       message: `${upsertedCount} prodotti importati/aggiornati. Prodotti non più presenti in CassaInCloud sono stati marcati per verifica.`,
-      warnings: warnings // Restituisce gli avvisi
+      warnings: warnings
     }; 
 
   } catch (error) {

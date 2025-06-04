@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -88,7 +89,7 @@ export const useFoodCostData = () => {
           created_at,
           updated_at,
           restaurant_category_id,
-          category:restaurant_categories ( name ),
+          restaurant_categories ( name ),
           recipes (
             id,
             name,
@@ -130,8 +131,8 @@ export const useFoodCostData = () => {
       // Trasforma i dati dei piatti per appiattire la categoria
       const transformedDishesData = dishesData?.map(dish => ({
         ...dish,
-        // Modifica: accedi al nome della categoria tramite l'oggetto 'category' restituito dalla query
-        category: dish.category?.name || 'Senza categoria' 
+        // Fix: Access the category name correctly from the relationship
+        category: dish.restaurant_categories?.name || 'Senza categoria' 
       }));
 
       // Fetch ricette standalone per il ristorante corrente (non ancora associate a piatti)

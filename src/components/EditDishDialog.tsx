@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -45,6 +44,8 @@ const EditDishDialog = ({ dish, onClose, onDishUpdated, onEditRecipe }: EditDish
     description: "",
     is_active: true
   });
+
+
 
   useEffect(() => {
     if (restaurantId) {
@@ -297,7 +298,7 @@ const EditDishDialog = ({ dish, onClose, onDishUpdated, onEditRecipe }: EditDish
                     <SelectValue placeholder="Seleziona categoria" />
                   </SelectTrigger>
                   <SelectContent>
-                    {categories.length === 0 ? (
+                  {categories.length === 0 ? (
                       <SelectItem value="no-categories-available" disabled>Nessuna categoria disponibile</SelectItem>
                     ) : (
                       categories.map(cat => (
@@ -311,21 +312,6 @@ const EditDishDialog = ({ dish, onClose, onDishUpdated, onEditRecipe }: EditDish
                     Nessuna categoria trovata. Le categorie vengono caricate dai piatti esistenti.
                   </p>
                 )}
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium mb-2">
-                  <DollarSign className="w-4 h-4 inline mr-1" />
-                  Prezzo di Vendita (€)
-                </label>
-                <Input
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  value={formData.selling_price}
-                  onChange={(e) => setFormData({...formData, selling_price: parseFloat(e.target.value) || 0})}
-                  placeholder="25.00"
-                />
               </div>
 
               <div>

@@ -20,6 +20,10 @@ interface RecipeIngredient {
   ingredients: Ingredient;
 }
 
+interface CategoryInfo {
+  name: string;
+}
+
 interface Dish {
   id: string;
   name: string;
@@ -102,10 +106,18 @@ export const useFoodCostData = () => {
             protein,
             carbs,
             fat,
+            restaurant_id,
+            selling_price,
+            is_semilavorato,
+            notes_chef,
+            created_at,
+            updated_at,
             recipe_ingredients (
               id,
               ingredient_id,
               quantity,
+              unit,
+              is_semilavorato,
               ingredients (
                 id,
                 name,
@@ -128,11 +140,39 @@ export const useFoodCostData = () => {
       if (dishesError) throw dishesError;
 
       // Trasforma i dati dei piatti per appiattire la categoria
-      const transformedDishesData = dishesData?.map(dish => ({
-        ...dish,
+      const transformedDishesData: Dish[] = dishesData?.map(dish => ({
+        id: dish.id,
+        name: dish.name,
+        selling_price: dish.selling_price,
+        recipe_id: dish.recipe_id,
         // Accedi al nome della categoria tramite l'oggetto 'category' restituito dalla query
-        category: dish.category?.name || 'Senza categoria'
-      }));
+        category: (dish.category as CategoryInfo)?.name || 'Senza categoria',
+        // Transform nested recipes array to single recipe if it exists
+        recipes: dish.recipes && Array.isArray(dish.recipes) && dish.recipes.length > 0 
+          ? {
+              id: dish.recipes[0].id,
+              name: dish.recipes[0].name,
+              category: dish.recipes[0].category,
+              preparation_time: dish.recipes[0].preparation_time,
+              difficulty: dish.recipes[0].difficulty,
+              portions: dish.recipes[0].portions,
+              description: dish.recipes[0].description,
+              allergens: dish.recipes[0].allergens,
+              calories: dish.recipes[0].calories,
+              protein: dish.recipes[0].protein,
+              carbs: dish.recipes[0].carbs,
+              fat: dish.recipes[0].fat,
+              restaurant_id: dish.recipes[0].restaurant_id,
+              selling_price: dish.recipes[0].selling_price,
+              is_semilavorato: dish.recipes[0].is_semilavorato,
+              notes_chef: dish.recipes[0].notes_chef,
+              created_at: dish.recipes[0].created_at,
+              updated_at: dish.recipes[0].updated_at,
+              recipe_ingredients: dish.recipes[0].recipe_ingredients || [],
+              recipe_instructions: dish.recipes[0].recipe_instructions || []
+            } as Recipe
+          : undefined
+      })) || [];
 
       // Fetch ricette standalone per il ristorante corrente (non ancora associate a piatti)
       const { data: recipesData, error: recipesError } = await supabase
@@ -143,6 +183,8 @@ export const useFoodCostData = () => {
             id,
             ingredient_id,
             quantity,
+            unit,
+            is_semilavorato,
             ingredients (
               id,
               name,
@@ -166,7 +208,7 @@ export const useFoodCostData = () => {
       console.log("Fetched dishes:", transformedDishesData);
       console.log("Fetched recipes:", recipesData);
 
-      setDishes(transformedDishesData || []);
+      setDishes(transformedDishesData);
       setRecipes(recipesData || []);
     } catch (error) {
       console.error("Fetch data error:", error);

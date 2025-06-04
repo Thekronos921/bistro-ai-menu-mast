@@ -40,6 +40,7 @@ const IngredientsManagement = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [loading, setLoading] = useState(true);
   const [editingIngredient, setEditingIngredient] = useState<Ingredient | null>(null);
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
   const { toast } = useToast();
   const { restaurantId } = useRestaurant();
 
@@ -123,6 +124,16 @@ const IngredientsManagement = () => {
     if (daysUntilExpiry <= 3) return 'expiring';
     if (daysUntilExpiry <= 7) return 'warning';
     return 'ok';
+  };
+
+  const handleEditIngredient = (ingredient: Ingredient) => {
+    setEditingIngredient(ingredient);
+    setEditDialogOpen(true);
+  };
+
+  const handleCloseEditDialog = () => {
+    setEditDialogOpen(false);
+    setEditingIngredient(null);
   };
 
   useEffect(() => {
@@ -343,7 +354,7 @@ const IngredientsManagement = () => {
                         <Button
                           size="sm"
                           variant="outline"
-                          onClick={() => setEditingIngredient(ingredient)}
+                          onClick={() => handleEditIngredient(ingredient)}
                         >
                           <Edit className="w-4 h-4" />
                         </Button>
@@ -367,7 +378,8 @@ const IngredientsManagement = () => {
       {editingIngredient && (
         <EditIngredientDialog
           ingredient={editingIngredient}
-          onClose={() => setEditingIngredient(null)}
+          open={editDialogOpen}
+          onOpenChange={handleCloseEditDialog}
           onIngredientUpdated={fetchIngredients}
         />
       )}

@@ -128,18 +128,35 @@ export const useFoodCostData = () => {
 
       if (dishesError) throw dishesError;
 
-      // Trasforma i dati dei piatti per appiattire la categoria e gestire correttamente le ricette
-      const transformedDishesData = dishesData?.map(dish => ({
-        ...dish,
-        // Fix: Access the first category name from the array or use default
-        category: Array.isArray(dish.restaurant_categories) && dish.restaurant_categories.length > 0 
+      // Trasforma i dati dei piatti per gestire correttamente le relazioni Supabase
+      const transformedDishesData = dishesData?.map(dish => {
+        // Handle category
+        const category = Array.isArray(dish.restaurant_categories) && dish.restaurant_categories.length > 0 
           ? dish.restaurant_categories[0].name 
-          : 'Senza categoria',
-        // Fix: Handle recipes as single object instead of array
-        recipes: Array.isArray(dish.recipes) && dish.recipes.length > 0 
-          ? dish.recipes[0] 
-          : dish.recipes
-      }));
+          : 'Senza categoria';
+
+        // Handle recipes - fix the ingredients relationship
+        let recipes = undefined;
+        if (dish.recipes) {
+          const recipeData = Array.isArray(dish.recipes) ? dish.recipes[0] : dish.recipes;
+          if (recipeData) {
+            recipes = {
+              ...recipeData,
+              recipe_ingredients: recipeData.recipe_ingredients?.map((ri: any) => ({
+                ...ri,
+                // Fix: Take the first ingredient from the array if it's an array
+                ingredients: Array.isArray(ri.ingredients) ? ri.ingredients[0] : ri.ingredients
+              })) || []
+            };
+          }
+        }
+
+        return {
+          ...dish,
+          category,
+          recipes
+        };
+      }) || [];
 
       // Fetch ricette standalone per il ristorante corrente (non ancora associate a piatti)
       const { data: recipesData, error: recipesError } = await supabase
@@ -170,11 +187,21 @@ export const useFoodCostData = () => {
 
       if (recipesError) throw recipesError;
 
-      console.log("Fetched dishes:", transformedDishesData);
-      console.log("Fetched recipes:", recipesData);
+      // Transform recipes data to fix ingredients relationship
+      const transformedRecipesData = recipesData?.map(recipe => ({
+        ...recipe,
+        recipe_ingredients: recipe.recipe_ingredients?.map((ri: any) => ({
+          ...ri,
+          // Fix: Take the first ingredient from the array if it's an array
+          ingredients: Array.isArray(ri.ingredients) ? ri.ingredients[0] : ri.ingredients
+        })) || []
+      })) || [];
 
-      setDishes(transformedDishesData || []);
-      setRecipes(recipesData || []);
+      console.log("Fetched dishes:", transformedDishesData);
+      console.log("Fetched recipes:", transformedRecipesData);
+
+      setDishes(transformedDishesData);
+      setRecipes(transformedRecipesData);
     } catch (error) {
       console.error("Fetch data error:", error);
       toast({

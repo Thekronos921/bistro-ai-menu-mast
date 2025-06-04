@@ -1,4 +1,3 @@
-
 // Vecchio import:
 // import { supabase } from '@/integrations/supabase/supabaseClient'; 
 
@@ -9,6 +8,7 @@ import {
   type CassaInCloudCategory,
   type GetCategoriesParams,
   getProducts, 
+  type GetProductsParams, // Importa la nuova interfaccia per i parametri di getProducts
   type CassaInCloudProduct 
 } from './cassaInCloudService';
 import { mapCassaInCloudProductToInternalProduct } from './cassaInCloudDataMapper';
@@ -23,6 +23,10 @@ export async function importRestaurantCategoriesFromCassaInCloud(
     console.log(
       `Inizio importazione categorie da CassaInCloud per ristorante Supabase: ${restaurantIdSupabase}`
     );
+    console.log(`Utilizzando ID punto vendita per prezzatura: ${idSalesPointForPricing}`);
+    if (filterParams) {
+      console.log(`Utilizzando parametri di filtro aggiuntivi:`, filterParams);
+    }
 
     // 1. Recuperare le categorie da CassaInCloud
     const params: GetCategoriesParams = {};
@@ -77,6 +81,7 @@ export async function importRestaurantCategoriesFromCassaInCloud(
 export async function importRestaurantProductsFromCassaInCloud(
   restaurantIdSupabase: string,
   idSalesPointForPricing: string, // ID del punto vendita specifico per la determinazione del prezzo
+  filterParams?: GetProductsParams, // Parametri di filtro opzionali per getProducts
   apiKeyOverride?: string
 ): Promise<{ count: number; error?: Error; message?: string; warnings?: string[] }> { // Aggiunto warnings
   const warnings: string[] = []; // Array per collezionare avvisi
@@ -85,10 +90,14 @@ export async function importRestaurantProductsFromCassaInCloud(
       `Inizio importazione prodotti da CassaInCloud per ristorante Supabase: ${restaurantIdSupabase}`
     );
     console.log(`Utilizzando ID punto vendita per prezzatura: ${idSalesPointForPricing}`);
+    if (filterParams) {
+      console.log(`Utilizzando parametri di filtro aggiuntivi:`, filterParams);
+    }
 
     // 1. Recuperare i prodotti da CassaInCloud
     // Passiamo idSalesPointForPricing a getProducts, che a sua volta lo passerà al mapper.
-    const internalProductsFromCassa: InternalProduct[] = await getProducts(idSalesPointForPricing, apiKeyOverride); 
+    // filterParams viene passato per filtrare la chiamata API.
+    const internalProductsFromCassa: InternalProduct[] = await getProducts(idSalesPointForPricing, filterParams, apiKeyOverride); 
 
     if (!internalProductsFromCassa || internalProductsFromCassa.length === 0) {
       console.log('Nessun prodotto trovato e mappato da CassaInCloud con i parametri forniti.');

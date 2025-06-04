@@ -1,5 +1,5 @@
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -10,8 +10,22 @@ import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
-import { supabase } from "@/integrations/supabase/client";
+import { getSalesPoints } from '@/integrations/cassaInCloud/cassaInCloudService';
+import { 
+  importRestaurantCategoriesFromCassaInCloud,
+  importRestaurantProductsFromCassaInCloud // <-- NUOVO IMPORT
+} from '@/integrations/cassaInCloud/cassaInCloudImportService';
+import { supabase } from '@/integrations/supabase/client';
 import { useRestaurant } from "@/hooks/useRestaurant";
+import { getSalesPoints as fetchSalesPoints } from "@/integrations/cassaInCloud/cassaInCloudService";
+
+const useCassaInCloudApi = () => {
+  return {
+    getSalesPoints: async (apiKeyOverride?: string) => {
+      return fetchSalesPoints(apiKeyOverride);
+    },
+  };
+};
 import { 
   Cloud, 
   Key, 
@@ -36,16 +50,20 @@ interface SyncStatus {
   isLoading: boolean;
   recordsImported?: number;
   error?: string;
+  message?: string; // Aggiunto per coerenza con l'uso in startSync (simulazione)
 }
 
 const CassaInCloudIntegration = () => {
+  const [isMounted, setIsMounted] = useState(false);
   const [apiKey, setApiKey] = useState("");
+  const [effectiveApiKey, setEffectiveApiKey] = useState<string | null>(null);
   const [connectionStatus, setConnectionStatus] = useState<ConnectionStatus>({ isConnected: false });
   const [syncStatus, setSyncStatus] = useState<SyncStatus>({ isLoading: false });
   const [autoSyncEnabled, setAutoSyncEnabled] = useState(false);
   const [selectedSyncType, setSelectedSyncType] = useState("");
-  const { toast } = useToast();
+  const { toast, dismiss } = useToast(); // Estrarre dismiss qui
   const { restaurantId } = useRestaurant();
+  const { getSalesPoints } = useCassaInCloudApi(); // Hook per le API CassaInCloud
 
   const syncTypes = [
     { value: "categories", label: "Categorie" },
@@ -56,13 +74,17 @@ const CassaInCloudIntegration = () => {
     { value: "all", label: "Tutti i Dati" }
   ];
 
-  // Carica le impostazioni salvate
+  // Carica le impostazioni salvate e imposta isMounted
   useEffect(() => {
+    setIsMounted(true);
     loadSavedSettings();
-  }, [restaurantId]);
+    return () => {
+      setIsMounted(false);
+    };
+  }, [restaurantId]); // restaurantId incluso nelle dipendenze
 
   const loadSavedSettings = async () => {
-    if (!restaurantId) return;
+    if (!restaurantId || !isMounted) return;
 
     try {
       const { data, error } = await supabase
@@ -74,18 +96,39 @@ const CassaInCloudIntegration = () => {
 
       if (data && !error) {
         setAutoSyncEnabled(data.auto_sync_enabled || false);
-        // L'API key non viene mai mostrata per sicurezza
         if (data.api_key) {
-          setConnectionStatus({ isConnected: true });
+          // Testa la chiave caricata in modalità silenziosa
+          const isValid = await testConnection(data.api_key, true);
+          if (isValid) {
+            setEffectiveApiKey(data.api_key);
+            // testConnection imposterà connectionStatus se ha successo
+          } else {
+            // Se la chiave salvata non è valida, imposta lo stato di connessione a non connesso
+            // ma non mostrare un errore aggressivo, l'utente può reinserirla.
+            if (isMounted) setConnectionStatus({ isConnected: false, error: "Chiave API salvata non valida." });
+          }
         }
+      } else if (error && error.code !== 'PGRST116') { // PGRST116: single row not found (nessuna impostazione salvata)
+        console.error('Errore nel caricamento impostazioni:', error);
+        toast({
+          title: "Errore Caricamento Impostazioni",
+          description: "Impossibile caricare le impostazioni di integrazione.",
+          variant: "destructive"
+        });
       }
     } catch (error) {
-      console.error('Errore nel caricamento impostazioni:', error);
+      console.error('Eccezione nel caricamento impostazioni:', error);
+      toast({
+        title: "Errore Critico",
+        description: "Si è verificato un errore imprevisto durante il caricamento delle impostazioni.",
+        variant: "destructive"
+      });
     }
   };
 
   const saveApiKey = async () => {
-    if (!apiKey.trim()) {
+    const keyToSave = apiKey.trim();
+    if (!keyToSave) {
       toast({
         title: "Errore",
         description: "Inserisci una chiave API valida",
@@ -103,17 +146,20 @@ const CassaInCloudIntegration = () => {
       return;
     }
 
+    // Testa la connessione con la chiave API fornita prima di salvare
+    const isConnectionValid = await testConnection(keyToSave);
+    if (!isConnectionValid) {
+      // testConnection mostrerà già un toast di errore
+      return;
+    }
+    
     try {
-      // Prima testa la connessione
-      await testConnection();
-      
-      // Se il test è andato a buon fine, salva la chiave
       const { error } = await supabase
         .from('integration_settings')
         .upsert({
           restaurant_id: restaurantId,
           integration_type: 'cassaincloud',
-          api_key: apiKey,
+          api_key: keyToSave, // Salva la chiave testata e valida
           auto_sync_enabled: autoSyncEnabled,
           updated_at: new Date().toISOString()
         });
@@ -125,8 +171,9 @@ const CassaInCloudIntegration = () => {
         description: "Credenziali salvate con successo"
       });
 
-      setApiKey(""); // Pulisce il campo per sicurezza
-      setConnectionStatus({ isConnected: true, lastChecked: new Date() });
+      setEffectiveApiKey(keyToSave); // La chiave salvata è ora quella effettiva
+      setApiKey(""); // Pulisce il campo input per sicurezza
+      // connectionStatus è già stato aggiornato da testConnection se ha avuto successo
     } catch (error) {
       console.error('Errore nel salvataggio:', error);
       toast({
@@ -137,46 +184,72 @@ const CassaInCloudIntegration = () => {
     }
   };
 
-  const testConnection = async () => {
-    if (!apiKey.trim()) {
-      toast({
-        title: "Errore",
-        description: "Inserisci una chiave API per testare la connessione",
-        variant: "destructive"
+  const testConnection = async (apiKeyToTest?: string, silentMode = false): Promise<boolean> => {
+    const keyToEvaluate = apiKeyToTest || apiKey.trim() || effectiveApiKey;
+    
+    if (!keyToEvaluate) {
+      if (!silentMode) {
+        toast({
+          title: "Errore",
+          description: "Nessuna chiave API disponibile per il test. Inseriscine una o assicurati che sia salvata.",
+          variant: "destructive"
+        });
+      }
+      if (isMounted) setConnectionStatus({ isConnected: false, error: "Nessuna chiave API fornita." });
+      return false;
+    }
+
+    let loadingToastId: string | undefined;
+    if (!silentMode) {
+      const loadingToast = toast({
+        title: "Test Connessione",
+        description: "Verifica della connessione a CassaInCloud in corso...",
       });
-      return;
+      loadingToastId = loadingToast.id;
     }
 
     try {
-      // Simulazione test connessione - da implementare con l'API reale
-      // const response = await fetch('https://api.cassanova.com/test', {
-      //   headers: { 'Authorization': `Bearer ${apiKey}` }
-      // });
-      
-      // Per ora simuliamo un test positivo
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      setConnectionStatus({ 
-        isConnected: true, 
-        lastChecked: new Date() 
-      });
+      const salesPoints = await getSalesPoints(keyToEvaluate);
 
-      toast({
-        title: "Connessione Riuscita",
-        description: "La connessione a CassaInCloud è attiva"
-      });
-    } catch (error) {
-      setConnectionStatus({ 
-        isConnected: false, 
-        lastChecked: new Date(),
-        error: "Errore di connessione"
-      });
-
-      toast({
-        title: "Errore di Connessione",
-        description: "Impossibile connettersi a CassaInCloud. Verifica la chiave API.",
-        variant: "destructive"
-      });
+      if (salesPoints && salesPoints.length >= 0) { 
+        if (isMounted) {
+          setConnectionStatus({ 
+            isConnected: true, 
+            lastChecked: new Date(),
+            error: undefined
+          });
+          setEffectiveApiKey(keyToEvaluate); // Chiave testata con successo diventa effettiva
+        }
+        if (!silentMode) {
+          toast({
+            title: "Connessione Riuscita",
+            description: "La connessione a CassaInCloud è attiva."
+          });
+        }
+        if (loadingToastId) dismiss(loadingToastId); // Usare dismiss direttamente
+        return true;
+      } else {
+        throw new Error("Nessun punto vendita restituito o risposta non valida.");
+      }
+    } catch (error: any) {
+      console.error('Errore durante il test di connessione:', error);
+      if (isMounted) {
+        setConnectionStatus({ 
+          isConnected: false, 
+          lastChecked: new Date(),
+          error: error.message || "Errore di connessione sconosciuto"
+        });
+        // Non resettare effectiveApiKey qui, potrebbe esserci una precedente valida
+      }
+      if (!silentMode) {
+        toast({
+          title: "Errore di Connessione",
+          description: `Impossibile connettersi a CassaInCloud. Dettagli: ${error.message || 'Verifica la chiave API e la console.'}`,
+          variant: "destructive"
+        });
+      }
+      if (loadingToastId) dismiss(loadingToastId); // Usare dismiss direttamente
+      return false;
     }
   };
 
@@ -190,35 +263,90 @@ const CassaInCloudIntegration = () => {
       return;
     }
 
-    setSyncStatus({ isLoading: true });
+    if (!isMounted) return;
 
-    try {
-      // Simulazione sincronizzazione - da implementare con l'API reale
-      await new Promise(resolve => setTimeout(resolve, 3000));
-      
-      const recordsImported = Math.floor(Math.random() * 100) + 10;
-      
-      setSyncStatus({
-        isLoading: false,
-        lastSync: new Date(),
-        recordsImported
-      });
+    const keyForSync = apiKey.trim() || effectiveApiKey;
+    if (!keyForSync) {
+      toast({ title: 'Errore', description: 'Chiave API CassaInCloud non disponibile. Testare o salvare una chiave API.', variant: 'destructive' });
+      setSyncStatus({ isLoading: false, error: 'Chiave API non disponibile.' });
+      return;
+    }
 
-      toast({
-        title: "Sincronizzazione Completata",
-        description: `${recordsImported} record importati con successo`
-      });
-    } catch (error) {
-      setSyncStatus({
-        isLoading: false,
-        error: "Errore durante la sincronizzazione"
-      });
+    // Verifica la connessione prima di avviare la sincronizzazione se non si usa la chiave dall'input
+    // Se apiKey (input) è usata, si presume che l'utente voglia usarla direttamente (magari per un test rapido)
+    if (!apiKey.trim() && effectiveApiKey) { 
+      const connectionStillValid = await testConnection(effectiveApiKey, true); // Test silenzioso
+      if (!connectionStillValid) {
+        toast({ title: 'Errore Connessione', description: 'La connessione con la chiave API salvata non è più valida. Si prega di verificarla.', variant: 'destructive' });
+        setSyncStatus({ isLoading: false, error: 'Connessione API non valida.' });
+        return;
+      }
+    }
 
-      toast({
-        title: "Errore",
-        description: "Errore durante la sincronizzazione",
-        variant: "destructive"
-      });
+    setSyncStatus({ isLoading: true, error: undefined, recordsImported: undefined, lastSync: syncStatus.lastSync });
+    
+    console.log('Avvio sincronizzazione per:', selectedSyncType, 'con chiave:', keyForSync ? '***' : 'Nessuna');
+
+    if (selectedSyncType === 'categories') {
+      if (!restaurantId) { 
+        toast({ title: 'Errore', description: 'ID Ristorante non trovato.', variant: 'destructive' });
+        if (isMounted) setSyncStatus({ isLoading: false, error: 'ID Ristorante non trovato.' });
+        return;
+      }
+
+      importRestaurantCategoriesFromCassaInCloud(restaurantId, undefined, keyForSync)
+        .then(({ count, error }) => {
+          if (!isMounted) return;
+          if (error) {
+            toast({ title: 'Errore Sincronizzazione Categorie', description: error.message, variant: 'destructive' });
+            setSyncStatus({ isLoading: false, error: `Errore sincronizzazione: ${error.message}`, lastSync: syncStatus.lastSync });
+          } else {
+            toast({ title: 'Sincronizzazione Categorie Completata', description: `${count} categorie importate/aggiornate.` });
+            setSyncStatus({ isLoading: false, lastSync: new Date(), recordsImported: count, error: undefined });
+          }
+        })
+        .catch(err => {
+          if (!isMounted) return;
+          toast({ title: 'Errore Inatteso', description: 'Si è verificato un errore imprevisto durante la sincronizzazione.', variant: 'destructive' });
+          setSyncStatus({ isLoading: false, error: 'Errore imprevisto durante la sincronizzazione.', lastSync: syncStatus.lastSync });
+          console.error('Errore imprevisto in startSync:', err);
+        });
+
+    } else if (selectedSyncType === 'products') { // <-- NUOVA LOGICA PER PRODOTTI
+      if (!restaurantId) {
+        toast({ title: 'Errore', description: 'ID Ristorante non trovato.', variant: 'destructive' });
+        if (isMounted) setSyncStatus({ isLoading: false, error: 'ID Ristorante non trovato.' });
+        return;
+      }
+
+      // TODO: Recuperare idSalesPointForPricing e filterParams, ad esempio da un selettore nell'UI o da impostazioni
+      const idSalesPointForPricing = undefined; // Esempio, da sostituire con valore reale
+      const filterParams = undefined; // Esempio, da sostituire con valore reale
+
+      importRestaurantProductsFromCassaInCloud(restaurantId, idSalesPointForPricing, filterParams, keyForSync)
+        .then(({ count, error, message }) => { // Aggiunto 'message' per feedback più dettagliato
+          if (!isMounted) return;
+          if (error) {
+            toast({ title: 'Errore Sincronizzazione Prodotti', description: error.message, variant: 'destructive' });
+            setSyncStatus({ isLoading: false, error: `Errore sincronizzazione prodotti: ${error.message}`, lastSync: syncStatus.lastSync });
+          } else {
+            const successMessage = message || `${count} prodotti importati/aggiornati.`;
+            toast({ title: 'Sincronizzazione Prodotti Completata', description: successMessage });
+            setSyncStatus({ isLoading: false, lastSync: new Date(), recordsImported: count, error: undefined, message: successMessage });
+          }
+        })
+        .catch(err => {
+          if (!isMounted) return;
+          toast({ title: 'Errore Inatteso Prodotti', description: 'Si è verificato un errore imprevisto durante la sincronizzazione dei prodotti.', variant: 'destructive' });
+          setSyncStatus({ isLoading: false, error: 'Errore imprevisto durante la sincronizzazione dei prodotti.', lastSync: syncStatus.lastSync });
+          console.error('Errore imprevisto in startSync per prodotti:', err);
+        });
+    } else {
+      // Simula un ritardo per la sincronizzazione per altri tipi
+      setTimeout(() => {
+        if (isMounted) setSyncStatus({ isLoading: false, lastSync: new Date(), message: 'Sincronizzazione (simulata) completata.', error: undefined });
+        toast({ title: 'Sincronizzazione Simulata', description: `La sincronizzazione per ${selectedSyncType} è stata simulata.`});
+      }, 2000);
     }
   };
 
@@ -288,7 +416,7 @@ const CassaInCloudIntegration = () => {
               </div>
 
               <div className="flex space-x-3">
-                <Button onClick={testConnection} variant="outline">
+                <Button onClick={() => testConnection()} variant="outline">
                   <RefreshCw className="w-4 h-4 mr-2" />
                   Testa Connessione
                 </Button>
@@ -364,10 +492,10 @@ const CassaInCloudIntegration = () => {
                     <div>
                       <p className="text-sm font-medium">Ultima sincronizzazione</p>
                       <p className="text-xs text-muted-foreground">
-                        {syncStatus.lastSync.toLocaleString()}
+                        {new Date(syncStatus.lastSync).toLocaleString()} {/* Assicura che sia un oggetto Date */}
                       </p>
                     </div>
-                    {syncStatus.recordsImported && (
+                    {typeof syncStatus.recordsImported === 'number' && ( // Verifica che sia un numero
                       <Badge variant="outline">
                         {syncStatus.recordsImported} record importati
                       </Badge>
@@ -382,10 +510,17 @@ const CassaInCloudIntegration = () => {
                   </div>
                 )}
 
-                {!syncStatus.lastSync && !syncStatus.error && (
+                {!syncStatus.lastSync && !syncStatus.isLoading && !syncStatus.error && (
                   <p className="text-sm text-muted-foreground">
-                    Nessuna sincronizzazione eseguita
+                    Nessuna sincronizzazione eseguita o dati non disponibili.
                   </p>
+                )}
+
+                {syncStatus.isLoading && (
+                  <div className="flex items-center space-x-2 p-3 bg-blue-50 text-blue-700 rounded-lg">
+                    <RefreshCw className="w-4 h-4 animate-spin" />
+                    <span className="text-sm">Sincronizzazione in corso...</span>
+                  </div>
                 )}
               </div>
             </CardContent>

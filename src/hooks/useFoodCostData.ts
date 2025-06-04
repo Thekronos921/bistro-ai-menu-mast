@@ -60,11 +60,35 @@ export const useFoodCostData = () => {
 
       console.log("Fetching data for restaurant:", restaurantId);
 
-      // Fetch dishes con ricette per il ristorante corrente
+      // Fetch dishes con ricette e nomi delle categorie per il ristorante corrente
       const { data: dishesData, error: dishesError } = await supabase
         .from('dishes')
         .select(`
-          *,
+          id,
+          name,
+          selling_price,
+          recipe_id,
+          restaurant_id,
+          external_id,
+          external_category_id,
+          is_enabled_for_restaurant,
+          is_visible_on_ecommerce,
+          is_visible_on_pos,
+          availability_status,
+          cic_notes,
+          image_url,
+          last_synced_at,
+          sync_status,
+          cic_price_includes_vat,
+          cic_vat_percentage,
+          cic_department_id,
+          cic_department_name,
+          cic_variants_count,
+          cic_has_variants,
+          created_at,
+          updated_at,
+          restaurant_category_id,
+          category:restaurant_categories ( name ),
           recipes (
             id,
             name,
@@ -103,6 +127,13 @@ export const useFoodCostData = () => {
 
       if (dishesError) throw dishesError;
 
+      // Trasforma i dati dei piatti per appiattire la categoria
+      const transformedDishesData = dishesData?.map(dish => ({
+        ...dish,
+        // Modifica: accedi al nome della categoria tramite l'oggetto 'category' restituito dalla query
+        category: dish.category?.name || 'Senza categoria' 
+      }));
+
       // Fetch ricette standalone per il ristorante corrente (non ancora associate a piatti)
       const { data: recipesData, error: recipesError } = await supabase
         .from('recipes')
@@ -132,10 +163,10 @@ export const useFoodCostData = () => {
 
       if (recipesError) throw recipesError;
 
-      console.log("Fetched dishes:", dishesData);
+      console.log("Fetched dishes:", transformedDishesData);
       console.log("Fetched recipes:", recipesData);
 
-      setDishes(dishesData || []);
+      setDishes(transformedDishesData || []);
       setRecipes(recipesData || []);
     } catch (error) {
       console.error("Fetch data error:", error);

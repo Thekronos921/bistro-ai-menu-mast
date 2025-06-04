@@ -21,8 +21,10 @@ import RecipeCard from "@/components/recipes/RecipeCard";
 import { printRecipe } from "@/components/recipes/RecipesPrintUtility";
 import { useRecipeActions } from "@/components/recipes/useRecipeActions";
 import type { Recipe } from '@/types/recipe';
+import { useCategories } from '@/hooks/useCategories';
 
 const Recipes = () => {
+  const { categories } = useCategories();
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("all");
   const [recipes, setRecipes] = useState<Recipe[]>([]);
@@ -32,7 +34,7 @@ const Recipes = () => {
   const { toast } = useToast();
   const { restaurantId } = useRestaurant();
 
-  const categories = ["all", "Antipasti", "Primi Piatti", "Secondi Piatti", "Dolci", "Contorni", "Semilavorati", "Salse", "Preparazioni Base"];
+  // const categories = ["all", "Antipasti", "Primi Piatti", "Secondi Piatti", "Dolci", "Contorni", "Semilavorati", "Salse", "Preparazioni Base"];
 
   const fetchRecipes = async () => {
     try {

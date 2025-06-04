@@ -10,6 +10,7 @@ import FoodCostFilters from "@/components/food-cost/FoodCostFilters";
 import FoodCostTable from "@/components/food-cost/FoodCostTable";
 import { useFoodCostData } from "@/hooks/useFoodCostData";
 import { useFoodCostAnalysis } from "@/hooks/useFoodCostAnalysis";
+import { useCategories } from '@/hooks/useCategories';
 import type { Recipe } from "@/types/recipe";
 
 interface Dish {
@@ -73,8 +74,7 @@ const FoodCost = () => {
     };
   });
 
-  const categories = ["all", "Antipasti", "Primi Piatti", "Secondi Piatti", "Dolci", "Contorni"];
-
+  const { categories } = useCategories();
   const saveSettings = (newSettings: SettingsConfig) => {
     setSettings(newSettings);
     localStorage.setItem('foodCostSettings', JSON.stringify(newSettings));

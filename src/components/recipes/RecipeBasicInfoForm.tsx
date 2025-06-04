@@ -5,6 +5,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Checkbox } from "@/components/ui/checkbox";
 import { Clock, Users, Info } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { useCategories } from '@/hooks/useCategories';
 
 interface RecipeBasicInfoFormProps {
   formData: {
@@ -21,8 +22,8 @@ interface RecipeBasicInfoFormProps {
   onFormDataChange: (data: Partial<RecipeBasicInfoFormProps['formData']>) => void;
 }
 
-const RecipeBasicInfoForm = ({ formData, onFormDataChange }: RecipeBasicInfoFormProps) => {
-  const categories = ["Antipasti", "Primi Piatti", "Secondi Piatti", "Dolci", "Contorni", "Semilavorati", "Salse", "Preparazioni Base"];
+const RecipeBasicInfoForm = ({ form, isEditMode = false }: RecipeBasicInfoFormProps) => {
+  const { categories } = useCategories();
   const difficulties = ["Bassa", "Media", "Alta"];
 
   return (

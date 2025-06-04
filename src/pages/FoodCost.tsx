@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import EditRecipeDialog from "@/components/EditRecipeDialog";
 import EditDishDialog from "@/components/EditDishDialog";
@@ -11,7 +10,6 @@ import FoodCostFilters from "@/components/food-cost/FoodCostFilters";
 import FoodCostTable from "@/components/food-cost/FoodCostTable";
 import { useFoodCostData } from "@/hooks/useFoodCostData";
 import { useFoodCostAnalysis } from "@/hooks/useFoodCostAnalysis";
-import { useCategories } from "@/hooks/useCategories";
 import type { Recipe } from "@/types/recipe";
 
 interface Dish {
@@ -75,8 +73,7 @@ const FoodCost = () => {
     };
   });
 
-  // Usa le categorie dinamiche dal database
-  const { categories } = useCategories();
+  const categories = ["all", "Antipasti", "Primi Piatti", "Secondi Piatti", "Dolci", "Contorni"];
 
   const saveSettings = (newSettings: SettingsConfig) => {
     setSettings(newSettings);
@@ -274,6 +271,7 @@ const FoodCost = () => {
           onSearchChange={setSearchTerm}
           selectedCategory={selectedCategory}
           onCategoryChange={setSelectedCategory}
+          categories={categories}
           advancedFilters={advancedFilters}
           onAdvancedFiltersChange={setAdvancedFilters}
           showAdvancedFilters={showAdvancedFilters}

@@ -6,7 +6,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import AdvancedFilters, { FilterConfig } from "@/components/AdvancedFilters";
 import EnhancedSalesImportDialog from "./EnhancedSalesImportDialog";
 import DateRangeFilter from "./DateRangeFilter";
-import { useCategories } from "@/hooks/useCategories";
 
 interface DateRange {
   from: Date | undefined;
@@ -25,6 +24,7 @@ interface FoodCostFiltersProps {
   onSearchChange: (value: string) => void;
   selectedCategory: string;
   onCategoryChange: (value: string) => void;
+  categories: string[];
   advancedFilters: FilterConfig;
   onAdvancedFiltersChange: (filters: FilterConfig) => void;
   showAdvancedFilters: boolean;
@@ -41,6 +41,7 @@ const FoodCostFilters = ({
   onSearchChange,
   selectedCategory,
   onCategoryChange,
+  categories,
   advancedFilters,
   onAdvancedFiltersChange,
   showAdvancedFilters,
@@ -51,8 +52,6 @@ const FoodCostFilters = ({
   dateRange,
   onDateRangeChange
 }: FoodCostFiltersProps) => {
-  const { categories, loading: categoriesLoading } = useCategories();
-
   return (
     <div className="bg-white rounded-2xl border border-stone-200 p-6 space-y-4">
       <div className="flex flex-col lg:flex-row gap-4">
@@ -73,17 +72,11 @@ const FoodCostFilters = ({
             <SelectValue placeholder="Categoria" />
           </SelectTrigger>
           <SelectContent>
-            {categoriesLoading ? (
-              <SelectItem value="loading" disabled>
-                Caricamento...
+            {categories.map(category => (
+              <SelectItem key={category} value={category}>
+                {category === "all" ? "Tutte le categorie" : category}
               </SelectItem>
-            ) : (
-              categories.map(category => (
-                <SelectItem key={category} value={category}>
-                  {category === "all" ? "Tutte le categorie" : category}
-                </SelectItem>
-              ))
-            )}
+            ))}
           </SelectContent>
         </Select>
 

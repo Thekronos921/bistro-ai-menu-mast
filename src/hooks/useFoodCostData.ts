@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -89,7 +88,7 @@ export const useFoodCostData = () => {
           created_at,
           updated_at,
           restaurant_category_id,
-          restaurant_categories ( name ),
+          category:restaurant_categories ( name ),
           recipes (
             id,
             name,
@@ -128,35 +127,12 @@ export const useFoodCostData = () => {
 
       if (dishesError) throw dishesError;
 
-      // Trasforma i dati dei piatti per gestire correttamente le relazioni Supabase
-      const transformedDishesData = dishesData?.map(dish => {
-        // Handle category
-        const category = Array.isArray(dish.restaurant_categories) && dish.restaurant_categories.length > 0 
-          ? dish.restaurant_categories[0].name 
-          : 'Senza categoria';
-
-        // Handle recipes - fix the ingredients relationship
-        let recipes = undefined;
-        if (dish.recipes) {
-          const recipeData = Array.isArray(dish.recipes) ? dish.recipes[0] : dish.recipes;
-          if (recipeData) {
-            recipes = {
-              ...recipeData,
-              recipe_ingredients: recipeData.recipe_ingredients?.map((ri: any) => ({
-                ...ri,
-                // Fix: Take the first ingredient from the array if it's an array
-                ingredients: Array.isArray(ri.ingredients) ? ri.ingredients[0] : ri.ingredients
-              })) || []
-            };
-          }
-        }
-
-        return {
-          ...dish,
-          category,
-          recipes
-        };
-      }) || [];
+      // Trasforma i dati dei piatti per appiattire la categoria
+      const transformedDishesData = dishesData?.map(dish => ({
+        ...dish,
+        // Modifica: accedi al nome della categoria tramite l'oggetto 'category' restituito dalla query
+        category: dish.category?.name || 'Senza categoria' 
+      }));
 
       // Fetch ricette standalone per il ristorante corrente (non ancora associate a piatti)
       const { data: recipesData, error: recipesError } = await supabase
@@ -187,21 +163,11 @@ export const useFoodCostData = () => {
 
       if (recipesError) throw recipesError;
 
-      // Transform recipes data to fix ingredients relationship
-      const transformedRecipesData = recipesData?.map(recipe => ({
-        ...recipe,
-        recipe_ingredients: recipe.recipe_ingredients?.map((ri: any) => ({
-          ...ri,
-          // Fix: Take the first ingredient from the array if it's an array
-          ingredients: Array.isArray(ri.ingredients) ? ri.ingredients[0] : ri.ingredients
-        })) || []
-      })) || [];
-
       console.log("Fetched dishes:", transformedDishesData);
-      console.log("Fetched recipes:", transformedRecipesData);
+      console.log("Fetched recipes:", recipesData);
 
-      setDishes(transformedDishesData);
-      setRecipes(transformedRecipesData);
+      setDishes(transformedDishesData || []);
+      setRecipes(recipesData || []);
     } catch (error) {
       console.error("Fetch data error:", error);
       toast({

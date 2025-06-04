@@ -37,15 +37,6 @@ export interface GetCategoriesParams {
   // `sorts` può essere aggiunto se necessario
 }
 
-// Interfaccia per i parametri della funzione getProducts
-export interface GetProductsParams {
-  idsSalesPoint?: string[];
-  lastUpdateFrom?: string | number;
-  lastUpdateTo?: string | number;
-  enabledForChannels?: string[];
-  itemListVisibility?: boolean;
-}
-
 // Interfaccia per la risposta dell'API GetCategories
 export interface GetCategoriesApiResponse {
   categories: CassaInCloudCategory[];
@@ -197,6 +188,7 @@ export const getAccessToken = async (apiKeyOverride?: string): Promise<string | 
   }
 };
 
+
 /**
  * Recupera l'elenco delle categorie da Cassa In Cloud, gestendo la paginazione.
  */
@@ -308,14 +300,18 @@ export const getCategories = async (params?: GetCategoriesParams, apiKeyOverride
 /**
  * Recupera l'elenco dei prodotti da Cassa In Cloud, gestendo la paginazione per ottenere tutti i prodotti.
  */
-export const getProducts = async (idSalesPoint: string, filterParams?: GetProductsParams, apiKeyOverride?: string): Promise<InternalProduct[]> => {
+// Rimuoviamo la vecchia implementazione di getProducts che restituiva CassaInCloudProduct[]
+// export const getProducts = async (): Promise<CassaInCloudProduct[]> => { ... };
+
+// Manteniamo solo questa versione di getProducts che restituisce InternalProduct[]
+export const getProducts = async (idSalesPoint: string, apiKeyOverride?: string): Promise<InternalProduct[]> => { // Aggiungi idSalesPoint come parametro
   const accessToken = await getAccessToken(apiKeyOverride);
   if (!accessToken) {
     console.error('Cannot get products without an access token.');
     return [];
   }
 
-  let allProducts: CassaInCloudProduct[] = [];
+  let allProducts: CassaInCloudProduct[] = []; // Nome corretto della variabile
   let start = 0;
   const limit = 50;
   let totalCount = 0;
@@ -372,17 +368,49 @@ export const getProducts = async (idSalesPoint: string, filterParams?: GetProduc
 
     console.log(`Finished fetching CassaInCloud products. Total products fetched: ${allProducts.length}`);
 
+    // Logica di arricchimento e mappatura spostata qui DENTRO il blocco try
+    // SEZIONE DI ARRICCHIMENTO STOCK COMMENTATA COME RICHIESTO
+    /*
+    if (allProducts.length > 0 && idSalesPoint) {
+      console.log(`Enriching ${allProducts.length} products with stock information for sales point ${idSalesPoint}...`);
+      const enrichedProductsPromises = allProducts.map(async (cicProduct) => {
+        const internalProduct = mapCassaInCloudProductToInternalProduct(cicProduct);
+        try {
+          const stockInfo = await getProductStock(idSalesPoint, cicProduct.id);
+          if (stockInfo) {
+            internalProduct.stockQuantity = stockInfo.quantity;
+            internalProduct.stockUnit = stockInfo.unit;
+            internalProduct.warningLevel = stockInfo.warningLevel;
+            // internalProduct.lastStockUpdate = stockInfo.lastUpdate; // Se disponibile
+            // internalProduct.manageStock = stockInfo.manageStock; // Se disponibile
+          }
+        } catch (stockError) {
+          console.error(`Error fetching stock for product ${cicProduct.id}:`, stockError);
+          // Continua senza informazioni di stock per questo prodotto se c'è un errore
+        }
+        return internalProduct;
+      });
+
+      const internalProducts = await Promise.all(enrichedProductsPromises);
+      console.log('Products enriched with stock information:', internalProducts.slice(0, 2));
+      return internalProducts;
+
+    } else */
+    // Modifica: Mappiamo sempre i prodotti senza arricchimento stock se ci sono prodotti
     if (allProducts.length > 0) {
       console.warn('idSalesPoint not provided to getProducts, or no products fetched. Skipping stock enrichment.');
+      // Mappa senza arricchimento stock se idSalesPoint non è fornito o non ci sono prodotti
       const internalProducts = allProducts.map(mapCassaInCloudProductToInternalProduct);
       console.log(`Successfully mapped ${internalProducts.length} products to internal format without stock enrichment.`);
       return internalProducts;
     }
 
-    return [];
+    return []; // Ritorna array vuoto se non ci sono prodotti dopo i tentativi di fetch
 
   } catch (error) {
     console.error('Exception while fetching or processing products:', error);
+    // In caso di errore catastrofico, ritorna un array vuoto o gestisci diversamente
+    // Potresti voler comunque mappare i prodotti parzialmente recuperati, se `allProducts` ne contiene
     if (allProducts.length > 0) {
         console.warn('Attempting to map partially fetched products due to an error.');
         const internalProducts = allProducts.map(mapCassaInCloudProductToInternalProduct);
@@ -390,7 +418,7 @@ export const getProducts = async (idSalesPoint: string, filterParams?: GetProduc
     }
     return [];
   }
-};
+}; // Questa è la chiusura corretta della funzione getProducts
 
 /**
  * Recupera il report dei prodotti venduti da Cassa In Cloud.
@@ -482,6 +510,7 @@ export const getSoldByProductReport = async (params: GetSoldByProductParams, api
   }
 };
 
+
 // Interfacce per lo stock
 
 // Interfacce per i report di vendita (GetSoldByProduct)
@@ -555,10 +584,10 @@ interface GetStockApiResponse {
 
 // Interfacce per i punti vendita (aggiornate secondo la documentazione)
 export interface CassaInCloudCurrency {
-  id: string; // Changed from number to string to fix the type conflict
-  iso: string; // es. "EUR"
-  symbol: string; // es. "€"
-  description: string;
+  id: number;
+  code: string;
+  name: string;
+  numberOfDecimals: number;
 }
 
 export interface CassaInCloudSalesPoint {
@@ -568,7 +597,7 @@ export interface CassaInCloudSalesPoint {
   description: string;
   district: string;
   email: string;
-  id: string; // Changed from number to string to be consistent
+  id: number;
   latitude: number;
   logoBig: string;
   logoSmall: string;

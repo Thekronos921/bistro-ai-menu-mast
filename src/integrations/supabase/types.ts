@@ -9,27 +9,6 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
-      cassa_in_cloud_bills_state: {
-        Row: {
-          bill_id: string
-          last_updated_at: string | null
-          processed_row_ids: Json | null
-          restaurant_id: number
-        }
-        Insert: {
-          bill_id: string
-          last_updated_at?: string | null
-          processed_row_ids?: Json | null
-          restaurant_id: number
-        }
-        Update: {
-          bill_id?: string
-          last_updated_at?: string | null
-          processed_row_ids?: Json | null
-          restaurant_id?: number
-        }
-        Relationships: []
-      }
       demand_forecasts: {
         Row: {
           confidence_percentage: number

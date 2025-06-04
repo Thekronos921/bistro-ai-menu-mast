@@ -5,12 +5,12 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
-import { useLabels, LabelData } from '@/hooks/useLabels';
+import { useLabels } from '@/hooks/useLabels';
 import { Search, Filter, Calendar, Package, AlertTriangle, Clock, CheckCircle, XCircle } from 'lucide-react';
 import { format, differenceInDays } from 'date-fns';
 import { it } from 'date-fns/locale';
 
-const LabelTrackingDashboard = () => {
+const InventoryTrackingDashboard = () => {
   const [labels, setLabels] = useState<any[]>([]);
   const [filteredLabels, setFilteredLabels] = useState<any[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
@@ -91,7 +91,7 @@ const LabelTrackingDashboard = () => {
 
   const handleStatusChange = async (labelId: string, newStatus: string) => {
     await updateLabelStatus(labelId, newStatus);
-    loadLabels(); // Ricarica i dati
+    loadLabels();
   };
 
   const getTypeIcon = (type: string) => {
@@ -306,4 +306,4 @@ const LabelTrackingDashboard = () => {
   );
 };
 
-export default LabelTrackingDashboard;
+export default InventoryTrackingDashboard;

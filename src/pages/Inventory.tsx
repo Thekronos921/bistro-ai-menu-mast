@@ -1,7 +1,10 @@
 
 import { ArrowLeft } from "lucide-react";
 import { Link } from "react-router-dom";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import IngredientsManagement from "@/components/IngredientsManagement";
+import InventoryTrackingDashboard from "@/components/inventory/InventoryTrackingDashboard";
+import SimpleLabelGenerator from "@/components/labeling/SimpleLabelGenerator";
 
 const Inventory = () => {
   return (
@@ -19,17 +22,31 @@ const Inventory = () => {
                   <span className="text-white font-bold text-lg">📦</span>
                 </div>
                 <div>
-                  <h1 className="text-2xl font-bold text-slate-800">Inventario Ingredienti</h1>
-                  <p className="text-sm text-slate-500">Gestione completa ingredienti e scorte</p>
+                  <h1 className="text-2xl font-bold text-slate-800">Gestione Inventario</h1>
+                  <p className="text-sm text-slate-500">Ingredienti, scorte e tracciabilità prodotti</p>
                 </div>
               </div>
             </div>
+            <SimpleLabelGenerator />
           </div>
         </div>
       </header>
 
       <main className="max-w-7xl mx-auto px-6 py-8">
-        <IngredientsManagement />
+        <Tabs defaultValue="ingredients" className="w-full">
+          <TabsList className="grid w-full grid-cols-2 mb-6">
+            <TabsTrigger value="ingredients">Gestione Ingredienti</TabsTrigger>
+            <TabsTrigger value="tracking">Inventario Tracciato</TabsTrigger>
+          </TabsList>
+          
+          <TabsContent value="ingredients">
+            <IngredientsManagement />
+          </TabsContent>
+          
+          <TabsContent value="tracking">
+            <InventoryTrackingDashboard />
+          </TabsContent>
+        </Tabs>
       </main>
     </div>
   );

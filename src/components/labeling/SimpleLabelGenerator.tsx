@@ -9,7 +9,7 @@ import LavoratoLabelForm from './LavoratoLabelForm';
 import DefrostedLabelForm from './DefrostedLabelForm';
 import RecipeLabelForm from './RecipeLabelForm';
 
-const LabelGenerator = () => {
+const SimpleLabelGenerator = () => {
   const [open, setOpen] = useState(false);
 
   return (
@@ -69,4 +69,4 @@ const LabelGenerator = () => {
   );
 };
 
-export default LabelGenerator;
+export default SimpleLabelGenerator;

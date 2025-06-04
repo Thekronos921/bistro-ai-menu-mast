@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -8,7 +7,8 @@ import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { useRestaurant } from '@/hooks/useRestaurant';
-import LabelPreview from './LabelPreview';
+import { useLabels } from '@/hooks/useLabels';
+import TrackedLabelPreview from './TrackedLabelPreview';
 
 interface LabelRecipe {
   id: string;
@@ -31,13 +31,14 @@ const LavoratoLabelForm = () => {
   const [expiryDate, setExpiryDate] = useState<string>('');
   const [additionalNotes, setAdditionalNotes] = useState<string>('');
   const [batchNumber, setBatchNumber] = useState<string>('');
+  const [quantity, setQuantity] = useState<string>('');
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
   const { restaurantId } = useRestaurant();
+  const { saveLabel } = useLabels();
 
   useEffect(() => {
     fetchRecipes();
-    // Generate automatic batch number
     setBatchNumber(`LAV-${Date.now().toString().slice(-6)}`);
   }, [restaurantId]);
 
@@ -110,33 +111,63 @@ const LavoratoLabelForm = () => {
 
   const generateQRData = () => {
     const selectedRecipeData = recipes.find(r => r.id === selectedRecipe);
+    const labelId = crypto.randomUUID();
+    
     return JSON.stringify({
+      id: labelId,
       type: 'lavorato',
       recipeId: selectedRecipe,
       recipeName: selectedRecipeData?.name,
       productionDate,
       expiryDate,
       batchNumber,
+      quantity: parseFloat(quantity),
       allergens: selectedRecipeData?.allergens,
       restaurantId,
       timestamp: new Date().toISOString()
     });
   };
 
-  const handleGenerateLabel = () => {
-    if (!selectedRecipe || !expiryDate) {
+  const handleGenerateLabel = async () => {
+    if (!selectedRecipe || !expiryDate || !quantity) {
       toast({
         title: "Campi obbligatori",
-        description: "Seleziona una ricetta e inserisci la data di scadenza",
+        description: "Seleziona una ricetta e inserisci data di scadenza e quantità",
         variant: "destructive"
       });
       return;
     }
 
-    toast({
-      title: "Etichetta generata",
-      description: "L'etichetta è pronta per la stampa"
-    });
+    const selectedRecipeData = recipes.find(r => r.id === selectedRecipe);
+    if (!selectedRecipeData) return;
+
+    try {
+      await saveLabel({
+        label_type: 'lavorato',
+        title: selectedRecipeData.name,
+        batch_number: batchNumber,
+        production_date: productionDate,
+        expiry_date: expiryDate,
+        quantity: parseFloat(quantity),
+        unit: 'porzioni',
+        storage_instructions: additionalNotes,
+        allergens: selectedRecipeData.allergens,
+        recipe_id: selectedRecipe,
+        ingredient_traceability: selectedRecipeData.recipe_ingredients.map(ri => ({
+          ingredient_id: ri.ingredient_id,
+          name: ri.ingredients.name,
+          supplier: ri.ingredients.supplier,
+          quantity: ri.quantity
+        }))
+      });
+
+      toast({
+        title: "Etichetta creata",
+        description: "L'etichetta è stata generata e salvata nel sistema di tracciabilità"
+      });
+    } catch (error) {
+      console.error('Error saving label:', error);
+    }
   };
 
   const handlePrint = () => {
@@ -149,7 +180,6 @@ const LavoratoLabelForm = () => {
       return;
     }
 
-    // Crea un nuovo stile CSS specifico per la stampa
     const printStyles = `
       @media print {
         body * {
@@ -172,12 +202,10 @@ const LavoratoLabelForm = () => {
       }
     `;
 
-    // Aggiunge gli stili alla head
     const styleSheet = document.createElement('style');
     styleSheet.innerText = printStyles;
     document.head.appendChild(styleSheet);
 
-    // Aggiunge la classe per la stampa all'anteprima
     const labelPreview = document.querySelector('[data-label-preview]');
     if (labelPreview) {
       labelPreview.classList.add('print-content');
@@ -185,7 +213,6 @@ const LavoratoLabelForm = () => {
 
     window.print();
 
-    // Rimuove gli stili e la classe dopo la stampa
     setTimeout(() => {
       document.head.removeChild(styleSheet);
       if (labelPreview) {
@@ -227,6 +254,17 @@ const LavoratoLabelForm = () => {
           </div>
 
           <div>
+            <Label htmlFor="quantity">Quantità (porzioni)</Label>
+            <Input
+              id="quantity"
+              type="number"
+              value={quantity}
+              onChange={(e) => setQuantity(e.target.value)}
+              placeholder="Es. 4"
+            />
+          </div>
+
+          <div>
             <Label htmlFor="productionDate">Data di Produzione</Label>
             <Input
               id="productionDate"
@@ -257,8 +295,8 @@ const LavoratoLabelForm = () => {
           </div>
 
           <div className="flex space-x-2">
-            <Button onClick={handleGenerateLabel} className="flex-1">
-              Genera Etichetta
+            <Button onClick={handleGenerateLabel} className="flex-1" disabled={loading}>
+              Genera e Salva Etichetta
             </Button>
             <Button onClick={handlePrint} variant="outline">
               Stampa
@@ -267,7 +305,7 @@ const LavoratoLabelForm = () => {
         </div>
 
         <div className="space-y-4">
-          <LabelPreview
+          <TrackedLabelPreview
             title={selectedRecipeData?.name || "Seleziona ricetta"}
             type="Lavorato"
             productionDate={productionDate}
@@ -276,6 +314,8 @@ const LavoratoLabelForm = () => {
             qrData={generateQRData()}
             storageInstructions={additionalNotes}
             allergens={selectedRecipeData?.allergens}
+            quantity={parseFloat(quantity) || undefined}
+            unit="porzioni"
           />
         </div>
       </div>

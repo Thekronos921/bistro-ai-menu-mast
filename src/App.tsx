@@ -6,210 +6,119 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
 import ProtectedRoute from "@/components/ProtectedRoute";
-import Header from "@/components/Header";
 import PostRegistrationSetup from "@/components/PostRegistrationSetup";
-import { getProductStock, getSalesPoints, getProducts, getSoldByProductReport, GetSoldByProductParams, getCategories, GetCategoriesParams } from '@/integrations/cassaInCloud/cassaInCloudService'; // Adatta il percorso se necessario
-import { importRestaurantCategoriesFromCassaInCloud } from '@/integrations/cassaInCloud/cassaInCloudImportService'; // <<< IMPORTA LA NUOVA FUNZIONE
-
-// Pages
 import Index from "./pages/Index";
-import NotFound from "./pages/NotFound";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
 import ForgotPassword from "./pages/ForgotPassword";
 import ResetPassword from "./pages/ResetPassword";
 import Profile from "./pages/Profile";
-
-// Protected Pages
-import FoodCost from "./pages/FoodCost";
-import MenuEngineering from "./pages/MenuEngineering";
 import Recipes from "./pages/Recipes";
 import Inventory from "./pages/Inventory";
+import MenuEngineering from "./pages/MenuEngineering";
+import FoodCost from "./pages/FoodCost";
+import ProductionPlanning from "./pages/ProductionPlanning";
 import DemandForecast from "./pages/DemandForecast";
 import CustomerAnalysis from "./pages/CustomerAnalysis";
-import ProductionPlanning from "./pages/ProductionPlanning";
-import StaffDashboard from "./pages/StaffDashboard";
-import EventCalendar from "./pages/EventCalendar";
 import CassaInCloudIntegration from "./pages/CassaInCloudIntegration";
+import EventCalendar from "./pages/EventCalendar";
+import StaffDashboard from "./pages/StaffDashboard";
+import LabelView from "./pages/LabelView";
+import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
 
-function App() {
-
-  return (
-    <QueryClientProvider client={queryClient}>
+const App = () => (
+  <QueryClientProvider client={queryClient}>
+    <AuthProvider>
       <TooltipProvider>
         <Toaster />
         <Sonner />
         <BrowserRouter>
-          <AuthProvider>
-            <div className="min-h-screen bg-gray-50">
-              <Routes>
-                {/* Public routes - Auth pages */}
-                <Route
-                  path="/login"
-                  element={
-                    <ProtectedRoute requireAuth={false}>
-                      <Login />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/register"
-                  element={
-                    <ProtectedRoute requireAuth={false}>
-                      <Register />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/forgot-password"
-                  element={
-                    <ProtectedRoute requireAuth={false}>
-                      <ForgotPassword />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/reset-password"
-                  element={
-                    <ProtectedRoute requireAuth={false}>
-                      <ResetPassword />
-                    </ProtectedRoute>
-                  }
-                />
-
-                {/* Setup route for post-registration */}
-                <Route
-                  path="/setup"
-                  element={
-                    <ProtectedRoute>
-                      <PostRegistrationSetup />
-                    </ProtectedRoute>
-                  }
-                />
-
-                {/* Profile route */}
-                <Route
-                  path="/profile"
-                  element={
-                    <ProtectedRoute>
-                      <Header />
-                      <Profile />
-                    </ProtectedRoute>
-                  }
-                />
-
-                {/* Protected routes - Main app */}
-                <Route
-                  path="/"
-                  element={
-                    <ProtectedRoute>
-                      <Header />
-                      <Index />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/food-cost"
-                  element={
-                    <ProtectedRoute>
-                      <Header />
-                      <FoodCost />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/menu-engineering"
-                  element={
-                    <ProtectedRoute>
-                      <Header />
-                      <MenuEngineering />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/recipes"
-                  element={
-                    <ProtectedRoute>
-                      <Header />
-                      <Recipes />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/inventory"
-                  element={
-                    <ProtectedRoute>
-                      <Header />
-                      <Inventory />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/demand-forecast"
-                  element={
-                    <ProtectedRoute>
-                      <Header />
-                      <DemandForecast />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/event-calendar"
-                  element={
-                    <ProtectedRoute>
-                      <Header />
-                      <EventCalendar />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/customer-analysis"
-                  element={
-                    <ProtectedRoute>
-                      <Header />
-                      <CustomerAnalysis />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/production-planning"
-                  element={
-                    <ProtectedRoute>
-                      <Header />
-                      <ProductionPlanning />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/staff-dashboard"
-                  element={
-                    <ProtectedRoute>
-                      <Header />
-                      <StaffDashboard />
-                    </ProtectedRoute>
-                  }
-                />
-                 <Route
-                path="/cassaincloud-integration"
-                element={
-                  <ProtectedRoute>
-                    <Header />
-                    <CassaInCloudIntegration />
-                  </ProtectedRoute>
-                }
-              />
-                
-                {/* Catch all route */}
-                <Route path="*" element={<NotFound />} />
-              </Routes>
-            </div>
-          </AuthProvider>
+          <Routes>
+            <Route path="/login" element={<Login />} />
+            <Route path="/register" element={<Register />} />
+            <Route path="/forgot-password" element={<ForgotPassword />} />
+            <Route path="/reset-password" element={<ResetPassword />} />
+            <Route path="/label/:id" element={<LabelView />} />
+            <Route path="/" element={
+              <ProtectedRoute>
+                <PostRegistrationSetup />
+                <Index />
+              </ProtectedRoute>
+            } />
+            <Route path="/profile" element={
+              <ProtectedRoute>
+                <PostRegistrationSetup />
+                <Profile />
+              </ProtectedRoute>
+            } />
+            <Route path="/recipes" element={
+              <ProtectedRoute>
+                <PostRegistrationSetup />
+                <Recipes />
+              </ProtectedRoute>
+            } />
+            <Route path="/inventory" element={
+              <ProtectedRoute>
+                <PostRegistrationSetup />
+                <Inventory />
+              </ProtectedRoute>
+            } />
+            <Route path="/menu-engineering" element={
+              <ProtectedRoute>
+                <PostRegistrationSetup />
+                <MenuEngineering />
+              </ProtectedRoute>
+            } />
+            <Route path="/food-cost" element={
+              <ProtectedRoute>
+                <PostRegistrationSetup />
+                <FoodCost />
+              </ProtectedRoute>
+            } />
+            <Route path="/production-planning" element={
+              <ProtectedRoute>
+                <PostRegistrationSetup />
+                <ProductionPlanning />
+              </ProtectedRoute>
+            } />
+            <Route path="/demand-forecast" element={
+              <ProtectedRoute>
+                <PostRegistrationSetup />
+                <DemandForecast />
+              </ProtectedRoute>
+            } />
+            <Route path="/customer-analysis" element={
+              <ProtectedRoute>
+                <PostRegistrationSetup />
+                <CustomerAnalysis />
+              </ProtectedRoute>
+            } />
+            <Route path="/cassa-in-cloud" element={
+              <ProtectedRoute>
+                <PostRegistrationSetup />
+                <CassaInCloudIntegration />
+              </ProtectedRoute>
+            } />
+            <Route path="/events" element={
+              <ProtectedRoute>
+                <PostRegistrationSetup />
+                <EventCalendar />
+              </ProtectedRoute>
+            } />
+            <Route path="/staff" element={
+              <ProtectedRoute>
+                <PostRegistrationSetup />
+                <StaffDashboard />
+              </ProtectedRoute>
+            } />
+            <Route path="*" element={<NotFound />} />
+          </Routes>
         </BrowserRouter>
       </TooltipProvider>
-    </QueryClientProvider>
-  );
-}
+    </AuthProvider>
+  </QueryClientProvider>
+);
 
 export default App;

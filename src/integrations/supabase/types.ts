@@ -9,6 +9,27 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
+      cassa_in_cloud_bills_state: {
+        Row: {
+          bill_id: string
+          last_updated_at: string | null
+          processed_row_ids: Json | null
+          restaurant_id: number
+        }
+        Insert: {
+          bill_id: string
+          last_updated_at?: string | null
+          processed_row_ids?: Json | null
+          restaurant_id: number
+        }
+        Update: {
+          bill_id?: string
+          last_updated_at?: string | null
+          processed_row_ids?: Json | null
+          restaurant_id?: number
+        }
+        Relationships: []
+      }
       demand_forecasts: {
         Row: {
           confidence_percentage: number
@@ -411,6 +432,116 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      label_status_history: {
+        Row: {
+          changed_by_user_id: string | null
+          created_at: string
+          id: string
+          label_id: string
+          new_status: string
+          notes: string | null
+          old_status: string | null
+        }
+        Insert: {
+          changed_by_user_id?: string | null
+          created_at?: string
+          id?: string
+          label_id: string
+          new_status: string
+          notes?: string | null
+          old_status?: string | null
+        }
+        Update: {
+          changed_by_user_id?: string | null
+          created_at?: string
+          id?: string
+          label_id?: string
+          new_status?: string
+          notes?: string | null
+          old_status?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "label_status_history_label_id_fkey"
+            columns: ["label_id"]
+            isOneToOne: false
+            referencedRelation: "labels"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      labels: {
+        Row: {
+          allergens: string | null
+          batch_number: string | null
+          created_at: string
+          dish_id: string | null
+          expiry_date: string | null
+          id: string
+          ingredient_id: string | null
+          ingredient_traceability: Json | null
+          label_type: string
+          notes: string | null
+          production_date: string | null
+          qr_data: Json
+          quantity: number | null
+          recipe_id: string | null
+          restaurant_id: string
+          status: string | null
+          storage_instructions: string | null
+          supplier: string | null
+          title: string
+          unit: string | null
+          updated_at: string
+        }
+        Insert: {
+          allergens?: string | null
+          batch_number?: string | null
+          created_at?: string
+          dish_id?: string | null
+          expiry_date?: string | null
+          id?: string
+          ingredient_id?: string | null
+          ingredient_traceability?: Json | null
+          label_type: string
+          notes?: string | null
+          production_date?: string | null
+          qr_data: Json
+          quantity?: number | null
+          recipe_id?: string | null
+          restaurant_id: string
+          status?: string | null
+          storage_instructions?: string | null
+          supplier?: string | null
+          title: string
+          unit?: string | null
+          updated_at?: string
+        }
+        Update: {
+          allergens?: string | null
+          batch_number?: string | null
+          created_at?: string
+          dish_id?: string | null
+          expiry_date?: string | null
+          id?: string
+          ingredient_id?: string | null
+          ingredient_traceability?: Json | null
+          label_type?: string
+          notes?: string | null
+          production_date?: string | null
+          qr_data?: Json
+          quantity?: number | null
+          recipe_id?: string | null
+          restaurant_id?: string
+          status?: string | null
+          storage_instructions?: string | null
+          supplier?: string | null
+          title?: string
+          unit?: string | null
+          updated_at?: string
+        }
+        Relationships: []
       }
       local_events: {
         Row: {

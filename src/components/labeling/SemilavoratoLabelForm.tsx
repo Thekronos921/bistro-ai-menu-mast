@@ -1,20 +1,21 @@
-
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
-import { Package, Calendar, AlertTriangle } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { useRestaurant } from '@/hooks/useRestaurant';
-import { useToast } from '@/hooks/use-toast';
-import LabelPreview from './LabelPreview';
+import { useLabels } from '@/hooks/useLabels';
+import TrackedLabelPreview from './TrackedLabelPreview';
 
-interface Recipe {
+interface Ingredient {
   id: string;
   name: string;
-  is_semilavorato: boolean;
+  supplier: string;
+  cost_per_unit: number;
+  unit: string;
 }
 
 interface SemilavoratoLabelFormProps {
@@ -22,232 +23,268 @@ interface SemilavoratoLabelFormProps {
 }
 
 const SemilavoratoLabelForm = ({ onClose }: SemilavoratoLabelFormProps) => {
-  const [recipes, setRecipes] = useState<Recipe[]>([]);
-  const [formData, setFormData] = useState({
-    recipeId: '',
-    recipeName: '',
-    productionDate: new Date().toISOString().split('T')[0],
-    batchNumber: '',
-    expiryDate: '',
-    storageInstructions: '',
-    quantity: '',
-    unit: 'kg'
-  });
-  const { restaurantId } = useRestaurant();
+  const [selectedIngredient, setSelectedIngredient] = useState<string>('');
+  const [ingredients, setIngredients] = useState<Ingredient[]>([]);
+  const [productionDate, setProductionDate] = useState<string>(new Date().toISOString().split('T')[0]);
+  const [expiryDate, setExpiryDate] = useState<string>('');
+  const [quantity, setQuantity] = useState<string>('');
+  const [storageInstructions, setStorageInstructions] = useState<string>('');
+  const [batchNumber, setBatchNumber] = useState<string>('');
+  const [additionalNotes, setAdditionalNotes] = useState<string>('');
+  const [loading, setLoading] = useState(false);
   const { toast } = useToast();
+  const { restaurantId } = useRestaurant();
+  const { saveLabel } = useLabels();
 
   useEffect(() => {
-    fetchSemilavorati();
+    fetchIngredients();
+    setBatchNumber(`SL-${Date.now().toString().slice(-6)}`);
   }, [restaurantId]);
 
-  const fetchSemilavorati = async () => {
+  const fetchIngredients = async () => {
     if (!restaurantId) return;
 
     try {
       const { data, error } = await supabase
-        .from('recipes')
-        .select('id, name, is_semilavorato')
+        .from('ingredients')
+        .select('id, name, supplier, cost_per_unit, unit')
         .eq('restaurant_id', restaurantId)
-        .eq('is_semilavorato', true)
         .order('name');
 
       if (error) throw error;
-      setRecipes(data || []);
+      setIngredients(data || []);
     } catch (error) {
-      console.error('Error fetching semilavorati:', error);
-    }
-  };
-
-  const generateBatchNumber = () => {
-    const today = new Date();
-    const dateStr = today.toISOString().split('T')[0].replace(/-/g, '');
-    const randomNum = Math.floor(Math.random() * 1000).toString().padStart(3, '0');
-    return `SL${dateStr}${randomNum}`;
-  };
-
-  const calculateExpiryDate = (productionDate: string, daysToAdd: number = 3) => {
-    const date = new Date(productionDate);
-    date.setDate(date.getDate() + daysToAdd);
-    return date.toISOString().split('T')[0];
-  };
-
-  const handleRecipeSelect = (recipeId: string) => {
-    const recipe = recipes.find(r => r.id === recipeId);
-    if (recipe) {
-      setFormData(prev => ({
-        ...prev,
-        recipeId,
-        recipeName: recipe.name,
-        batchNumber: generateBatchNumber(),
-        expiryDate: calculateExpiryDate(prev.productionDate)
-      }));
+      console.error('Error fetching ingredients:', error);
+      toast({
+        title: "Errore",
+        description: "Errore nel caricamento degli ingredienti",
+        variant: "destructive"
+      });
     }
   };
 
   const generateQRData = () => {
+    const selectedIngredientData = ingredients.find(i => i.id === selectedIngredient);
+    const labelId = crypto.randomUUID();
+    
     return JSON.stringify({
+      id: labelId,
       type: 'semilavorato',
-      recipeId: formData.recipeId,
-      recipeName: formData.recipeName,
-      batchNumber: formData.batchNumber,
-      productionDate: formData.productionDate,
-      expiryDate: formData.expiryDate,
+      ingredientId: selectedIngredient,
+      ingredientName: selectedIngredientData?.name,
+      productionDate,
+      expiryDate,
+      batchNumber,
+      quantity: parseFloat(quantity),
+      unit: selectedIngredientData?.unit,
       restaurantId,
       timestamp: new Date().toISOString()
     });
   };
 
-  const handlePrint = () => {
-    if (!formData.recipeId || !formData.batchNumber) {
+  const handleGenerateLabel = async () => {
+    if (!selectedIngredient || !expiryDate || !quantity) {
       toast({
-        title: "Errore",
-        description: "Seleziona una ricetta e compila tutti i campi obbligatori",
+        title: "Campi obbligatori",
+        description: "Seleziona un ingrediente e inserisci data di scadenza e quantità",
         variant: "destructive"
       });
       return;
     }
 
-    // Trigger print functionality
-    window.print();
+    const selectedIngredientData = ingredients.find(i => i.id === selectedIngredient);
+    if (!selectedIngredientData) return;
+
+    try {
+      await saveLabel({
+        label_type: 'semilavorato',
+        title: selectedIngredientData.name,
+        batch_number: batchNumber,
+        production_date: productionDate,
+        expiry_date: expiryDate,
+        quantity: parseFloat(quantity),
+        unit: selectedIngredientData.unit,
+        storage_instructions: storageInstructions,
+        notes: additionalNotes,
+        ingredient_id: selectedIngredient,
+        supplier: selectedIngredientData.supplier,
+        ingredient_traceability: [{
+          ingredient_id: selectedIngredient,
+          name: selectedIngredientData.name,
+          supplier: selectedIngredientData.supplier,
+          quantity: parseFloat(quantity),
+          unit: selectedIngredientData.unit
+        }]
+      });
+
+      toast({
+        title: "Etichetta creata",
+        description: "L'etichetta è stata generata e salvata nel sistema di tracciabilità"
+      });
+    } catch (error) {
+      console.error('Error saving label:', error);
+    }
   };
+
+  const handlePrint = () => {
+    if (!selectedIngredient) {
+      toast({
+        title: "Errore",
+        description: "Seleziona un ingrediente prima di stampare",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    const printStyles = `
+      @media print {
+        body * {
+          visibility: hidden;
+        }
+        .print-content, .print-content * {
+          visibility: visible;
+        }
+        .print-content {
+          position: absolute;
+          left: 0;
+          top: 0;
+          width: 8cm;
+          height: 6cm;
+        }
+        @page {
+          size: 8cm 6cm;
+          margin: 0;
+        }
+      }
+    `;
+
+    const styleSheet = document.createElement('style');
+    styleSheet.innerText = printStyles;
+    document.head.appendChild(styleSheet);
+
+    const labelPreview = document.querySelector('[data-label-preview]');
+    if (labelPreview) {
+      labelPreview.classList.add('print-content');
+    }
+
+    window.print();
+
+    setTimeout(() => {
+      document.head.removeChild(styleSheet);
+      if (labelPreview) {
+        labelPreview.classList.remove('print-content');
+      }
+    }, 1000);
+  };
+
+  const selectedIngredientData = ingredients.find(i => i.id === selectedIngredient);
 
   return (
     <div className="space-y-6">
-      <div className="bg-blue-50 p-4 rounded-lg">
-        <div className="flex items-center space-x-2 mb-2">
-          <Package className="w-5 h-5 text-blue-600" />
-          <h3 className="font-semibold text-blue-800">Etichetta Semilavorato</h3>
-        </div>
-        <p className="text-blue-700 text-sm">
-          Genera etichette per prodotti semilavorati con tracciabilità completa
-        </p>
-      </div>
-
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div className="space-y-4">
           <div>
-            <Label htmlFor="recipe">Semilavorato *</Label>
-            <Select value={formData.recipeId} onValueChange={handleRecipeSelect}>
+            <Label htmlFor="ingredient">Ingrediente</Label>
+            <Select value={selectedIngredient} onValueChange={setSelectedIngredient}>
               <SelectTrigger>
-                <SelectValue placeholder="Seleziona semilavorato" />
+                <SelectValue placeholder="Seleziona un ingrediente..." />
               </SelectTrigger>
               <SelectContent>
-                {recipes.map(recipe => (
-                  <SelectItem key={recipe.id} value={recipe.id}>
-                    {recipe.name}
+                {ingredients.map((ingredient) => (
+                  <SelectItem key={ingredient.id} value={ingredient.id}>
+                    {ingredient.name} - {ingredient.supplier}
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <Label htmlFor="productionDate">Data Preparazione *</Label>
-              <div className="flex items-center space-x-1">
-                <Calendar className="w-4 h-4 text-gray-400" />
-                <Input
-                  id="productionDate"
-                  type="date"
-                  value={formData.productionDate}
-                  onChange={(e) => {
-                    const newDate = e.target.value;
-                    setFormData(prev => ({
-                      ...prev,
-                      productionDate: newDate,
-                      expiryDate: calculateExpiryDate(newDate)
-                    }));
-                  }}
-                />
-              </div>
-            </div>
-            <div>
-              <Label htmlFor="expiryDate">Data Scadenza *</Label>
-              <div className="flex items-center space-x-1">
-                <AlertTriangle className="w-4 h-4 text-orange-400" />
-                <Input
-                  id="expiryDate"
-                  type="date"
-                  value={formData.expiryDate}
-                  onChange={(e) => setFormData(prev => ({ ...prev, expiryDate: e.target.value }))}
-                />
-              </div>
-            </div>
-          </div>
-
           <div>
-            <Label htmlFor="batchNumber">Lotto Produzione *</Label>
+            <Label htmlFor="batchNumber">Numero Lotto</Label>
             <Input
               id="batchNumber"
-              value={formData.batchNumber}
-              onChange={(e) => setFormData(prev => ({ ...prev, batchNumber: e.target.value }))}
-              placeholder="Es. SL20250131001"
+              value={batchNumber}
+              onChange={(e) => setBatchNumber(e.target.value)}
+              placeholder="SL-123456"
             />
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <Label htmlFor="quantity">Quantità</Label>
-              <Input
-                id="quantity"
-                type="number"
-                step="0.1"
-                value={formData.quantity}
-                onChange={(e) => setFormData(prev => ({ ...prev, quantity: e.target.value }))}
-                placeholder="0"
-              />
-            </div>
-            <div>
-              <Label htmlFor="unit">Unità</Label>
-              <Select value={formData.unit} onValueChange={(value) => setFormData(prev => ({ ...prev, unit: value }))}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="kg">kg</SelectItem>
-                  <SelectItem value="g">g</SelectItem>
-                  <SelectItem value="l">l</SelectItem>
-                  <SelectItem value="ml">ml</SelectItem>
-                  <SelectItem value="pz">pz</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
           </div>
 
           <div>
-            <Label htmlFor="storageInstructions">Istruzioni Conservazione</Label>
+            <Label htmlFor="quantity">Quantità</Label>
+            <Input
+              id="quantity"
+              type="number"
+              step="0.1"
+              value={quantity}
+              onChange={(e) => setQuantity(e.target.value)}
+              placeholder="Es. 2.5"
+            />
+          </div>
+
+          <div>
+            <Label htmlFor="productionDate">Data di Produzione</Label>
+            <Input
+              id="productionDate"
+              type="date"
+              value={productionDate}
+              onChange={(e) => setProductionDate(e.target.value)}
+            />
+          </div>
+
+          <div>
+            <Label htmlFor="expiryDate">Data di Scadenza</Label>
+            <Input
+              id="expiryDate"
+              type="date"
+              value={expiryDate}
+              onChange={(e) => setExpiryDate(e.target.value)}
+            />
+          </div>
+
+          <div>
+            <Label htmlFor="storageInstructions">Istruzioni di Conservazione</Label>
             <Textarea
               id="storageInstructions"
-              value={formData.storageInstructions}
-              onChange={(e) => setFormData(prev => ({ ...prev, storageInstructions: e.target.value }))}
               placeholder="Es. Conservare in frigorifero a 4°C"
-              rows={3}
+              value={storageInstructions}
+              onChange={(e) => setStorageInstructions(e.target.value)}
             />
+          </div>
+
+          <div>
+            <Label htmlFor="additionalNotes">Note Aggiuntive</Label>
+            <Textarea
+              id="additionalNotes"
+              placeholder="Note aggiuntive..."
+              value={additionalNotes}
+              onChange={(e) => setAdditionalNotes(e.target.value)}
+            />
+          </div>
+
+          <div className="flex space-x-2">
+            <Button onClick={handleGenerateLabel} className="flex-1" disabled={loading}>
+              Genera e Salva Etichetta
+            </Button>
+            <Button onClick={handlePrint} variant="outline">
+              Stampa
+            </Button>
           </div>
         </div>
 
         <div className="space-y-4">
-          <LabelPreview
-            title={formData.recipeName || "Seleziona semilavorato"}
+          <TrackedLabelPreview
+            title={selectedIngredientData?.name || "Seleziona ingrediente"}
             type="Semilavorato"
-            productionDate={formData.productionDate}
-            expiryDate={formData.expiryDate}
-            batchNumber={formData.batchNumber}
+            productionDate={productionDate}
+            expiryDate={expiryDate}
+            batchNumber={batchNumber}
             qrData={generateQRData()}
-            storageInstructions={formData.storageInstructions}
-            quantity={formData.quantity}
-            unit={formData.unit}
+            storageInstructions={storageInstructions}
+            quantity={parseFloat(quantity) || undefined}
+            unit={selectedIngredientData?.unit}
+            supplier={selectedIngredientData?.supplier}
           />
         </div>
-      </div>
-
-      <div className="flex justify-end space-x-2 pt-4 border-t">
-        <Button variant="outline" onClick={onClose}>
-          Annulla
-        </Button>
-        <Button onClick={handlePrint} disabled={!formData.recipeId || !formData.batchNumber}>
-          Stampa Etichetta
-        </Button>
       </div>
     </div>
   );

@@ -130,8 +130,8 @@ export const useFoodCostData = () => {
       // Trasforma i dati dei piatti per appiattire la categoria
       const transformedDishesData = dishesData?.map(dish => ({
         ...dish,
-        // Modifica: accedi al nome della categoria tramite l'oggetto 'category' restituito dalla query
-        category: dish.category?.name || 'Senza categoria' 
+        // Accedi al nome della categoria tramite l'oggetto 'category' restituito dalla query
+        category: dish.category?.name || 'Senza categoria'
       }));
 
       // Fetch ricette standalone per il ristorante corrente (non ancora associate a piatti)

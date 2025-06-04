@@ -22,7 +22,7 @@ interface RecipeBasicInfoFormProps {
   onFormDataChange: (data: Partial<RecipeBasicInfoFormProps['formData']>) => void;
 }
 
-const RecipeBasicInfoForm = ({ form, isEditMode = false }: RecipeBasicInfoFormProps) => {
+const RecipeBasicInfoForm = ({ formData, onFormDataChange }: RecipeBasicInfoFormProps) => {
   const { categories } = useCategories();
   const difficulties = ["Bassa", "Media", "Alta"];
 

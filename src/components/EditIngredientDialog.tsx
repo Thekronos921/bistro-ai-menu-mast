@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -10,7 +9,7 @@ import { Package, Info, Calendar } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { useCategories } from '@/hooks/useCategories'; // Potrebbe essere necessario un hook specifico per le categorie di ingredienti
+import { useCategories } from '@/hooks/useCategories';
 
 interface Ingredient {
   id: string;
@@ -36,12 +35,13 @@ interface Ingredient {
 
 interface EditIngredientDialogProps {
   ingredient: Ingredient;
-  onClose: () => void;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
   onIngredientUpdated: () => void;
 }
 
-const EditIngredientDialog = ({ open, onOpenChange, ingredient, onIngredientUpdated }: EditIngredientDialogProps) => {
-  const { categories } = useCategories(); // Adattare se si usa un hook specifico
+const EditIngredientDialog = ({ ingredient, open, onOpenChange, onIngredientUpdated }: EditIngredientDialogProps) => {
+  const { categories } = useCategories();
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
   const [formData, setFormData] = useState({
@@ -64,7 +64,6 @@ const EditIngredientDialog = ({ open, onOpenChange, ingredient, onIngredientUpda
   });
 
   const units = ["g", "kg", "ml", "l", "pz", "cucchiai", "cucchiaini", "tazze"];
-  // const categories = ["Carni", "Pesce", "Verdure", "Frutta", "Cereali", "Latticini", "Uova", "Legumi", "Oli e Grassi", "Bevande", "Dolci", "Salse", "Spezie", "Altro"];
 
   const calculateEffectiveCost = () => {
     if (formData.cost_per_unit <= 0 || formData.yield_percentage <= 0) return 0;
@@ -136,7 +135,7 @@ const EditIngredientDialog = ({ open, onOpenChange, ingredient, onIngredientUpda
         description: "Ingrediente aggiornato con successo"
       });
 
-      onClose();
+      onOpenChange(false);
       onIngredientUpdated();
     } catch (error) {
       toast({
@@ -151,7 +150,7 @@ const EditIngredientDialog = ({ open, onOpenChange, ingredient, onIngredientUpda
 
   return (
     <TooltipProvider>
-      <Dialog open={true} onOpenChange={onClose}>
+      <Dialog open={open} onOpenChange={onOpenChange}>
         <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center space-x-2">
@@ -389,7 +388,7 @@ const EditIngredientDialog = ({ open, onOpenChange, ingredient, onIngredientUpda
           </div>
 
           <div className="flex justify-end space-x-2 pt-4">
-            <Button variant="outline" onClick={onClose}>
+            <Button variant="outline" onClick={() => onOpenChange(false)}>
               Annulla
             </Button>
             <Button onClick={handleSubmit} disabled={loading}>

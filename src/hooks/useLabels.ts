@@ -131,13 +131,14 @@ export const useLabels = () => {
 
     setLoading(true);
     try {
+      console.log('Fetching labels with filters:', filters);
+      
+      // First, get basic label data
       let query = supabase
         .from('labels')
         .select(`
           *,
-          storage_locations(name, type),
-          ingredients(name, unit),
-          recipes(name, portions)
+          storage_locations(name, type)
         `)
         .eq('restaurant_id', restaurantId)
         .order('created_at', { ascending: false });
@@ -160,10 +161,50 @@ export const useLabels = () => {
         query = query.lte('expiry_date', threeDaysFromNow.toISOString().split('T')[0]);
       }
 
-      const { data, error } = await query;
+      const { data: labelsData, error: labelsError } = await query;
 
-      if (error) throw error;
-      return data || [];
+      if (labelsError) {
+        console.error('Error fetching labels:', labelsError);
+        throw labelsError;
+      }
+
+      console.log('Raw labels data:', labelsData);
+
+      // Now enrich the data with ingredients and recipes information
+      const enrichedLabels = await Promise.all((labelsData || []).map(async (label) => {
+        let enrichedLabel = { ...label };
+
+        // Get ingredient info if this label is linked to an ingredient
+        if (label.ingredient_id) {
+          const { data: ingredient } = await supabase
+            .from('ingredients')
+            .select('name, unit')
+            .eq('id', label.ingredient_id)
+            .single();
+          
+          if (ingredient) {
+            enrichedLabel.ingredients = ingredient;
+          }
+        }
+
+        // Get recipe info if this label is linked to a recipe
+        if (label.recipe_id) {
+          const { data: recipe } = await supabase
+            .from('recipes')
+            .select('name, portions')
+            .eq('id', label.recipe_id)
+            .single();
+          
+          if (recipe) {
+            enrichedLabel.recipes = recipe;
+          }
+        }
+
+        return enrichedLabel;
+      }));
+
+      console.log('Enriched labels:', enrichedLabels);
+      return enrichedLabels;
     } catch (error: any) {
       console.error('Error fetching labels:', error);
       toast({

@@ -51,9 +51,8 @@ export class CassaInCloudImporter {
     try {
       console.log(`Inizio importazione prodotti per ristorante: ${this.restaurantIdSupabase}`);
       
-      // Recupero prodotti
-      const params: Types.GetProductsParams = { ...filterParams };
-      const products = await Service.getProducts(params, this.apiKeyOverride);
+      // Recupero prodotti - fix: pass the correct parameter type
+      const products = await Service.getProducts(filterParams || {}, this.apiKeyOverride);
       
       console.log(`Importati ${products.length} prodotti`);
       

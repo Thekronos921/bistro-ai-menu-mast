@@ -1,423 +1,341 @@
+
 import React, { useState, useEffect } from 'react';
-import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { AlertTriangle, Package, Clock, MapPin } from 'lucide-react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Input } from '@/components/ui/input';
+import { Calendar, Package, Clock, AlertTriangle, Filter, Search } from 'lucide-react';
 import { useLabels } from '@/hooks/useLabels';
 import { useStorageLocations } from '@/hooks/useStorageLocations';
 import { useInventoryTracking } from '@/hooks/useInventoryTracking';
+import StorageLocationManager from './StorageLocationManager';
 
-interface LabelData {
+interface EnrichedLabel {
   id: string;
-  title: string;
   label_type: string;
-  status: string;
+  title: string;
+  batch_number?: string;
+  production_date?: string;
+  expiry_date?: string;
   quantity?: number;
   unit?: string;
-  batch_number?: string;
-  expiry_date?: string;
+  status?: string;
+  storage_location_id?: string;
+  ingredient_name?: string;
+  ingredient_unit?: string;
+  recipe_name?: string;
+  recipe_portions?: number;
   storage_locations?: {
     name: string;
     type: string;
   };
-  ingredients?: {
-    name: string;
-  };
-  recipes?: {
-    name: string;
-    portions: number;
-  };
+  created_at: string;
 }
 
 const InventoryTrackingDashboard = () => {
-  const [labels, setLabels] = useState<LabelData[]>([]);
-  const [filteredLabels, setFilteredLabels] = useState<LabelData[]>([]);
-  const [selectedStorageLocation, setSelectedStorageLocation] = useState<string>('all');
-  
-  const { fetchLabels, loading } = useLabels();
+  const { fetchLabels, updateLabelStatus, loading: labelsLoading } = useLabels();
   const { storageLocations } = useStorageLocations();
-  const { consumeOrDiscardLabel, loading: actionLoading } = useInventoryTracking();
+  const { consumeOrDiscardLabel } = useInventoryTracking();
+  
+  const [labels, setLabels] = useState<EnrichedLabel[]>([]);
+  const [filteredLabels, setFilteredLabels] = useState<EnrichedLabel[]>([]);
+  const [filters, setFilters] = useState({
+    label_type: '',
+    status: '',
+    storage_location_id: '',
+    search: ''
+  });
+
+  const loadLabels = async () => {
+    try {
+      const data = await fetchLabels();
+      console.log('Loaded labels:', data);
+      const typedData = data as EnrichedLabel[];
+      setLabels(typedData);
+      setFilteredLabels(typedData);
+    } catch (error) {
+      console.error('Error loading labels:', error);
+    }
+  };
 
   useEffect(() => {
     loadLabels();
   }, []);
 
   useEffect(() => {
-    filterLabels();
-  }, [labels, selectedStorageLocation]);
+    let filtered = labels;
 
-  const loadLabels = async () => {
-    try {
-      console.log('Loading labels...');
-      const data = await fetchLabels({ status: 'active' });
-      console.log('Loaded labels:', data);
-      setLabels((data as LabelData[]) || []);
-    } catch (error) {
-      console.error('Error loading labels:', error);
-      setLabels([]);
+    if (filters.label_type) {
+      filtered = filtered.filter(label => label.label_type === filters.label_type);
     }
-  };
 
-  const filterLabels = () => {
-    let filtered = labels || [];
-    
-    if (selectedStorageLocation !== 'all') {
+    if (filters.status) {
+      filtered = filtered.filter(label => label.status === filters.status);
+    }
+
+    if (filters.storage_location_id) {
+      filtered = filtered.filter(label => label.storage_location_id === filters.storage_location_id);
+    }
+
+    if (filters.search) {
       filtered = filtered.filter(label => 
-        label.storage_locations?.name === selectedStorageLocation
+        label.title.toLowerCase().includes(filters.search.toLowerCase()) ||
+        (label.batch_number && label.batch_number.toLowerCase().includes(filters.search.toLowerCase()))
       );
     }
-    
-    console.log('Filtered labels:', filtered);
-    setFilteredLabels(filtered);
-  };
 
-  const handleConsumeOrDiscard = async (labelId: string, action: 'consumed' | 'discarded') => {
-    const success = await consumeOrDiscardLabel(labelId, action);
-    if (success) {
+    setFilteredLabels(filtered);
+  }, [labels, filters]);
+
+  const handleStatusUpdate = async (labelId: string, newStatus: 'consumed' | 'discarded') => {
+    try {
+      if (newStatus === 'consumed' || newStatus === 'discarded') {
+        await consumeOrDiscardLabel(labelId, newStatus);
+      } else {
+        await updateLabelStatus(labelId, newStatus);
+      }
       await loadLabels();
+    } catch (error) {
+      console.error('Error updating label status:', error);
     }
   };
 
   const getStatusBadge = (status: string) => {
-    const statusConfig = {
-      active: { color: 'default', text: 'Attivo' },
-      consumed: { color: 'secondary', text: 'Consumato' },
-      discarded: { color: 'destructive', text: 'Scartato' },
-      expired: { color: 'destructive', text: 'Scaduto' }
+    const variants: Record<string, 'default' | 'secondary' | 'destructive' | 'outline'> = {
+      'active': 'default',
+      'consumed': 'secondary',
+      'expired': 'destructive',
+      'discarded': 'destructive'
     };
-    
-    const config = statusConfig[status as keyof typeof statusConfig] || statusConfig.active;
-    return <Badge variant={config.color as any}>{config.text}</Badge>;
+    return <Badge variant={variants[status] || 'outline'}>{status}</Badge>;
   };
 
-  const getExpiryStatus = (expiryDate: string) => {
-    if (!expiryDate) return null;
-    
-    const today = new Date();
+  const getTypeBadge = (type: string) => {
+    const colors: Record<string, string> = {
+      'semilavorato': 'bg-blue-100 text-blue-800',
+      'lavorato': 'bg-green-100 text-green-800',
+      'recipe': 'bg-purple-100 text-purple-800',
+      'defrosted': 'bg-orange-100 text-orange-800',
+      'ingredient': 'bg-gray-100 text-gray-800'
+    };
+    return (
+      <Badge className={colors[type] || 'bg-gray-100 text-gray-800'}>
+        {type}
+      </Badge>
+    );
+  };
+
+  const isExpiring = (expiryDate: string) => {
+    if (!expiryDate) return false;
     const expiry = new Date(expiryDate);
-    const diffDays = Math.ceil((expiry.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+    const threeDaysFromNow = new Date();
+    threeDaysFromNow.setDate(threeDaysFromNow.getDate() + 3);
+    return expiry <= threeDaysFromNow;
+  };
+
+  const getExpiryWarning = (expiryDate: string) => {
+    if (!expiryDate) return null;
+    const expiry = new Date(expiryDate);
+    const today = new Date();
+    const diffTime = expiry.getTime() - today.getTime();
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
     
     if (diffDays < 0) {
-      return <Badge variant="destructive">Scaduto</Badge>;
+      return <span className="text-red-600 font-medium">Scaduto {Math.abs(diffDays)} giorni fa</span>;
     } else if (diffDays <= 3) {
-      return <Badge variant="secondary">Scade tra {diffDays} giorni</Badge>;
+      return <span className="text-orange-600 font-medium">Scade in {diffDays} giorni</span>;
     }
     return null;
   };
 
-  const getLabelTypeIcon = (type: string) => {
-    const icons = {
-      defrosted: '🧊',
-      recipe: '👨‍🍳',
-      semilavorato: '📦',
-      lavorato: '🍽️'
-    };
-    return icons[type as keyof typeof icons] || '📋';
-  };
-
-  const groupedLabels = (filteredLabels || []).reduce((acc: Record<string, LabelData[]>, label) => {
-    const storageLocation = label.storage_locations?.name || 'Senza posizione';
-    if (!acc[storageLocation]) {
-      acc[storageLocation] = [];
-    }
-    acc[storageLocation].push(label);
-    return acc;
-  }, {});
-
-  const locationEntries = Object.entries(groupedLabels);
-
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center p-8">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-          <p className="mt-4 text-gray-600">Caricamento inventario...</p>
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h2 className="text-2xl font-bold">Inventario Tracciato</h2>
-        <div className="flex items-center space-x-4">
-          <Select value={selectedStorageLocation} onValueChange={setSelectedStorageLocation}>
-            <SelectTrigger className="w-48">
-              <SelectValue placeholder="Filtra per posizione" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Tutte le posizioni</SelectItem>
-              {(storageLocations || []).map((location) => (
-                <SelectItem key={location.id} value={location.name}>
-                  {location.name} ({location.type})
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-      </div>
-
-      <Tabs defaultValue="by-location" className="w-full">
-        <TabsList>
-          <TabsTrigger value="by-location">Per Posizione</TabsTrigger>
-          <TabsTrigger value="by-type">Per Tipo</TabsTrigger>
-          <TabsTrigger value="expiring">In Scadenza</TabsTrigger>
+      <Tabs defaultValue="labels" className="w-full">
+        <TabsList className="grid w-full grid-cols-2">
+          <TabsTrigger value="labels">Etichette Tracciate</TabsTrigger>
+          <TabsTrigger value="storage">Posizioni Storage</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="by-location" className="space-y-4">
-          {locationEntries.length === 0 ? (
+        <TabsContent value="labels" className="space-y-6">
+          {/* Filters */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Filter className="w-5 h-5" />
+                Filtri
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <div>
+                  <Input
+                    placeholder="Cerca per titolo o lotto..."
+                    value={filters.search}
+                    onChange={(e) => setFilters(prev => ({ ...prev, search: e.target.value }))}
+                    className="w-full"
+                  />
+                </div>
+                
+                <Select onValueChange={(value) => setFilters(prev => ({ ...prev, label_type: value }))}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Tipo etichetta" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="">Tutti i tipi</SelectItem>
+                    <SelectItem value="semilavorato">Semilavorato</SelectItem>
+                    <SelectItem value="lavorato">Lavorato</SelectItem>
+                    <SelectItem value="recipe">Ricetta</SelectItem>
+                    <SelectItem value="defrosted">Scongelato</SelectItem>
+                    <SelectItem value="ingredient">Ingrediente</SelectItem>
+                  </SelectContent>
+                </Select>
+
+                <Select onValueChange={(value) => setFilters(prev => ({ ...prev, status: value }))}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Stato" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="">Tutti gli stati</SelectItem>
+                    <SelectItem value="active">Attivo</SelectItem>
+                    <SelectItem value="consumed">Consumato</SelectItem>
+                    <SelectItem value="expired">Scaduto</SelectItem>
+                    <SelectItem value="discarded">Scartato</SelectItem>
+                  </SelectContent>
+                </Select>
+
+                <Select onValueChange={(value) => setFilters(prev => ({ ...prev, storage_location_id: value }))}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Posizione" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="">Tutte le posizioni</SelectItem>
+                    {storageLocations.map((location) => (
+                      <SelectItem key={location.id} value={location.id}>
+                        {location.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Labels Grid */}
+          {labelsLoading ? (
+            <div className="text-center py-8">Caricamento etichette...</div>
+          ) : filteredLabels.length === 0 ? (
             <Card>
-              <CardContent className="p-8 text-center">
-                <p className="text-gray-500">Nessuna etichetta trovata</p>
+              <CardContent className="text-center py-8">
+                <Package className="w-12 h-12 mx-auto text-gray-400 mb-4" />
+                <h3 className="text-lg font-medium text-gray-900 mb-2">Nessuna etichetta trovata</h3>
+                <p className="text-gray-500">
+                  {labels.length === 0 
+                    ? "Non ci sono etichette create. Vai alla sezione Gestione Etichette per crearne una."
+                    : "Nessuna etichetta corrisponde ai filtri selezionati."
+                  }
+                </p>
               </CardContent>
             </Card>
           ) : (
-            locationEntries.map(([location, locationLabels]) => (
-              <Card key={location}>
-                <CardHeader>
-                  <CardTitle className="flex items-center space-x-2">
-                    <MapPin className="w-5 h-5" />
-                    <span>{location}</span>
-                    <Badge variant="outline">{locationLabels.length} elementi</Badge>
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                    {locationLabels.map((label) => (
-                      <Card key={label.id} className="relative">
-                        <CardContent className="p-4">
-                          <div className="flex items-start justify-between mb-2">
-                            <div className="flex items-center space-x-2">
-                              <span className="text-2xl">{getLabelTypeIcon(label.label_type)}</span>
-                              <div>
-                                <h4 className="font-medium">{label.title}</h4>
-                                <p className="text-sm text-gray-500 capitalize">{label.label_type}</p>
-                              </div>
-                            </div>
-                            {getStatusBadge(label.status)}
-                          </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {filteredLabels.map((label) => (
+                <Card key={label.id} className="hover:shadow-md transition-shadow">
+                  <CardHeader className="pb-3">
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1">
+                        <h3 className="font-semibold text-lg">{label.title}</h3>
+                        {label.batch_number && (
+                          <p className="text-sm text-gray-600">Lotto: {label.batch_number}</p>
+                        )}
+                      </div>
+                      <div className="flex flex-col gap-1">
+                        {getTypeBadge(label.label_type)}
+                        {getStatusBadge(label.status || 'active')}
+                      </div>
+                    </div>
+                  </CardHeader>
+                  
+                  <CardContent className="space-y-3">
+                    {/* Ingredient or Recipe info */}
+                    {label.ingredient_name && (
+                      <div className="text-sm">
+                        <strong>Ingrediente:</strong> {label.ingredient_name}
+                        {label.quantity && label.ingredient_unit && (
+                          <span> - {label.quantity} {label.ingredient_unit}</span>
+                        )}
+                      </div>
+                    )}
+                    
+                    {label.recipe_name && (
+                      <div className="text-sm">
+                        <strong>Ricetta:</strong> {label.recipe_name}
+                        {label.recipe_portions && (
+                          <span> - {label.recipe_portions} porzioni</span>
+                        )}
+                      </div>
+                    )}
 
-                          {label.quantity && (
-                            <p className="text-sm mb-2">
-                              <strong>Quantità:</strong> {label.quantity} {label.unit || ''}
-                            </p>
+                    {/* Dates */}
+                    <div className="space-y-1 text-sm">
+                      {label.production_date && (
+                        <div className="flex items-center gap-2">
+                          <Calendar className="w-4 h-4" />
+                          <span>Prodotto: {new Date(label.production_date).toLocaleDateString('it-IT')}</span>
+                        </div>
+                      )}
+                      
+                      {label.expiry_date && (
+                        <div className="flex items-center gap-2">
+                          <Clock className="w-4 h-4" />
+                          <span>Scade: {new Date(label.expiry_date).toLocaleDateString('it-IT')}</span>
+                          {isExpiring(label.expiry_date) && (
+                            <AlertTriangle className="w-4 h-4 text-orange-500" />
                           )}
+                        </div>
+                      )}
+                      
+                      {getExpiryWarning(label.expiry_date || '')}
+                    </div>
 
-                          {label.batch_number && (
-                            <p className="text-sm mb-2">
-                              <strong>Lotto:</strong> {label.batch_number}
-                            </p>
-                          )}
+                    {/* Storage Location */}
+                    {label.storage_locations && (
+                      <div className="text-sm">
+                        <strong>Posizione:</strong> {label.storage_locations.name}
+                      </div>
+                    )}
 
-                          {label.expiry_date && (
-                            <div className="flex items-center space-x-2 mb-2">
-                              <Clock className="w-4 h-4" />
-                              <span className="text-sm">Scade: {new Date(label.expiry_date).toLocaleDateString()}</span>
-                              {getExpiryStatus(label.expiry_date)}
-                            </div>
-                          )}
-
-                          {label.ingredients && (
-                            <p className="text-sm mb-2">
-                              <strong>Ingrediente:</strong> {label.ingredients.name}
-                            </p>
-                          )}
-
-                          {label.recipes && (
-                            <p className="text-sm mb-2">
-                              <strong>Ricetta:</strong> {label.recipes.name} ({label.recipes.portions} porzioni)
-                            </p>
-                          )}
-
-                          {label.status === 'active' && (
-                            <div className="flex space-x-2 mt-4">
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={() => handleConsumeOrDiscard(label.id, 'consumed')}
-                                disabled={actionLoading}
-                                className="flex-1"
-                              >
-                                Consuma
-                              </Button>
-                              <Button
-                                size="sm"
-                                variant="destructive"
-                                onClick={() => handleConsumeOrDiscard(label.id, 'discarded')}
-                                disabled={actionLoading}
-                                className="flex-1"
-                              >
-                                Scarta
-                              </Button>
-                            </div>
-                          )}
-                        </CardContent>
-                      </Card>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
-            ))
+                    {/* Actions */}
+                    {label.status === 'active' && (
+                      <div className="flex gap-2 pt-2">
+                        <Button 
+                          size="sm" 
+                          variant="outline"
+                          onClick={() => handleStatusUpdate(label.id, 'consumed')}
+                          className="flex-1"
+                        >
+                          Consuma
+                        </Button>
+                        <Button 
+                          size="sm" 
+                          variant="outline"
+                          onClick={() => handleStatusUpdate(label.id, 'discarded')}
+                          className="flex-1"
+                        >
+                          Scarta
+                        </Button>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
           )}
         </TabsContent>
 
-        <TabsContent value="by-type" className="space-y-4">
-          {['defrosted', 'recipe', 'semilavorato', 'lavorato'].map((type) => {
-            const typeLabels = (filteredLabels || []).filter(label => label.label_type === type);
-            if (typeLabels.length === 0) return null;
-
-            return (
-              <Card key={type}>
-                <CardHeader>
-                  <CardTitle className="flex items-center space-x-2">
-                    <span className="text-2xl">{getLabelTypeIcon(type)}</span>
-                    <span className="capitalize">{type}</span>
-                    <Badge variant="outline">{typeLabels.length} elementi</Badge>
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                    {typeLabels.map((label) => (
-                      <Card key={label.id}>
-                        <CardContent className="p-4">
-                          <div className="flex items-start justify-between mb-2">
-                            <h4 className="font-medium">{label.title}</h4>
-                            {getStatusBadge(label.status)}
-                          </div>
-
-                          {label.storage_locations && (
-                            <p className="text-sm mb-2">
-                              <MapPin className="w-4 h-4 inline mr-1" />
-                              {label.storage_locations.name}
-                            </p>
-                          )}
-
-                          {label.quantity && (
-                            <p className="text-sm mb-2">
-                              <Package className="w-4 h-4 inline mr-1" />
-                              {label.quantity} {label.unit || ''}
-                            </p>
-                          )}
-
-                          {label.expiry_date && getExpiryStatus(label.expiry_date)}
-
-                          {label.status === 'active' && (
-                            <div className="flex space-x-2 mt-4">
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={() => handleConsumeOrDiscard(label.id, 'consumed')}
-                                disabled={actionLoading}
-                                className="flex-1"
-                              >
-                                Consuma
-                              </Button>
-                              <Button
-                                size="sm"
-                                variant="destructive"
-                                onClick={() => handleConsumeOrDiscard(label.id, 'discarded')}
-                                disabled={actionLoading}
-                                className="flex-1"
-                              >
-                                Scarta
-                              </Button>
-                            </div>
-                          )}
-                        </CardContent>
-                      </Card>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
-            );
-          })}
-        </TabsContent>
-
-        <TabsContent value="expiring" className="space-y-4">
-          {(() => {
-            const today = new Date();
-            const threeDaysFromNow = new Date();
-            threeDaysFromNow.setDate(today.getDate() + 3);
-            
-            const expiringLabels = (filteredLabels || []).filter(label => {
-              if (!label.expiry_date || label.status !== 'active') return false;
-              const expiryDate = new Date(label.expiry_date);
-              return expiryDate <= threeDaysFromNow;
-            });
-
-            if (expiringLabels.length === 0) {
-              return (
-                <Card>
-                  <CardContent className="p-8 text-center">
-                    <p className="text-gray-500">Nessun elemento in scadenza nei prossimi 3 giorni</p>
-                  </CardContent>
-                </Card>
-              );
-            }
-
-            return (
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center space-x-2">
-                    <AlertTriangle className="w-5 h-5 text-orange-500" />
-                    <span>Elementi in Scadenza</span>
-                    <Badge variant="secondary">{expiringLabels.length} elementi</Badge>
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                    {expiringLabels.map((label) => (
-                      <Card key={label.id} className="border-orange-200">
-                        <CardContent className="p-4">
-                          <div className="flex items-start justify-between mb-2">
-                            <div className="flex items-center space-x-2">
-                              <span className="text-2xl">{getLabelTypeIcon(label.label_type)}</span>
-                              <div>
-                                <h4 className="font-medium">{label.title}</h4>
-                                <p className="text-sm text-gray-500 capitalize">{label.label_type}</p>
-                              </div>
-                            </div>
-                            {label.expiry_date && getExpiryStatus(label.expiry_date)}
-                          </div>
-
-                          {label.storage_locations && (
-                            <p className="text-sm mb-2">
-                              <MapPin className="w-4 h-4 inline mr-1" />
-                              {label.storage_locations.name}
-                            </p>
-                          )}
-
-                          <div className="flex space-x-2 mt-4">
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => handleConsumeOrDiscard(label.id, 'consumed')}
-                              disabled={actionLoading}
-                              className="flex-1"
-                            >
-                              Consuma
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="destructive"
-                              onClick={() => handleConsumeOrDiscard(label.id, 'discarded')}
-                              disabled={actionLoading}
-                              className="flex-1"
-                            >
-                              Scarta
-                            </Button>
-                          </div>
-                        </CardContent>
-                      </Card>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
-            );
-          })()}
+        <TabsContent value="storage">
+          <StorageLocationManager />
         </TabsContent>
       </Tabs>
     </div>

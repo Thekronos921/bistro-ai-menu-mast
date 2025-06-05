@@ -103,11 +103,7 @@ export const useInventoryTracking = () => {
           notes: notes
         });
 
-      toast({
-        title: "Ingrediente allocato",
-        description: `${quantity} unità di ${ingredient.name} allocate con successo`
-      });
-
+      console.log(`Allocated ${quantity} units of ${ingredient.name} to label ${labelId}`);
       return true;
     } catch (error: any) {
       console.error('Error allocating ingredient:', error);
@@ -131,6 +127,17 @@ export const useInventoryTracking = () => {
 
     setLoading(true);
     try {
+      // Get label info to determine the logic
+      const { data: label, error: labelError } = await supabase
+        .from('labels')
+        .select('label_type, title')
+        .eq('id', labelId)
+        .single();
+
+      if (labelError) throw labelError;
+
+      console.log(`Processing ${action} for label: ${label.title} (type: ${label.label_type})`);
+
       // Get all allocations for this label
       const { data: allocations, error: allocationsError } = await supabase
         .from('ingredient_allocations')
@@ -139,16 +146,19 @@ export const useInventoryTracking = () => {
 
       if (allocationsError) throw allocationsError;
 
-      // For recipe labels, reduce current_stock; for defrosted, just deallocate
-      const { data: label, error: labelError } = await supabase
-        .from('labels')
-        .select('label_type')
-        .eq('id', labelId)
-        .single();
+      /*
+       * LOGICA DI AGGIORNAMENTO STOCK PER TIPO DI ETICHETTA:
+       * 
+       * 1. SEMILAVORATO/LAVORATO/RECIPE: Quando consumate/scartate, riducono il current_stock
+       *    perché rappresentano prodotti finiti che vengono serviti ai clienti
+       * 
+       * 2. DEFROSTED/INGREDIENT: Quando consumate/scartate, NON riducono il current_stock
+       *    perché rappresentano solo l'allocazione di ingredienti già esistenti
+       *    (es. ingrediente scongelato che viene usato in una ricetta)
+       */
+      const shouldReduceStock = ['semilavorato', 'lavorato', 'recipe'].includes(label.label_type);
 
-      if (labelError) throw labelError;
-
-      const shouldReduceStock = label.label_type === 'recipe' || label.label_type === 'lavorato';
+      console.log(`Should reduce stock for ${label.label_type}: ${shouldReduceStock}`);
 
       for (const allocation of allocations) {
         const { data: ingredient, error: ingredientError } = await supabase
@@ -161,23 +171,36 @@ export const useInventoryTracking = () => {
 
         const currentStock = ingredient.current_stock || 0;
         const allocatedStock = ingredient.allocated_stock || 0;
-        const newAllocatedStock = allocatedStock - allocation.allocated_quantity;
+        const newAllocatedStock = Math.max(0, allocatedStock - allocation.allocated_quantity);
+        
+        // Only reduce current stock for finished products (semilavorato, lavorato, recipe)
         const newCurrentStock = shouldReduceStock 
-          ? currentStock - allocation.allocated_quantity 
+          ? Math.max(0, currentStock - allocation.allocated_quantity)
           : currentStock;
+
+        console.log(`Ingredient ${ingredient.name}:`, {
+          currentStock,
+          allocatedStock,
+          allocationQuantity: allocation.allocated_quantity,
+          newCurrentStock,
+          newAllocatedStock,
+          shouldReduceStock
+        });
 
         // Update ingredient stock
         const { error: updateError } = await supabase
           .from('ingredients')
           .update({
-            current_stock: Math.max(0, newCurrentStock),
-            allocated_stock: Math.max(0, newAllocatedStock)
+            current_stock: newCurrentStock,
+            allocated_stock: newAllocatedStock
           })
           .eq('id', allocation.ingredient_id);
 
         if (updateError) throw updateError;
 
-        // Record movement
+        // Record movement with the correct logic
+        const quantityChange = shouldReduceStock ? -allocation.allocated_quantity : 0;
+        
         await supabase
           .from('inventory_movements')
           .insert({
@@ -185,11 +208,11 @@ export const useInventoryTracking = () => {
             ingredient_id: allocation.ingredient_id,
             label_id: labelId,
             movement_type: action,
-            quantity_change: shouldReduceStock ? -allocation.allocated_quantity : 0,
+            quantity_change: quantityChange,
             quantity_before: currentStock,
-            quantity_after: Math.max(0, newCurrentStock),
+            quantity_after: newCurrentStock,
             allocated_quantity_change: -allocation.allocated_quantity,
-            notes: notes
+            notes: notes || `${action === 'consumed' ? 'Consumo' : 'Scarto'} etichetta ${label.label_type}: ${label.title}`
           });
       }
 
@@ -246,6 +269,8 @@ export const useInventoryTracking = () => {
 
       if (recipeError) throw recipeError;
 
+      console.log(`Allocating ingredients for recipe ${recipeId}, ${portions} portions`);
+
       // Check if all ingredients are available
       for (const ri of recipeIngredients) {
         const neededQuantity = ri.quantity * portions;
@@ -265,9 +290,19 @@ export const useInventoryTracking = () => {
       // Allocate all ingredients
       for (const ri of recipeIngredients) {
         const neededQuantity = ri.quantity * portions;
-        await allocateIngredient(ri.ingredient_id, labelId, neededQuantity, notes);
+        const success = await allocateIngredient(
+          ri.ingredient_id, 
+          labelId, 
+          neededQuantity, 
+          notes || `Allocazione per ricetta (${portions} porzioni)`
+        );
+        
+        if (!success) {
+          throw new Error(`Failed to allocate ingredient ${ri.ingredient_id}`);
+        }
       }
 
+      console.log(`Successfully allocated all ingredients for recipe ${recipeId}`);
       return true;
     } catch (error: any) {
       console.error('Error allocating recipe ingredients:', error);

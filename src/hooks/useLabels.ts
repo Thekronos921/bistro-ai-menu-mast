@@ -24,7 +24,7 @@ export interface LabelData {
   dish_id?: string;
   storage_location_id?: string;
   ingredient_traceability?: any[];
-  portions?: number; // For recipe labels
+  portions?: number;
 }
 
 export const useLabels = () => {
@@ -133,7 +133,6 @@ export const useLabels = () => {
     try {
       console.log('Fetching labels with filters:', filters);
       
-      // First, get basic label data
       let query = supabase
         .from('labels')
         .select(`
@@ -168,35 +167,45 @@ export const useLabels = () => {
         throw labelsError;
       }
 
-      console.log('Raw labels data:', labelsData);
+      console.log('Labels data fetched:', labelsData);
 
-      // Now enrich the data with ingredients and recipes information
+      // Enrich with ingredient and recipe data separately to avoid join issues
       const enrichedLabels = await Promise.all((labelsData || []).map(async (label) => {
         let enrichedLabel = { ...label };
 
         // Get ingredient info if this label is linked to an ingredient
         if (label.ingredient_id) {
-          const { data: ingredient } = await supabase
-            .from('ingredients')
-            .select('name, unit')
-            .eq('id', label.ingredient_id)
-            .single();
-          
-          if (ingredient) {
-            enrichedLabel.ingredients = ingredient;
+          try {
+            const { data: ingredient } = await supabase
+              .from('ingredients')
+              .select('name, unit')
+              .eq('id', label.ingredient_id)
+              .single();
+            
+            if (ingredient) {
+              enrichedLabel.ingredient_name = ingredient.name;
+              enrichedLabel.ingredient_unit = ingredient.unit;
+            }
+          } catch (error) {
+            console.warn('Could not fetch ingredient for label:', label.id);
           }
         }
 
         // Get recipe info if this label is linked to a recipe
         if (label.recipe_id) {
-          const { data: recipe } = await supabase
-            .from('recipes')
-            .select('name, portions')
-            .eq('id', label.recipe_id)
-            .single();
-          
-          if (recipe) {
-            enrichedLabel.recipes = recipe;
+          try {
+            const { data: recipe } = await supabase
+              .from('recipes')
+              .select('name, portions')
+              .eq('id', label.recipe_id)
+              .single();
+            
+            if (recipe) {
+              enrichedLabel.recipe_name = recipe.name;
+              enrichedLabel.recipe_portions = recipe.portions;
+            }
+          } catch (error) {
+            console.warn('Could not fetch recipe for label:', label.id);
           }
         }
 

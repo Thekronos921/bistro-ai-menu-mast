@@ -153,8 +153,8 @@ export const useInventoryTracking = () => {
        *    perché rappresentano prodotti finiti che vengono serviti ai clienti
        * 
        * 2. DEFROSTED/INGREDIENT: Quando consumate/scartate, NON riducono il current_stock
-       *    perché rappresentano solo l'allocazione di ingredienti già esistenti
-       *    (es. ingrediente scongelato che viene usato in una ricetta)
+       *    perché rappresentano solo l'allocazione di ingredienti già esistenti.
+       *    In questo caso liberiamo solo l'allocazione per rendere di nuovo disponibile l'ingrediente.
        */
       const shouldReduceStock = ['semilavorato', 'lavorato', 'recipe'].includes(label.label_type);
 
@@ -171,6 +171,8 @@ export const useInventoryTracking = () => {
 
         const currentStock = ingredient.current_stock || 0;
         const allocatedStock = ingredient.allocated_stock || 0;
+        
+        // Always reduce allocated stock when consuming/discarding
         const newAllocatedStock = Math.max(0, allocatedStock - allocation.allocated_quantity);
         
         // Only reduce current stock for finished products (semilavorato, lavorato, recipe)
@@ -214,6 +216,8 @@ export const useInventoryTracking = () => {
             allocated_quantity_change: -allocation.allocated_quantity,
             notes: notes || `${action === 'consumed' ? 'Consumo' : 'Scarto'} etichetta ${label.label_type}: ${label.title}`
           });
+
+        console.log(`Updated ${ingredient.name}: current_stock ${currentStock} -> ${newCurrentStock}, allocated_stock ${allocatedStock} -> ${newAllocatedStock}`);
       }
 
       // Remove allocations

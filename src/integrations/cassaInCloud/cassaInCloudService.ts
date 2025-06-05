@@ -1,127 +1,43 @@
+// Importa le interfacce interne
+import { InternalProduct, InternalProductVariant } from '@/types/internalProduct';
+
+// Importa la funzione di mapping
+import { mapCassaInCloudProductToInternalProduct } from './cassaInCloudDataMapper';
+
+// Importa le interfacce dal file dei tipi
+import { 
+  AccessTokenResponse,
+  StoredToken,
+  CassaInCloudCurrency, 
+  CassaInCloudSalesPoint, 
+  CassaInCloudProduct,
+  CassaInCloudCategory,
+  CassaInCloudDepartment,
+  CassaInCloudPrice,
+  CassaInCloudProductVariantAPI,
+  CassaInCloudStock,
+  CassaInCloudSoldByProduct,
+  GetProductsParams, 
+  GetCategoriesParams,
+  GetSoldByProductParams,
+  GetSoldByProductApiResponse,
+  GetCategoriesApiResponse,
+  GetProductsApiResponse,
+  GetStockApiResponse,
+  GetSalesPointsApiResponse
+} from './cassaInCloudTypes';
+
 // Recuperiamo la chiave API e l'URL dell'API dalle variabili d'ambiente
 const apiKey = import.meta.env.VITE_CASSA_IN_CLOUD_API_KEY;
 const apiUrl = import.meta.env.VITE_CASSA_IN_CLOUD_API_URL || 'https://api.cassanova.com';
-
-// Definiamo una struttura (interfaccia) per la risposta che ci aspettiamo dal server quando richiediamo il token
-interface AccessTokenResponse {
-  access_token: string;
-  expires_in: number; // Durata del token in secondi
-  token_type: string;
-}
-
-// Definiamo una struttura per conservare il token e quando scade
-interface StoredToken {
-  token: string;
-  expiresAt: number; // Timestamp di quando il token scadrà
-}
 
 // Variabile per conservare il token in memoria (per non richiederlo ogni volta)
 let storedAccessToken: StoredToken | null = null;
 let lastUsedApiKeyForToken: string | null = null; // Traccia l'API key usata per il token corrente
 
-// Importa le interfacce interne
-import { InternalProduct, InternalProductVariant } from '@/types/internalProduct';
+// Le interfacce CassaInCloud sono ora importate da cassaInCloudTypes.ts
 
-// Importa la funzione di mapping
-import { mapCassaInCloudProductToInternalProduct } from './cassaInCloudDataMapper'; // <-- DEVE ESSERE SOLO L'IMPORT
-
-// Interfaccia per i parametri della funzione getCategories (opzionali per il chiamante)
-export interface GetCategoriesParams {
-  idsSalesPoint?: string[];
-  description?: string;
-  lastUpdateFrom?: string | number; // Timestamp (milliseconds) or "YYYY-MM-DD"
-  lastUpdateTo?: string | number;   // Timestamp (milliseconds) or "YYYY-MM-DD"
-  enabledForChannels?: string[]; // ProductChannel, ma usiamo string[] per semplicità
-  itemListVisibility?: boolean;
-  // `start` e `limit` sono gestiti internamente per la paginazione completa
-  // `sorts` può essere aggiunto se necessario
-}
-
-// Interfaccia per la risposta dell'API GetCategories
-export interface GetCategoriesApiResponse {
-  categories: CassaInCloudCategory[];
-  totalCount: number;
-}
-
-// Interfacce CassaInCloud aggiornate per riflettere la struttura reale dei dati
-// Assicurati che queste interfacce siano esportate
-export interface CassaInCloudPrice { // Aggiunto export
-  idSalesPoint: string;
-  value: number;
-}
-
-export interface CassaInCloudDepartment { // Aggiunto export
-  id: string;
-  description: string;
-  tax?: { 
-    id: string;
-    description: string;
-    rate: number;
-  };
-}
-
-export interface CassaInCloudCategory { // Aggiunto export
-  id: string;
-  description: string;
-  externalId?: string;
-  idSalesPoint?: string; // Long in API, string qui per coerenza con altri ID
-  enableForRisto?: boolean;
-  enableForSale?: boolean;
-  enableForECommerce?: boolean;
-  enableForMobileCommerce?: boolean;
-  enableForSelfOrderMenu?: boolean;
-  enableForKiosk?: boolean;
-  modifiers?: any[]; // Definire meglio se necessario, per ora any
-  imageUrl?: string;
-  lastUpdate?: number; // Timestamp
-}
-
-export interface CassaInCloudProductVariantAPI { // Aggiunto export
-  id: string;
-  description: string;
-  descriptionReceipt?: string; 
-  // price?: number; 
-}
-
-export interface CassaInCloudProduct { // Aggiunto export
-  id: string;
-  description: string;
-  descriptionLabel?: string; // Aggiunto
-  descriptionReceipt?: string;
-  idDepartment?: string;
-  department?: CassaInCloudDepartment; // Modificato in oggetto
-  idCategory?: string;
-  category?: CassaInCloudCategory; // Modificato in oggetto
-  soldByWeight: boolean;
-  multivariant: boolean;
-  enableForRisto: boolean;
-  enableForSale: boolean;
-  enableForECommerce: boolean;
-  enableForMobileCommerce?: boolean; // Aggiunto come opzionale
-  enableForSelfOrderMenu?: boolean; // Aggiunto come opzionale
-  enableForKiosk?: boolean; // Aggiunto come opzionale
-  internalId?: string; // Aggiunto
-  variants?: CassaInCloudProductVariantAPI[]; // Usa la nuova interfaccia per varianti API
-  prices: CassaInCloudPrice[]; // Modificato in array di oggetti Price
-  idSalesPoint?: string; // Aggiunto
-  lastUpdate: number; // Aggiunto
-  menu?: any; // Lasciato any per ora, da definire meglio se necessario
-  composition?: any; // Lasciato any per ora
-  soldOnlyInCompositions?: boolean; // Aggiunto
-  // Rimuoviamo i campi duplicati o meno specifici come 'price' (ora in 'prices'), 'salable', 'idTax', 'imageUrl', 'externalId'
-  // a meno che non siano effettivamente presenti e utili.
-}
-
-// Interfaccia per la risposta dell'API quando si richiede un elenco di prodotti
-interface GetProductsApiResponse {
-  // La struttura esatta dipende dall'API di Cassa In Cloud.
-  // Spesso le API restituiscono un array di oggetti sotto una chiave come 'data' o direttamente un array.
-  // Ipotizziamo un array diretto per semplicità, o un oggetto con una proprietà 'items' o 'data'.
-  data: CassaInCloudProduct[]; // o semplicemente CassaInCloudProduct[] se l'API restituisce un array
-  total?: number; // Numero totale di prodotti, utile per la paginazione
-  page?: number;
-  pageSize?: number;
-}
+// Le interfacce per le risposte API sono ora importate da cassaInCloudTypes.ts
 
 /**
  * Ottiene un token di accesso da Cassa In Cloud.
@@ -304,7 +220,11 @@ export const getCategories = async (params?: GetCategoriesParams, apiKeyOverride
 // export const getProducts = async (): Promise<CassaInCloudProduct[]> => { ... };
 
 // Manteniamo solo questa versione di getProducts che restituisce InternalProduct[]
-export const getProducts = async (idSalesPoint: string, apiKeyOverride?: string): Promise<InternalProduct[]> => { // Aggiungi idSalesPoint come parametro
+export const getProducts = async (
+  idSalesPoint: string,
+  filterParams?: GetProductsParams, // Parametro aggiunto
+  apiKeyOverride?: string
+): Promise<InternalProduct[]> => {
   const accessToken = await getAccessToken(apiKeyOverride);
   if (!accessToken) {
     console.error('Cannot get products without an access token.');
@@ -313,7 +233,7 @@ export const getProducts = async (idSalesPoint: string, apiKeyOverride?: string)
 
   let allProducts: CassaInCloudProduct[] = []; // Nome corretto della variabile
   let start = 0;
-  const limit = 50;
+  const limit = filterParams?.limit || 50;
   let totalCount = 0;
   let fetchedCount = 0;
 
@@ -321,7 +241,33 @@ export const getProducts = async (idSalesPoint: string, apiKeyOverride?: string)
 
   try {
     do {
-      const productsUrl = `${apiUrl}/products?start=${start}&limit=${limit}`;
+      // Costruiamo l'URL con i parametri di base
+      const urlParams = new URLSearchParams();
+      urlParams.append('start', start.toString());
+      urlParams.append('limit', limit.toString());
+      
+      // Aggiungiamo i parametri di filtro se presenti
+      if (filterParams) {
+        if (filterParams.categoryId) urlParams.append('idCategory', filterParams.categoryId);
+        if (filterParams.searchTerm) urlParams.append('description', filterParams.searchTerm);
+        if (filterParams.idCategories && filterParams.idCategories.length > 0) {
+          filterParams.idCategories.forEach(id => urlParams.append('idCategories[]', id));
+        }
+        if (filterParams.idDepartments && filterParams.idDepartments.length > 0) {
+          filterParams.idDepartments.forEach(id => urlParams.append('idDepartments[]', id));
+        }
+        if (filterParams.idsSalesPoint && filterParams.idsSalesPoint.length > 0) {
+          filterParams.idsSalesPoint.forEach(id => urlParams.append('idsSalesPoint[]', id));
+        }
+        if (filterParams.lastUpdateFrom) urlParams.append('lastUpdateFrom', filterParams.lastUpdateFrom.toString());
+        if (filterParams.lastUpdateTo) urlParams.append('lastUpdateTo', filterParams.lastUpdateTo.toString());
+        if (filterParams.enabledForChannels && filterParams.enabledForChannels.length > 0) {
+          filterParams.enabledForChannels.forEach(channel => urlParams.append('enabledForChannels[]', channel));
+        }
+        if (filterParams.itemListVisibility !== undefined) urlParams.append('itemListVisibility', filterParams.itemListVisibility.toString());
+      }
+      
+      const productsUrl = `${apiUrl}/products?${urlParams.toString()}`;
       console.log(`Fetching products from ${productsUrl}...`);
 
       const response = await fetch(productsUrl, {
@@ -438,12 +384,13 @@ export const getSoldByProductReport = async (params: GetSoldByProductParams, api
   reportUrl.searchParams.append('start', params.start.toString());
   reportUrl.searchParams.append('limit', params.limit.toString());
   // Per datetimeFrom e datetimeTo, l'API si aspetta un timestamp o una stringa YYYY-MM-DD.
-  // Se è una stringa, non dovrebbe essere ulteriormente quotata nell'URL se l'API la interpreta direttamente.
-  // Se l'API si aspetta specificamente una stringa JSON per le date (es. "YYYY-MM-DD"), allora la quotatura è corretta.
-  // Dalla documentazione e dall'errore, sembra che il problema sia con i parametri array, non con le date.
-  // Rimuoviamo la quotatura extra per le date stringa per ora, assumendo che l'API le gestisca come stringhe dirette.
-  reportUrl.searchParams.append('datetimeFrom', typeof params.datetimeFrom === 'number' ? params.datetimeFrom.toString() : params.datetimeFrom);
-  reportUrl.searchParams.append('datetimeTo', typeof params.datetimeTo === 'number' ? params.datetimeTo.toString() : params.datetimeTo);
+  // Non aggiungere virgolette extra nell'URL, poiché l'API gestisce già la formattazione
+  reportUrl.searchParams.append('datetimeFrom', typeof params.datetimeFrom === 'number' 
+    ? params.datetimeFrom.toString() 
+    : params.datetimeFrom);
+  reportUrl.searchParams.append('datetimeTo', typeof params.datetimeTo === 'number' 
+    ? params.datetimeTo.toString() 
+    : params.datetimeTo);
 
   // TEMPORANEAMENTE COMMENTATI PER DEBUG
   /*
@@ -511,109 +458,9 @@ export const getSoldByProductReport = async (params: GetSoldByProductParams, api
 };
 
 
-// Interfacce per lo stock
+// Le interfacce per i report di vendita e lo stock sono ora importate da cassaInCloudTypes.ts
 
-// Interfacce per i report di vendita (GetSoldByProduct)
-export interface CassaInCloudCurrency {
-  id: string;
-  iso: string; // es. "EUR"
-  symbol: string; // es. "€"
-  description: string;
-}
-
-export interface CassaInCloudSoldByProduct {
-  isMenuEntry?: boolean;
-  isCompositionEntry?: boolean;
-  idProduct: string;
-  idMenuProduct?: string;
-  product?: CassaInCloudProduct; // Riusiamo l'interfaccia CassaInCloudProduct esistente
-  menuProduct?: CassaInCloudProduct;
-  quantity: number; // BigDecimal in API, trattato come number qui
-  profit: number; // BigDecimal in API, trattato come number qui
-  percentTotal: number; // BigDecimal in API, trattato come number qui
-}
-
-export interface GetSoldByProductApiResponse {
-  currency: CassaInCloudCurrency;
-  totalCount: number;
-  totalSold: number; // BigDecimal in API, trattato come number qui
-  totalRefund: number; // BigDecimal in API, trattato come number qui
-  totalQuantity: number; // BigDecimal in API, trattato come number qui
-  totalDepartmentSold: number; // BigDecimal in API, trattato come number qui
-  totalDepartmentRefund: number; // BigDecimal in API, trattato come number qui
-  totalDepartmentQuantity: number; // BigDecimal in API, trattato come number qui
-  sold: CassaInCloudSoldByProduct[];
-  start?: number; // Aggiunto per coerenza con la richiesta
-  limit?: number; // Aggiunto per coerenza con la richiesta
-}
-
-// Parametri per la funzione getSoldByProductReport
-export interface GetSoldByProductParams {
-  start: number;
-  limit: number;
-  datetimeFrom: string | number; // Timestamp (milliseconds) or "YYYY-MM-DD"
-  datetimeTo: string | number;   // Timestamp (milliseconds) or "YYYY-MM-DD"
-  idsSalesPoint?: string[];     // Array di ID di punti vendita (long in API, string qui)
-  idProducts?: string[];
-  idDepartments?: string[];
-  idCategories?: string[];
-  menuMode?: 'GROUPED' | 'EXPLODED_WITH_ITEMS' | 'EXPLODED_BUT_SEPARATE';
-  sorts?: any[]; // Definire meglio se necessario, per ora any
-}
-
-export interface CassaInCloudStock {
-  idProduct: string;
-  idSalesPoint: string;
-  idVariant?: string; // Opzionale se lo stock è a livello di prodotto e non di variante
-  quantity: number;
-  unit: string; // Es. 'PZ', 'KG', 'LT'
-  warningLevel?: number;
-  lastUpdate?: number; // Timestamp dell'ultimo aggiornamento stock
-  manageStock?: boolean; // Indica se lo stock è gestito per questo prodotto
-}
-
-interface GetStockApiResponse {
-  // La struttura esatta dipende dall'API di Cassa In Cloud per lo stock.
-  // Ipotizziamo una struttura simile a quella dei prodotti.
-  data: CassaInCloudStock[]; // o CassaInCloudStock se l'API restituisce un singolo oggetto per prodotto/variante
-  // Oppure potrebbe essere una struttura diversa, es:
-  // productId: string;
-  // salesPointId: string;
-  // stockDetails: { quantity: number; unit: string; ... }
-}
-
-// Interfacce per i punti vendita (aggiornate secondo la documentazione)
-export interface CassaInCloudCurrency {
-  id: number;
-  code: string;
-  name: string;
-  numberOfDecimals: number;
-}
-
-export interface CassaInCloudSalesPoint {
-  city: string;
-  country: string;
-  currency: CassaInCloudCurrency;
-  description: string;
-  district: string;
-  email: string;
-  id: number;
-  latitude: number;
-  logoBig: string;
-  logoSmall: string;
-  longitude: number;
-  name: string;
-  phoneNumber: string;
-  street: string;
-  taxCode: string;
-  vatNumber: string;
-  zipcode: string;
-}
-
-export interface GetSalesPointsApiResponse {
-  salesPoint: CassaInCloudSalesPoint[];
-  totalCount: number;
-}
+// Le interfacce per i punti vendita sono ora importate da cassaInCloudTypes.ts
 
 /**
  * Recupera le informazioni di stock per un prodotto specifico in un dato punto vendita.
@@ -744,19 +591,15 @@ export const getSalesPoints = async (apiKeyOverride?: string): Promise<CassaInCl
         street: point.street,
         taxCode: point.taxCode,
         vatNumber: point.vatNumber,
-        zipcode: point.zipcode,
+        zipcode: point.zipcode
       }));
-    console.error('Unexpected response structure for sales points or salesPoint array is missing:', responseData);
-    throw new Error('Unexpected response structure for sales points or salesPoint array is missing');
     }
+    console.error('Unexpected response structure for sales points or salesPoint array is missing:', responseData);
+    return [];
   } catch (error) {
     console.error('Exception while fetching sales points:', error);
     return [];
   }
 };
 
-// Assicurati che la funzione mapCassaInCloudProductToInternalProduct sia definita o importata correttamente
-// Se è definita in questo file, dovrebbe essere qui o prima del suo utilizzo.
-// Se è importata, l'import deve essere presente all'inizio del file.
-
-// export { getAccessToken, getProducts, getProductStock, getSalesPoints }; // Opzionale se usi export individuale
+// Le funzioni sono già esportate individualmente sopra

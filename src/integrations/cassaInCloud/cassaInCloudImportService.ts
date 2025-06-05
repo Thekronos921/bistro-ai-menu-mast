@@ -9,15 +9,20 @@ import {
   type GetCategoriesParams,
   getProducts, 
   type GetProductsParams, // Importa la nuova interfaccia per i parametri di getProducts
-  type CassaInCloudProduct 
+  type CassaInCloudProduct,
+  getSoldByProductReport // Aggiungi questa importazione
 } from './cassaInCloudService';
 import { mapCassaInCloudProductToInternalProduct } from './cassaInCloudDataMapper';
 import type { InternalProduct } from '@/types/internalProduct';
+// Aggiungi anche l'importazione dei tipi necessari se non sono già importati altrove
+import type { GetSoldByProductParams, GetSoldByProductApiResponse } from './cassaInCloudTypes';
 
 export async function importRestaurantCategoriesFromCassaInCloud(
   restaurantIdSupabase: string, // ID del ristorante su Supabase
   cassaInCloudSalesPointIds?: string[], // Opzionale: array di ID dei punti vendita CassaInCloud per filtrare
-  apiKeyOverride?: string // Opzionale: per usare una API key specifica
+  apiKeyOverride?: string, // Opzionale: per usare una API key specifica
+  idSalesPointForPricing?: string, // Parametro aggiunto
+  filterParams?: GetCategoriesParams // Parametro aggiunto
 ): Promise<{ count: number; error?: Error }> {
   try {
     console.log(
@@ -239,5 +244,91 @@ export async function importRestaurantProductsFromCassaInCloud(
       message: 'Errore imprevisto durante l\'importazione dei prodotti.',
       warnings: warnings
     }; 
+  }
+}
+
+
+/**
+ * Importa i dati delle vendite da CassaInCloud
+ * @param restaurantIdSupabase ID del ristorante su Supabase
+ * @param params Parametri per la richiesta del report vendite
+ * @param apiKeyOverride Chiave API opzionale
+ */
+export async function importSalesFromCassaInCloud(
+  restaurantIdSupabase: string,
+  params: GetSoldByProductParams,
+  apiKeyOverride?: string
+): Promise<{ count: number; error?: Error; message?: string; data?: GetSoldByProductApiResponse }> {
+  try {
+    console.log(
+      `Inizio importazione vendite da CassaInCloud per ristorante Supabase: ${restaurantIdSupabase}`
+    );
+    console.log(`Periodo: da ${params.datetimeFrom} a ${params.datetimeTo}`);
+    
+    // 1. Recuperare i dati delle vendite da CassaInCloud
+    const salesData = await getSoldByProductReport(params, apiKeyOverride);
+    
+    if (!salesData) {
+      console.log('Nessun dato di vendita trovato con i parametri forniti.');
+      return { count: 0, message: 'Nessun dato di vendita trovato.' };
+    }
+    
+    // 2. Salvataggio dei dati su Supabase
+    const { error } = await supabase
+      .from('sales_data')
+      .insert({
+        restaurant_id: restaurantIdSupabase,
+        report_date: new Date().toISOString(),
+        period_from: typeof params.datetimeFrom === 'string' ? params.datetimeFrom : new Date(params.datetimeFrom).toISOString(),
+        period_to: typeof params.datetimeTo === 'string' ? params.datetimeTo : new Date(params.datetimeTo).toISOString(),
+        total_sold: salesData.totalSold,
+        total_quantity: salesData.totalQuantity,
+        total_refund: salesData.totalRefund,
+        data: salesData // Salviamo l'intero oggetto di risposta
+      });
+    
+    if (error) {
+      console.error('Errore durante il salvataggio dei dati di vendita:', error);
+      return { count: 0, error: new Error(error.message) };
+    }
+    
+    // 3. Salvataggio dei dettagli dei prodotti venduti
+    if (salesData.sold && salesData.sold.length > 0) {
+      const soldProductsData = salesData.sold.map(item => ({
+        restaurant_id: restaurantIdSupabase,
+        report_date: new Date().toISOString(),
+        product_id: item.idProduct,
+        product_name: item.product?.description || 'Prodotto sconosciuto',
+        quantity: item.quantity,
+        profit: item.profit,
+        percent_total: item.percentTotal,
+        is_menu_entry: item.isMenuEntry || false,
+        is_composition_entry: item.isCompositionEntry || false
+      }));
+      
+      const { error: detailsError } = await supabase
+        .from('sales_product_details')
+        .insert(soldProductsData);
+      
+      if (detailsError) {
+        console.warn('Errore durante il salvataggio dei dettagli dei prodotti venduti:', detailsError);
+        return { 
+          count: 1, 
+          message: 'Dati di vendita importati con successo, ma si sono verificati errori nel salvataggio dei dettagli dei prodotti.',
+          data: salesData 
+        };
+      }
+    }
+    
+    console.log(`Importazione vendite completata con successo. Totale vendite: ${salesData.totalSold}`);
+    return { 
+      count: salesData.sold?.length || 0, 
+      message: `Dati di vendita importati con successo. Totale vendite: ${salesData.totalSold}`,
+      data: salesData 
+    };
+    
+  } catch (error) {
+    console.error('Errore durante l\'importazione delle vendite:', error);
+    return { count: 0, error: error as Error };
   }
 }

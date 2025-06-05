@@ -13,7 +13,8 @@ import { useToast } from "@/hooks/use-toast";
 import { getSalesPoints } from '@/integrations/cassaInCloud/cassaInCloudService';
 import { 
   importRestaurantCategoriesFromCassaInCloud,
-  importRestaurantProductsFromCassaInCloud // <-- NUOVO IMPORT
+  importRestaurantProductsFromCassaInCloud,
+  importSalesFromCassaInCloud // Aggiungiamo l'import della nuova funzione
 } from '@/integrations/cassaInCloud/cassaInCloudImportService';
 import { supabase } from '@/integrations/supabase/client';
 import { useRestaurant } from "@/hooks/useRestaurant";
@@ -64,6 +65,11 @@ const CassaInCloudIntegration = () => {
   const { toast, dismiss } = useToast(); // Estrarre dismiss qui
   const { restaurantId } = useRestaurant();
   const { getSalesPoints } = useCassaInCloudApi(); // Hook per le API CassaInCloud
+  
+  // Aggiungiamo stati per la sincronizzazione delle vendite
+  const [salesPointId, setSalesPointId] = useState<string>(""); // Stato per il punto vendita
+  const [dateFrom, setDateFrom] = useState<string>(""); // Stato per la data di inizio
+  const [dateTo, setDateTo] = useState<string>(""); // Stato per la data di fine
 
   const syncTypes = [
     { value: "categories", label: "Categorie" },
@@ -253,6 +259,44 @@ const CassaInCloudIntegration = () => {
     }
   };
 
+  // Aggiungiamo un componente per selezionare il punto vendita e le date quando è selezionato il tipo 'sales'
+  const renderSyncOptions = () => {
+    if (selectedSyncType === 'sales') {
+      return (
+        <div className="space-y-4 mt-4">
+          <div className="space-y-2">
+            <Label>Punto Vendita</Label>
+            <Input 
+              type="text" 
+              placeholder="ID del punto vendita" 
+              value={salesPointId}
+              onChange={(e) => setSalesPointId(e.target.value)}
+            />
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label>Data Inizio</Label>
+              <Input 
+                type="date" 
+                value={dateFrom}
+                onChange={(e) => setDateFrom(e.target.value)}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Data Fine</Label>
+              <Input 
+                type="date" 
+                value={dateTo}
+                onChange={(e) => setDateTo(e.target.value)}
+              />
+            </div>
+          </div>
+        </div>
+      );
+    }
+    return null;
+  };
+
   const startSync = async () => {
     if (!selectedSyncType) {
       toast({
@@ -340,6 +384,47 @@ const CassaInCloudIntegration = () => {
           toast({ title: 'Errore Inatteso Prodotti', description: 'Si è verificato un errore imprevisto durante la sincronizzazione dei prodotti.', variant: 'destructive' });
           setSyncStatus({ isLoading: false, error: 'Errore imprevisto durante la sincronizzazione dei prodotti.', lastSync: syncStatus.lastSync });
           console.error('Errore imprevisto in startSync per prodotti:', err);
+        });
+    } else if (selectedSyncType === 'sales') { // <-- NUOVA LOGICA PER VENDITE
+      if (!restaurantId) {
+        toast({ title: 'Errore', description: 'ID Ristorante non trovato.', variant: 'destructive' });
+        if (isMounted) setSyncStatus({ isLoading: false, error: 'ID Ristorante non trovato.' });
+        return;
+      }
+      
+      // Validazione dei campi richiesti per la sincronizzazione delle vendite
+      if (!dateFrom || !dateTo) {
+        toast({ title: 'Errore', description: 'Seleziona un intervallo di date per la sincronizzazione delle vendite.', variant: 'destructive' });
+        if (isMounted) setSyncStatus({ isLoading: false, error: 'Date non specificate.' });
+        return;
+      }
+      
+      // Preparazione dei parametri per la richiesta del report vendite
+      const params = {
+        start: 0,
+        limit: 100, // Limite ragionevole per il numero di prodotti venduti da recuperare
+        datetimeFrom: dateFrom,
+        datetimeTo: dateTo,
+        idsSalesPoint: salesPointId ? [salesPointId] : undefined
+      };
+      
+      importSalesFromCassaInCloud(restaurantId, params, keyForSync)
+        .then(({ count, error, message, data }) => {
+          if (!isMounted) return;
+          if (error) {
+            toast({ title: 'Errore Sincronizzazione Vendite', description: error.message, variant: 'destructive' });
+            setSyncStatus({ isLoading: false, error: `Errore sincronizzazione vendite: ${error.message}`, lastSync: syncStatus.lastSync });
+          } else {
+            const successMessage = message || `${count} record di vendita importati.`;
+            toast({ title: 'Sincronizzazione Vendite Completata', description: successMessage });
+            setSyncStatus({ isLoading: false, lastSync: new Date(), recordsImported: count, error: undefined, message: successMessage });
+          }
+        })
+        .catch(err => {
+          if (!isMounted) return;
+          toast({ title: 'Errore Inatteso Vendite', description: 'Si è verificato un errore imprevisto durante la sincronizzazione delle vendite.', variant: 'destructive' });
+          setSyncStatus({ isLoading: false, error: 'Errore imprevisto durante la sincronizzazione delle vendite.', lastSync: syncStatus.lastSync });
+          console.error('Errore imprevisto in startSync per vendite:', err);
         });
     } else {
       // Simula un ritardo per la sincronizzazione per altri tipi
@@ -458,7 +543,7 @@ const CassaInCloudIntegration = () => {
                     </SelectContent>
                   </Select>
                 </div>
-
+                
                 <div className="space-y-2">
                   <Label>Azione</Label>
                   <Button 
@@ -480,9 +565,12 @@ const CassaInCloudIntegration = () => {
                   </Button>
                 </div>
               </div>
-
+              
+              {/* Aggiungiamo il rendering delle opzioni di sincronizzazione */}
+              {renderSyncOptions()}
+              
               <Separator />
-
+              
               {/* Stato ultima sincronizzazione */}
               <div className="space-y-3">
                 <h4 className="font-medium">Stato Sincronizzazione</h4>
@@ -502,27 +590,27 @@ const CassaInCloudIntegration = () => {
                     )}
                   </div>
                 )}
-
-                {syncStatus.error && (
-                  <div className="flex items-center space-x-2 p-3 bg-red-50 text-red-700 rounded-lg">
-                    <XCircle className="w-4 h-4" />
-                    <span className="text-sm">{syncStatus.error}</span>
-                  </div>
-                )}
-
-                {!syncStatus.lastSync && !syncStatus.isLoading && !syncStatus.error && (
-                  <p className="text-sm text-muted-foreground">
-                    Nessuna sincronizzazione eseguita o dati non disponibili.
-                  </p>
-                )}
-
-                {syncStatus.isLoading && (
-                  <div className="flex items-center space-x-2 p-3 bg-blue-50 text-blue-700 rounded-lg">
-                    <RefreshCw className="w-4 h-4 animate-spin" />
-                    <span className="text-sm">Sincronizzazione in corso...</span>
-                  </div>
-                )}
-              </div>
+              
+              {syncStatus.error && (
+                <div className="flex items-center space-x-2 p-3 bg-red-50 text-red-700 rounded-lg">
+                  <XCircle className="w-4 h-4" />
+                  <span className="text-sm">{syncStatus.error}</span>
+                </div>
+              )}
+              
+              {!syncStatus.lastSync && !syncStatus.isLoading && !syncStatus.error && (
+                <p className="text-sm text-muted-foreground">
+                  Nessuna sincronizzazione eseguita o dati non disponibili.
+                </p>
+              )}
+              
+              {syncStatus.isLoading && (
+                <div className="flex items-center space-x-2 p-3 bg-blue-50 text-blue-700 rounded-lg">
+                  <RefreshCw className="w-4 h-4 animate-spin" />
+                  <span className="text-sm">Sincronizzazione in corso...</span>
+                </div>
+              )}
+            </div>
             </CardContent>
           </Card>
         </TabsContent>

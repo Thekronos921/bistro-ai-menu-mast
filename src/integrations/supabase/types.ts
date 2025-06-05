@@ -246,6 +246,58 @@ export type Database = {
           },
         ]
       }
+      ingredient_allocations: {
+        Row: {
+          allocated_quantity: number
+          created_at: string
+          id: string
+          ingredient_id: string
+          label_id: string
+          restaurant_id: string
+          updated_at: string
+        }
+        Insert: {
+          allocated_quantity?: number
+          created_at?: string
+          id?: string
+          ingredient_id: string
+          label_id: string
+          restaurant_id: string
+          updated_at?: string
+        }
+        Update: {
+          allocated_quantity?: number
+          created_at?: string
+          id?: string
+          ingredient_id?: string
+          label_id?: string
+          restaurant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ingredient_allocations_ingredient_id_fkey"
+            columns: ["ingredient_id"]
+            isOneToOne: false
+            referencedRelation: "ingredients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ingredient_allocations_label_id_fkey"
+            columns: ["label_id"]
+            isOneToOne: false
+            referencedRelation: "labels"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ingredient_allocations_restaurant_id_fkey"
+            columns: ["restaurant_id"]
+            isOneToOne: false
+            referencedRelation: "restaurants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       ingredient_batches: {
         Row: {
           batch_number: string
@@ -308,6 +360,7 @@ export type Database = {
       }
       ingredients: {
         Row: {
+          allocated_stock: number
           batch_number: string | null
           category: string | null
           cost_per_unit: number
@@ -332,6 +385,7 @@ export type Database = {
           yield_percentage: number
         }
         Insert: {
+          allocated_stock?: number
           batch_number?: string | null
           category?: string | null
           cost_per_unit: number
@@ -356,6 +410,7 @@ export type Database = {
           yield_percentage?: number
         }
         Update: {
+          allocated_stock?: number
           batch_number?: string | null
           category?: string | null
           cost_per_unit?: number
@@ -433,6 +488,73 @@ export type Database = {
           },
         ]
       }
+      inventory_movements: {
+        Row: {
+          allocated_quantity_change: number | null
+          created_at: string
+          created_by_user_id: string | null
+          id: string
+          ingredient_id: string
+          label_id: string | null
+          movement_type: string
+          notes: string | null
+          quantity_after: number
+          quantity_before: number
+          quantity_change: number
+          restaurant_id: string
+        }
+        Insert: {
+          allocated_quantity_change?: number | null
+          created_at?: string
+          created_by_user_id?: string | null
+          id?: string
+          ingredient_id: string
+          label_id?: string | null
+          movement_type: string
+          notes?: string | null
+          quantity_after: number
+          quantity_before: number
+          quantity_change: number
+          restaurant_id: string
+        }
+        Update: {
+          allocated_quantity_change?: number | null
+          created_at?: string
+          created_by_user_id?: string | null
+          id?: string
+          ingredient_id?: string
+          label_id?: string | null
+          movement_type?: string
+          notes?: string | null
+          quantity_after?: number
+          quantity_before?: number
+          quantity_change?: number
+          restaurant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "inventory_movements_ingredient_id_fkey"
+            columns: ["ingredient_id"]
+            isOneToOne: false
+            referencedRelation: "ingredients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inventory_movements_label_id_fkey"
+            columns: ["label_id"]
+            isOneToOne: false
+            referencedRelation: "labels"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inventory_movements_restaurant_id_fkey"
+            columns: ["restaurant_id"]
+            isOneToOne: false
+            referencedRelation: "restaurants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       label_status_history: {
         Row: {
           changed_by_user_id: string | null
@@ -490,6 +612,7 @@ export type Database = {
           restaurant_id: string
           status: string | null
           storage_instructions: string | null
+          storage_location_id: string | null
           supplier: string | null
           title: string
           unit: string | null
@@ -513,6 +636,7 @@ export type Database = {
           restaurant_id: string
           status?: string | null
           storage_instructions?: string | null
+          storage_location_id?: string | null
           supplier?: string | null
           title: string
           unit?: string | null
@@ -536,12 +660,21 @@ export type Database = {
           restaurant_id?: string
           status?: string | null
           storage_instructions?: string | null
+          storage_location_id?: string | null
           supplier?: string | null
           title?: string
           unit?: string | null
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "labels_storage_location_id_fkey"
+            columns: ["storage_location_id"]
+            isOneToOne: false
+            referencedRelation: "storage_locations"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       local_events: {
         Row: {
@@ -917,6 +1050,56 @@ export type Database = {
           weather_condition?: string | null
         }
         Relationships: []
+      }
+      storage_locations: {
+        Row: {
+          capacity_description: string | null
+          created_at: string
+          id: string
+          is_active: boolean
+          name: string
+          notes: string | null
+          restaurant_id: string
+          temperature_max: number | null
+          temperature_min: number | null
+          type: string
+          updated_at: string
+        }
+        Insert: {
+          capacity_description?: string | null
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          name: string
+          notes?: string | null
+          restaurant_id: string
+          temperature_max?: number | null
+          temperature_min?: number | null
+          type?: string
+          updated_at?: string
+        }
+        Update: {
+          capacity_description?: string | null
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          name?: string
+          notes?: string | null
+          restaurant_id?: string
+          temperature_max?: number | null
+          temperature_min?: number | null
+          type?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "storage_locations_restaurant_id_fkey"
+            columns: ["restaurant_id"]
+            isOneToOne: false
+            referencedRelation: "restaurants"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       users: {
         Row: {

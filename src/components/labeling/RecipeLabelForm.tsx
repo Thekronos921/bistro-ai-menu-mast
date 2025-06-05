@@ -3,233 +3,172 @@ import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
-import { useToast } from '@/hooks/use-toast';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
+import { useLabels } from '@/hooks/useLabels';
+import { useStorageLocations } from '@/hooks/useStorageLocations';
 import { supabase } from '@/integrations/supabase/client';
 import { useRestaurant } from '@/hooks/useRestaurant';
-import LabelPreview from './LabelPreview';
-
-interface RecipeForLabel {
-  id: string;
-  name: string;
-  allergens: string;
-  portions: number;
-  preparation_time: number;
-  difficulty: string;
-  category: string;
-  recipe_ingredients: {
-    ingredient_id: string;
-    quantity: number;
-    ingredients: {
-      name: string;
-      supplier: string;
-    };
-  }[];
-}
 
 const RecipeLabelForm = () => {
-  const [selectedRecipe, setSelectedRecipe] = useState<string>('');
-  const [recipes, setRecipes] = useState<RecipeForLabel[]>([]);
-  const [preparedBy, setPreparedBy] = useState<string>('');
-  const [preparationDate, setPreparationDate] = useState<string>(new Date().toISOString().split('T')[0]);
-  const [additionalNotes, setAdditionalNotes] = useState<string>('');
-  const [batchNumber, setBatchNumber] = useState<string>('');
-  const [loading, setLoading] = useState(false);
-  const { toast } = useToast();
+  const [formData, setFormData] = useState({
+    title: '',
+    recipe_id: '',
+    portions: '',
+    batch_number: '',
+    production_date: '',
+    expiry_date: '',
+    storage_location_id: '',
+    storage_instructions: '',
+    notes: ''
+  });
+
+  const [recipes, setRecipes] = useState<any[]>([]);
+  const [selectedRecipe, setSelectedRecipe] = useState<any>(null);
+  const [recipeIngredients, setRecipeIngredients] = useState<any[]>([]);
+  const [ingredientsAvailable, setIngredientsAvailable] = useState(true);
+  
+  const { saveLabel, loading } = useLabels();
+  const { storageLocations } = useStorageLocations();
   const { restaurantId } = useRestaurant();
 
   useEffect(() => {
-    fetchRecipes();
-    // Generate automatic batch number
-    setBatchNumber(`RIC-${Date.now().toString().slice(-6)}`);
+    if (restaurantId) {
+      fetchRecipes();
+    }
   }, [restaurantId]);
 
-  const fetchRecipes = async () => {
-    if (!restaurantId) return;
+  useEffect(() => {
+    if (selectedRecipe && formData.portions) {
+      checkIngredientAvailability();
+    }
+  }, [selectedRecipe, formData.portions]);
 
+  const fetchRecipes = async () => {
     try {
       const { data, error } = await supabase
         .from('recipes')
-        .select(`
-          id,
-          name,
-          allergens,
-          portions,
-          preparation_time,
-          difficulty,
-          category,
-          recipe_ingredients (
-            ingredient_id,
-            quantity,
-            ingredients (
-              name,
-              supplier
-            )
-          )
-        `)
-        .eq('restaurant_id', restaurantId);
+        .select('*')
+        .eq('restaurant_id', restaurantId)
+        .order('name');
 
       if (error) throw error;
-
-      // Transform the data to properly handle the joined ingredients
-      const transformedData: RecipeForLabel[] = (data || []).map(recipe => {
-        return {
-          id: recipe.id,
-          name: recipe.name,
-          allergens: recipe.allergens || '',
-          portions: recipe.portions,
-          preparation_time: recipe.preparation_time,
-          difficulty: recipe.difficulty,
-          category: recipe.category,
-          recipe_ingredients: (recipe.recipe_ingredients || []).map((ri: any) => {
-            // Handle ingredients - can be array, object, or null
-            let ingredientData = { name: '', supplier: '' };
-            
-            if (ri.ingredients) {
-              if (Array.isArray(ri.ingredients)) {
-                // If it's an array, take the first item
-                ingredientData = ri.ingredients[0] || { name: '', supplier: '' };
-              } else {
-                // If it's an object, use it directly
-                ingredientData = ri.ingredients;
-              }
-            }
-            
-            return {
-              ingredient_id: ri.ingredient_id,
-              quantity: ri.quantity,
-              ingredients: {
-                name: ingredientData.name || '',
-                supplier: ingredientData.supplier || ''
-              }
-            };
-          })
-        };
-      });
-
-      setRecipes(transformedData);
+      setRecipes(data || []);
     } catch (error) {
       console.error('Error fetching recipes:', error);
-      toast({
-        title: "Errore",
-        description: "Errore nel caricamento delle ricette",
-        variant: "destructive"
-      });
     }
   };
 
-  const generateQRData = () => {
-    const selectedRecipeData = recipes.find(r => r.id === selectedRecipe);
-    return JSON.stringify({
-      type: 'recipe',
-      recipeId: selectedRecipe,
-      recipeName: selectedRecipeData?.name,
-      preparationDate,
-      preparedBy,
-      batchNumber,
-      category: selectedRecipeData?.category,
-      portions: selectedRecipeData?.portions,
-      allergens: selectedRecipeData?.allergens,
-      restaurantId,
-      timestamp: new Date().toISOString()
-    });
+  const fetchRecipeIngredients = async (recipeId: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('recipe_ingredients')
+        .select(`
+          quantity,
+          ingredients!inner(id, name, unit, current_stock, allocated_stock)
+        `)
+        .eq('recipe_id', recipeId);
+
+      if (error) throw error;
+      setRecipeIngredients(data || []);
+      return data || [];
+    } catch (error) {
+      console.error('Error fetching recipe ingredients:', error);
+      return [];
+    }
   };
 
-  const generateStorageInstructions = () => {
-    const notes = [];
-    if (preparedBy) notes.push(`Preparato da: ${preparedBy}`);
-    if (additionalNotes) notes.push(additionalNotes);
-    return notes.join(' | ');
+  const handleRecipeChange = async (recipeId: string) => {
+    const recipe = recipes.find(r => r.id === recipeId);
+    setSelectedRecipe(recipe);
+    setFormData(prev => ({
+      ...prev,
+      recipe_id: recipeId,
+      title: recipe ? `${recipe.name} - Preparato` : '',
+      portions: recipe ? recipe.portions.toString() : ''
+    }));
+
+    if (recipe) {
+      await fetchRecipeIngredients(recipeId);
+    }
   };
 
-  const handleGenerateLabel = () => {
-    if (!selectedRecipe) {
-      toast({
-        title: "Campo obbligatorio",
-        description: "Seleziona una ricetta",
-        variant: "destructive"
-      });
+  const checkIngredientAvailability = () => {
+    const portions = parseInt(formData.portions) || 0;
+    let allAvailable = true;
+
+    for (const ri of recipeIngredients) {
+      const ingredient = ri.ingredients as any;
+      const neededQuantity = ri.quantity * portions;
+      const availableStock = (ingredient.current_stock || 0) - (ingredient.allocated_stock || 0);
+      
+      if (availableStock < neededQuantity) {
+        allAvailable = false;
+        break;
+      }
+    }
+
+    setIngredientsAvailable(allAvailable);
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!formData.recipe_id || !formData.portions || !ingredientsAvailable) {
       return;
     }
 
-    toast({
-      title: "Etichetta generata",
-      description: "L'etichetta è pronta per la stampa"
-    });
-  };
-
-  const handlePrint = () => {
-    if (!selectedRecipe) {
-      toast({
-        title: "Errore",
-        description: "Seleziona una ricetta prima di stampare",
-        variant: "destructive"
+    try {
+      await saveLabel({
+        label_type: 'recipe',
+        title: formData.title,
+        recipe_id: formData.recipe_id,
+        portions: parseInt(formData.portions),
+        batch_number: formData.batch_number,
+        production_date: formData.production_date || undefined,
+        expiry_date: formData.expiry_date || undefined,
+        storage_location_id: formData.storage_location_id || undefined,
+        storage_instructions: formData.storage_instructions,
+        notes: formData.notes
       });
-      return;
+      
+      // Reset form
+      setFormData({
+        title: '',
+        recipe_id: '',
+        portions: '',
+        batch_number: '',
+        production_date: '',
+        expiry_date: '',
+        storage_location_id: '',
+        storage_instructions: '',
+        notes: ''
+      });
+      setSelectedRecipe(null);
+      setRecipeIngredients([]);
+    } catch (error) {
+      console.error('Error saving recipe label:', error);
     }
-
-    // Crea un nuovo stile CSS specifico per la stampa
-    const printStyles = `
-      @media print {
-        body * {
-          visibility: hidden;
-        }
-        .print-content, .print-content * {
-          visibility: visible;
-        }
-        .print-content {
-          position: absolute;
-          left: 0;
-          top: 0;
-          width: 8cm;
-          height: 6cm;
-        }
-        @page {
-          size: 8cm 6cm;
-          margin: 0;
-        }
-      }
-    `;
-
-    // Aggiunge gli stili alla head
-    const styleSheet = document.createElement('style');
-    styleSheet.innerText = printStyles;
-    document.head.appendChild(styleSheet);
-
-    // Aggiunge la classe per la stampa all'anteprima
-    const labelPreview = document.querySelector('[data-label-preview]');
-    if (labelPreview) {
-      labelPreview.classList.add('print-content');
-    }
-
-    window.print();
-
-    // Rimuove gli stili e la classe dopo la stampa
-    setTimeout(() => {
-      document.head.removeChild(styleSheet);
-      if (labelPreview) {
-        labelPreview.classList.remove('print-content');
-      }
-    }, 1000);
   };
-
-  const selectedRecipeData = recipes.find(r => r.id === selectedRecipe);
 
   return (
-    <div className="space-y-6">
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <div className="space-y-4">
+    <Card>
+      <CardHeader>
+        <CardTitle>Etichetta Ricetta Preparata</CardTitle>
+      </CardHeader>
+      <CardContent>
+        <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <Label htmlFor="recipe">Ricetta</Label>
-            <Select value={selectedRecipe} onValueChange={setSelectedRecipe}>
+            <Select onValueChange={handleRecipeChange} required>
               <SelectTrigger>
-                <SelectValue placeholder="Seleziona una ricetta..." />
+                <SelectValue placeholder="Seleziona ricetta" />
               </SelectTrigger>
               <SelectContent>
                 {recipes.map((recipe) => (
                   <SelectItem key={recipe.id} value={recipe.id}>
-                    {recipe.name} - {recipe.category}
+                    {recipe.name} (Porzioni base: {recipe.portions})
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -237,70 +176,121 @@ const RecipeLabelForm = () => {
           </div>
 
           <div>
-            <Label htmlFor="batchNumber">Numero Lotto</Label>
+            <Label htmlFor="portions">Numero Porzioni</Label>
             <Input
-              id="batchNumber"
-              value={batchNumber}
-              onChange={(e) => setBatchNumber(e.target.value)}
-              placeholder="RIC-123456"
+              id="portions"
+              type="number"
+              min="1"
+              value={formData.portions}
+              onChange={(e) => setFormData(prev => ({ ...prev, portions: e.target.value }))}
+              placeholder="Numero porzioni da preparare"
+              required
             />
           </div>
 
+          {recipeIngredients.length > 0 && formData.portions && (
+            <div className={`p-4 rounded-lg ${ingredientsAvailable ? 'bg-green-50' : 'bg-red-50'}`}>
+              <h4 className="font-medium mb-2">Ingredienti necessari:</h4>
+              {recipeIngredients.map((ri, index) => {
+                const ingredient = ri.ingredients as any;
+                const neededQuantity = ri.quantity * parseInt(formData.portions);
+                const availableStock = (ingredient.current_stock || 0) - (ingredient.allocated_stock || 0);
+                const sufficient = availableStock >= neededQuantity;
+
+                return (
+                  <div key={index} className={`text-sm ${sufficient ? 'text-green-700' : 'text-red-700'}`}>
+                    {ingredient.name}: {neededQuantity} {ingredient.unit} 
+                    (disponibile: {availableStock}) {sufficient ? '✓' : '✗'}
+                  </div>
+                );
+              })}
+              {!ingredientsAvailable && (
+                <p className="text-red-600 text-sm mt-2 font-medium">
+                  Ingredienti insufficienti per preparare questa ricetta
+                </p>
+              )}
+            </div>
+          )}
+
           <div>
-            <Label htmlFor="preparedBy">Preparato da</Label>
-            <Input
-              id="preparedBy"
-              placeholder="Nome del cuoco..."
-              value={preparedBy}
-              onChange={(e) => setPreparedBy(e.target.value)}
-            />
+            <Label htmlFor="storage_location">Posizione</Label>
+            <Select onValueChange={(value) => setFormData(prev => ({ ...prev, storage_location_id: value }))}>
+              <SelectTrigger>
+                <SelectValue placeholder="Seleziona frigorifero/congelatore" />
+              </SelectTrigger>
+              <SelectContent>
+                {storageLocations.map((location) => (
+                  <SelectItem key={location.id} value={location.id}>
+                    {location.name} ({location.type})
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
 
           <div>
-            <Label htmlFor="preparationDate">Data di Preparazione</Label>
+            <Label htmlFor="batch_number">Numero Lotto</Label>
             <Input
-              id="preparationDate"
-              type="date"
-              value={preparationDate}
-              onChange={(e) => setPreparationDate(e.target.value)}
+              id="batch_number"
+              value={formData.batch_number}
+              onChange={(e) => setFormData(prev => ({ ...prev, batch_number: e.target.value }))}
+              placeholder="Numero lotto (opzionale)"
             />
           </div>
 
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <Label htmlFor="production_date">Data Preparazione</Label>
+              <Input
+                id="production_date"
+                type="date"
+                value={formData.production_date}
+                onChange={(e) => setFormData(prev => ({ ...prev, production_date: e.target.value }))}
+              />
+            </div>
+            <div>
+              <Label htmlFor="expiry_date">Data Scadenza</Label>
+              <Input
+                id="expiry_date"
+                type="date"
+                value={formData.expiry_date}
+                onChange={(e) => setFormData(prev => ({ ...prev, expiry_date: e.target.value }))}
+              />
+            </div>
+          </div>
+
           <div>
-            <Label htmlFor="additionalNotes">Note Aggiuntive</Label>
+            <Label htmlFor="storage_instructions">Istruzioni Conservazione</Label>
             <Textarea
-              id="additionalNotes"
-              placeholder="Note aggiuntive..."
-              value={additionalNotes}
-              onChange={(e) => setAdditionalNotes(e.target.value)}
+              id="storage_instructions"
+              value={formData.storage_instructions}
+              onChange={(e) => setFormData(prev => ({ ...prev, storage_instructions: e.target.value }))}
+              placeholder="Temperature, condizioni particolari..."
             />
           </div>
 
-          <div className="flex space-x-2">
-            <Button onClick={handleGenerateLabel} className="flex-1">
-              Genera Etichetta
-            </Button>
-            <Button onClick={handlePrint} variant="outline">
-              Stampa
+          <div>
+            <Label htmlFor="notes">Note</Label>
+            <Textarea
+              id="notes"
+              value={formData.notes}
+              onChange={(e) => setFormData(prev => ({ ...prev, notes: e.target.value }))}
+              placeholder="Note aggiuntive..."
+            />
+          </div>
+
+          <div className="flex space-x-2 pt-4">
+            <Button 
+              type="submit" 
+              disabled={loading || !ingredientsAvailable} 
+              className="flex-1"
+            >
+              {loading ? 'Salvando...' : 'Genera Etichetta'}
             </Button>
           </div>
-        </div>
-
-        <div className="space-y-4">
-          <LabelPreview
-            title={selectedRecipeData?.name || "Seleziona ricetta"}
-            type="Ricetta"
-            productionDate={preparationDate}
-            expiryDate=""
-            batchNumber={batchNumber}
-            qrData={generateQRData()}
-            storageInstructions={generateStorageInstructions()}
-            allergens={selectedRecipeData?.allergens}
-            portions={selectedRecipeData?.portions.toString()}
-          />
-        </div>
-      </div>
-    </div>
+        </form>
+      </CardContent>
+    </Card>
   );
 };
 

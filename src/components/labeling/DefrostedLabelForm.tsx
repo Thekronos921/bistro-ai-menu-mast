@@ -1,53 +1,51 @@
+
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
-import { Snowflake, Calendar, AlertTriangle } from 'lucide-react';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
+import { useLabels } from '@/hooks/useLabels';
+import { useStorageLocations } from '@/hooks/useStorageLocations';
 import { supabase } from '@/integrations/supabase/client';
 import { useRestaurant } from '@/hooks/useRestaurant';
-import { useToast } from '@/hooks/use-toast';
-import LabelPreview from './LabelPreview';
-
-interface Ingredient {
-  id: string;
-  name: string;
-  supplier: string;
-  batch_number: string;
-}
 
 interface DefrostedLabelFormProps {
   onClose: () => void;
 }
 
 const DefrostedLabelForm = ({ onClose }: DefrostedLabelFormProps) => {
-  const [ingredients, setIngredients] = useState<Ingredient[]>([]);
   const [formData, setFormData] = useState({
-    ingredientId: '',
-    ingredientName: '',
-    defrostDate: new Date().toISOString().split('T')[0],
-    useByDate: '',
-    originalBatch: '',
-    supplier: '',
+    title: '',
+    ingredient_id: '',
     quantity: '',
-    unit: 'kg',
-    storageInstructions: 'Conservare in frigorifero e utilizzare entro 24 ore'
+    batch_number: '',
+    production_date: '',
+    expiry_date: '',
+    storage_location_id: '',
+    storage_instructions: '',
+    notes: ''
   });
+
+  const [ingredients, setIngredients] = useState<any[]>([]);
+  const [selectedIngredient, setSelectedIngredient] = useState<any>(null);
+  
+  const { saveLabel, loading } = useLabels();
+  const { storageLocations } = useStorageLocations();
   const { restaurantId } = useRestaurant();
-  const { toast } = useToast();
 
   useEffect(() => {
-    fetchIngredients();
+    if (restaurantId) {
+      fetchIngredients();
+    }
   }, [restaurantId]);
 
   const fetchIngredients = async () => {
-    if (!restaurantId) return;
-
     try {
       const { data, error } = await supabase
         .from('ingredients')
-        .select('id, name, supplier, batch_number')
+        .select('*')
         .eq('restaurant_id', restaurantId)
         .order('name');
 
@@ -58,245 +56,177 @@ const DefrostedLabelForm = ({ onClose }: DefrostedLabelFormProps) => {
     }
   };
 
-  const calculateUseByDate = (defrostDate: string, hoursToAdd: number = 24) => {
-    const date = new Date(defrostDate);
-    date.setHours(date.getHours() + hoursToAdd);
-    return date.toISOString().split('T')[0];
-  };
-
-  const handleIngredientSelect = (ingredientId: string) => {
+  const handleIngredientChange = (ingredientId: string) => {
     const ingredient = ingredients.find(i => i.id === ingredientId);
-    if (ingredient) {
-      setFormData(prev => ({
-        ...prev,
-        ingredientId,
-        ingredientName: ingredient.name,
-        supplier: ingredient.supplier || '',
-        originalBatch: ingredient.batch_number || '',
-        useByDate: calculateUseByDate(prev.defrostDate)
-      }));
-    }
+    setSelectedIngredient(ingredient);
+    setFormData(prev => ({
+      ...prev,
+      ingredient_id: ingredientId,
+      title: ingredient ? `${ingredient.name} - Decongelato` : ''
+    }));
   };
 
-  const generateQRData = () => {
-    return JSON.stringify({
-      type: 'defrosted',
-      ingredientId: formData.ingredientId,
-      ingredientName: formData.ingredientName,
-      defrostDate: formData.defrostDate,
-      useByDate: formData.useByDate,
-      originalBatch: formData.originalBatch,
-      supplier: formData.supplier,
-      restaurantId,
-      timestamp: new Date().toISOString()
-    });
-  };
-
-  const handlePrint = () => {
-    if (!formData.ingredientId || !formData.defrostDate) {
-      toast({
-        title: "Errore",
-        description: "Seleziona un ingrediente e compila tutti i campi obbligatori",
-        variant: "destructive"
-      });
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!formData.ingredient_id || !formData.quantity) {
       return;
     }
 
-    // Crea un nuovo stile CSS specifico per la stampa
-    const printStyles = `
-      @media print {
-        body * {
-          visibility: hidden;
-        }
-        .print-content, .print-content * {
-          visibility: visible;
-        }
-        .print-content {
-          position: absolute;
-          left: 0;
-          top: 0;
-          width: 8cm;
-          height: 6cm;
-        }
-        @page {
-          size: 8cm 6cm;
-          margin: 0;
-        }
-      }
-    `;
-
-    // Aggiunge gli stili alla head
-    const styleSheet = document.createElement('style');
-    styleSheet.innerText = printStyles;
-    document.head.appendChild(styleSheet);
-
-    // Aggiunge la classe per la stampa all'anteprima
-    const labelPreview = document.querySelector('[data-label-preview]');
-    if (labelPreview) {
-      labelPreview.classList.add('print-content');
+    try {
+      await saveLabel({
+        label_type: 'defrosted',
+        title: formData.title,
+        ingredient_id: formData.ingredient_id,
+        quantity: parseFloat(formData.quantity),
+        unit: selectedIngredient?.unit,
+        batch_number: formData.batch_number,
+        production_date: formData.production_date || undefined,
+        expiry_date: formData.expiry_date || undefined,
+        storage_location_id: formData.storage_location_id || undefined,
+        storage_instructions: formData.storage_instructions,
+        notes: formData.notes
+      });
+      
+      onClose();
+    } catch (error) {
+      console.error('Error saving defrosted label:', error);
     }
-
-    window.print();
-
-    // Rimuove gli stili e la classe dopo la stampa
-    setTimeout(() => {
-      document.head.removeChild(styleSheet);
-      if (labelPreview) {
-        labelPreview.classList.remove('print-content');
-      }
-    }, 1000);
   };
 
-  return (
-    <div className="space-y-6">
-      <div className="bg-cyan-50 p-4 rounded-lg">
-        <div className="flex items-center space-x-2 mb-2">
-          <Snowflake className="w-5 h-5 text-cyan-600" />
-          <h3 className="font-semibold text-cyan-800">Etichetta Prodotto Decongelato</h3>
-        </div>
-        <p className="text-cyan-700 text-sm">
-          Genera etichette per prodotti decongelati con tracciabilità lotto originario
-        </p>
-      </div>
+  const availableStock = selectedIngredient 
+    ? (selectedIngredient.current_stock || 0) - (selectedIngredient.allocated_stock || 0)
+    : 0;
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <div className="space-y-4">
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Etichetta Prodotto Decongelato</CardTitle>
+      </CardHeader>
+      <CardContent>
+        <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <Label htmlFor="ingredient">Ingrediente *</Label>
-            <Select value={formData.ingredientId} onValueChange={handleIngredientSelect}>
+            <Label htmlFor="ingredient">Ingrediente</Label>
+            <Select onValueChange={handleIngredientChange} required>
               <SelectTrigger>
                 <SelectValue placeholder="Seleziona ingrediente" />
               </SelectTrigger>
               <SelectContent>
-                {ingredients.map(ingredient => (
+                {ingredients.map((ingredient) => (
                   <SelectItem key={ingredient.id} value={ingredient.id}>
-                    {ingredient.name} {ingredient.supplier ? `- ${ingredient.supplier}` : ''}
+                    {ingredient.name} ({ingredient.unit}) - Disp: {(ingredient.current_stock || 0) - (ingredient.allocated_stock || 0)}
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <Label htmlFor="defrostDate">Data Decongelamento *</Label>
-              <div className="flex items-center space-x-1">
-                <Calendar className="w-4 h-4 text-gray-400" />
-                <Input
-                  id="defrostDate"
-                  type="date"
-                  value={formData.defrostDate}
-                  onChange={(e) => {
-                    const newDate = e.target.value;
-                    setFormData(prev => ({
-                      ...prev,
-                      defrostDate: newDate,
-                      useByDate: calculateUseByDate(newDate)
-                    }));
-                  }}
-                />
-              </div>
+          {selectedIngredient && (
+            <div className="p-3 bg-blue-50 rounded-lg">
+              <p className="text-sm">
+                <strong>Stock totale:</strong> {selectedIngredient.current_stock || 0} {selectedIngredient.unit}
+              </p>
+              <p className="text-sm">
+                <strong>Stock allocato:</strong> {selectedIngredient.allocated_stock || 0} {selectedIngredient.unit}
+              </p>
+              <p className="text-sm">
+                <strong>Stock disponibile:</strong> {availableStock} {selectedIngredient.unit}
+              </p>
             </div>
-            <div>
-              <Label htmlFor="useByDate">Data Limite Utilizzo *</Label>
-              <div className="flex items-center space-x-1">
-                <AlertTriangle className="w-4 h-4 text-red-400" />
-                <Input
-                  id="useByDate"
-                  type="date"
-                  value={formData.useByDate}
-                  onChange={(e) => setFormData(prev => ({ ...prev, useByDate: e.target.value }))}
-                />
-              </div>
-            </div>
-          </div>
+          )}
 
           <div>
-            <Label htmlFor="originalBatch">Lotto Originale</Label>
+            <Label htmlFor="quantity">Quantità da congelare</Label>
             <Input
-              id="originalBatch"
-              value={formData.originalBatch}
-              onChange={(e) => setFormData(prev => ({ ...prev, originalBatch: e.target.value }))}
-              placeholder="Lotto del prodotto originale"
+              id="quantity"
+              type="number"
+              step="0.001"
+              max={availableStock}
+              value={formData.quantity}
+              onChange={(e) => setFormData(prev => ({ ...prev, quantity: e.target.value }))}
+              placeholder={selectedIngredient ? `Max: ${availableStock}` : "Quantità"}
+              required
             />
           </div>
 
           <div>
-            <Label htmlFor="supplier">Fornitore</Label>
+            <Label htmlFor="storage_location">Posizione</Label>
+            <Select onValueChange={(value) => setFormData(prev => ({ ...prev, storage_location_id: value }))}>
+              <SelectTrigger>
+                <SelectValue placeholder="Seleziona frigorifero/congelatore" />
+              </SelectTrigger>
+              <SelectContent>
+                {storageLocations.map((location) => (
+                  <SelectItem key={location.id} value={location.id}>
+                    {location.name} ({location.type})
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div>
+            <Label htmlFor="batch_number">Numero Lotto</Label>
             <Input
-              id="supplier"
-              value={formData.supplier}
-              onChange={(e) => setFormData(prev => ({ ...prev, supplier: e.target.value }))}
-              placeholder="Nome fornitore"
-              readOnly
+              id="batch_number"
+              value={formData.batch_number}
+              onChange={(e) => setFormData(prev => ({ ...prev, batch_number: e.target.value }))}
+              placeholder="Numero lotto (opzionale)"
             />
           </div>
 
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <Label htmlFor="quantity">Quantità</Label>
+              <Label htmlFor="production_date">Data Produzione</Label>
               <Input
-                id="quantity"
-                type="number"
-                step="0.1"
-                value={formData.quantity}
-                onChange={(e) => setFormData(prev => ({ ...prev, quantity: e.target.value }))}
-                placeholder="0"
+                id="production_date"
+                type="date"
+                value={formData.production_date}
+                onChange={(e) => setFormData(prev => ({ ...prev, production_date: e.target.value }))}
               />
             </div>
             <div>
-              <Label htmlFor="unit">Unità</Label>
-              <Select value={formData.unit} onValueChange={(value) => setFormData(prev => ({ ...prev, unit: value }))}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="kg">kg</SelectItem>
-                  <SelectItem value="g">g</SelectItem>
-                  <SelectItem value="l">l</SelectItem>
-                  <SelectItem value="ml">ml</SelectItem>
-                  <SelectItem value="pz">pz</SelectItem>
-                </SelectContent>
-              </Select>
+              <Label htmlFor="expiry_date">Data Scadenza</Label>
+              <Input
+                id="expiry_date"
+                type="date"
+                value={formData.expiry_date}
+                onChange={(e) => setFormData(prev => ({ ...prev, expiry_date: e.target.value }))}
+              />
             </div>
           </div>
 
           <div>
-            <Label htmlFor="storageInstructions">Istruzioni Conservazione</Label>
+            <Label htmlFor="storage_instructions">Istruzioni Conservazione</Label>
             <Textarea
-              id="storageInstructions"
-              value={formData.storageInstructions}
-              onChange={(e) => setFormData(prev => ({ ...prev, storageInstructions: e.target.value }))}
-              rows={3}
+              id="storage_instructions"
+              value={formData.storage_instructions}
+              onChange={(e) => setFormData(prev => ({ ...prev, storage_instructions: e.target.value }))}
+              placeholder="Temperature, condizioni particolari..."
             />
           </div>
-        </div>
 
-        <div className="space-y-4">
-          <LabelPreview
-            title={formData.ingredientName || "Seleziona ingrediente"}
-            type="Decongelato"
-            productionDate={formData.defrostDate}
-            expiryDate={formData.useByDate}
-            batchNumber={formData.originalBatch}
-            qrData={generateQRData()}
-            storageInstructions={formData.storageInstructions}
-            quantity={formData.quantity}
-            unit={formData.unit}
-            supplier={formData.supplier}
-          />
-        </div>
-      </div>
+          <div>
+            <Label htmlFor="notes">Note</Label>
+            <Textarea
+              id="notes"
+              value={formData.notes}
+              onChange={(e) => setFormData(prev => ({ ...prev, notes: e.target.value }))}
+              placeholder="Note aggiuntive..."
+            />
+          </div>
 
-      <div className="flex justify-end space-x-2 pt-4 border-t">
-        <Button variant="outline" onClick={onClose}>
-          Annulla
-        </Button>
-        <Button onClick={handlePrint} disabled={!formData.ingredientId || !formData.defrostDate}>
-          Stampa Etichetta
-        </Button>
-      </div>
-    </div>
+          <div className="flex space-x-2 pt-4">
+            <Button type="submit" disabled={loading} className="flex-1">
+              {loading ? 'Salvando...' : 'Genera Etichetta'}
+            </Button>
+            <Button type="button" variant="outline" onClick={onClose}>
+              Annulla
+            </Button>
+          </div>
+        </form>
+      </CardContent>
+    </Card>
   );
 };
 

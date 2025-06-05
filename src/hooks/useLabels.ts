@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useRestaurant } from '@/hooks/useRestaurant';
 import { useToast } from '@/hooks/use-toast';
+import { useInventoryTracking } from './useInventoryTracking';
 
 export interface LabelData {
   id?: string;
@@ -21,13 +22,16 @@ export interface LabelData {
   recipe_id?: string;
   ingredient_id?: string;
   dish_id?: string;
+  storage_location_id?: string;
   ingredient_traceability?: any[];
+  portions?: number; // For recipe labels
 }
 
 export const useLabels = () => {
   const [loading, setLoading] = useState(false);
   const { restaurantId } = useRestaurant();
   const { toast } = useToast();
+  const { allocateIngredient, allocateRecipeIngredients } = useInventoryTracking();
 
   const saveLabel = async (labelData: LabelData) => {
     if (!restaurantId) {
@@ -36,8 +40,10 @@ export const useLabels = () => {
 
     setLoading(true);
     try {
+      const labelId = labelData.id || crypto.randomUUID();
+      
       const qrData = {
-        id: labelData.id || crypto.randomUUID(),
+        id: labelId,
         type: labelData.label_type,
         title: labelData.title,
         batch_number: labelData.batch_number,
@@ -47,9 +53,11 @@ export const useLabels = () => {
         timestamp: new Date().toISOString()
       };
 
-      const { data, error } = await supabase
+      // Save label first
+      const { data: savedLabel, error } = await supabase
         .from('labels')
         .insert({
+          id: labelId,
           restaurant_id: restaurantId,
           label_type: labelData.label_type,
           title: labelData.title,
@@ -66,6 +74,7 @@ export const useLabels = () => {
           recipe_id: labelData.recipe_id,
           ingredient_id: labelData.ingredient_id,
           dish_id: labelData.dish_id,
+          storage_location_id: labelData.storage_location_id,
           ingredient_traceability: labelData.ingredient_traceability || [],
           qr_data: qrData
         })
@@ -74,12 +83,31 @@ export const useLabels = () => {
 
       if (error) throw error;
 
+      // Handle ingredient allocation based on label type
+      if (labelData.label_type === 'defrosted' && labelData.ingredient_id && labelData.quantity) {
+        // Direct ingredient allocation for defrosted items
+        await allocateIngredient(
+          labelData.ingredient_id,
+          labelId,
+          labelData.quantity,
+          `Allocazione per etichetta ${labelData.label_type}: ${labelData.title}`
+        );
+      } else if (labelData.label_type === 'recipe' && labelData.recipe_id && labelData.portions) {
+        // Allocate all recipe ingredients
+        await allocateRecipeIngredients(
+          labelData.recipe_id,
+          labelId,
+          labelData.portions,
+          `Allocazione ingredienti per ricetta: ${labelData.title}`
+        );
+      }
+
       toast({
         title: "Etichetta salvata",
-        description: "L'etichetta è stata salvata nel sistema di tracciabilità"
+        description: "L'etichetta è stata salvata e l'inventario è stato aggiornato"
       });
 
-      return data;
+      return savedLabel;
     } catch (error: any) {
       console.error('Error saving label:', error);
       toast({
@@ -97,6 +125,7 @@ export const useLabels = () => {
     label_type?: string;
     status?: string;
     expiring_soon?: boolean;
+    storage_location_id?: string;
   }) => {
     if (!restaurantId) return [];
 
@@ -104,7 +133,12 @@ export const useLabels = () => {
     try {
       let query = supabase
         .from('labels')
-        .select('*')
+        .select(`
+          *,
+          storage_locations(name, type),
+          ingredients(name, unit),
+          recipes(name, portions)
+        `)
         .eq('restaurant_id', restaurantId)
         .order('created_at', { ascending: false });
 
@@ -114,6 +148,10 @@ export const useLabels = () => {
 
       if (filters?.status) {
         query = query.eq('status', filters.status);
+      }
+
+      if (filters?.storage_location_id) {
+        query = query.eq('storage_location_id', filters.storage_location_id);
       }
 
       if (filters?.expiring_soon) {
@@ -149,7 +187,7 @@ export const useLabels = () => {
 
       if (error) throw error;
 
-      // Aggiungi alla cronologia
+      // Add to status history
       await supabase
         .from('label_status_history')
         .insert({

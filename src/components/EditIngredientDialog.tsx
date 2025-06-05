@@ -21,6 +21,8 @@ interface Ingredient {
   supplier: string;
   supplier_product_code: string;
   current_stock: number;
+  allocated_stock: number;
+  labeled_stock: number;
   min_stock_threshold: number;
   par_level: number;
   category: string;
@@ -52,6 +54,8 @@ const EditIngredientDialog = ({ ingredient, open, onOpenChange, onIngredientUpda
     supplier: ingredient.supplier || '',
     supplier_product_code: ingredient.supplier_product_code || '',
     current_stock: ingredient.current_stock || 0,
+    allocated_stock: ingredient.allocated_stock || 0,
+    labeled_stock: ingredient.labeled_stock || 0,
     min_stock_threshold: ingredient.min_stock_threshold || 0,
     par_level: ingredient.par_level || 0,
     category: ingredient.category || '',
@@ -116,6 +120,8 @@ const EditIngredientDialog = ({ ingredient, open, onOpenChange, onIngredientUpda
           supplier: formData.supplier || null,
           supplier_product_code: formData.supplier_product_code || null,
           current_stock: formData.current_stock,
+          allocated_stock: formData.allocated_stock,
+          labeled_stock: formData.labeled_stock,
           min_stock_threshold: formData.min_stock_threshold,
           par_level: formData.par_level || null,
           category: formData.category || null,
@@ -338,6 +344,34 @@ const EditIngredientDialog = ({ ingredient, open, onOpenChange, onIngredientUpda
                   placeholder="0"
                 />
               </div>
+              <div>
+                <Label className="block text-sm font-medium mb-1">Stock Allocato</Label>
+                <Input
+                  type="number"
+                  step="0.1"
+                  value={formData.allocated_stock}
+                  onChange={(e) => setFormData({...formData, allocated_stock: parseFloat(e.target.value) || 0})}
+                  placeholder="0"
+                  disabled
+                />
+                <p className="text-xs text-gray-500 mt-1">Quantità allocata per ricette e semilavorati</p>
+              </div>
+              <div>
+                <Label className="block text-sm font-medium mb-1">Stock Etichettato</Label>
+                <Input
+                  type="number"
+                  step="0.1"
+                  value={formData.labeled_stock}
+                  onChange={(e) => setFormData({...formData, labeled_stock: parseFloat(e.target.value) || 0})}
+                  placeholder="0"
+                  disabled
+                />
+                <p className="text-xs text-gray-500 mt-1">Quantità etichettata per tracciabilità</p>
+              </div>
+            </div>
+
+            {/* Soglie di Scorta */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <Label className="block text-sm font-medium mb-1">Soglia Minima</Label>
                 <Input

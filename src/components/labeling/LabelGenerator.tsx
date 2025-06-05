@@ -3,11 +3,12 @@ import React, { useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { QrCode, Package, ChefHat, Snowflake, BookOpen } from 'lucide-react';
+import { QrCode, Package, ChefHat, Snowflake, BookOpen, Tag } from 'lucide-react';
 import SemilavoratoLabelForm from './SemilavoratoLabelForm';
 import LavoratoLabelForm from './LavoratoLabelForm';
 import DefrostedLabelForm from './DefrostedLabelForm';
 import RecipeLabelForm from './RecipeLabelForm';
+import IngredientLabelForm from './IngredientLabelForm';
 
 const LabelGenerator = () => {
   const [open, setOpen] = useState(false);
@@ -29,7 +30,7 @@ const LabelGenerator = () => {
         </DialogHeader>
         
         <Tabs defaultValue="semilavorato" className="w-full">
-          <TabsList className="grid w-full grid-cols-4">
+          <TabsList className="grid w-full grid-cols-5">
             <TabsTrigger value="semilavorato" className="flex items-center space-x-2">
               <Package className="w-4 h-4" />
               <span>Semilavorati</span>
@@ -45,6 +46,10 @@ const LabelGenerator = () => {
             <TabsTrigger value="defrosted" className="flex items-center space-x-2">
               <Snowflake className="w-4 h-4" />
               <span>Decongelati</span>
+            </TabsTrigger>
+            <TabsTrigger value="ingredient" className="flex items-center space-x-2">
+              <Tag className="w-4 h-4" />
+              <span>Ingredienti</span>
             </TabsTrigger>
           </TabsList>
           
@@ -62,6 +67,10 @@ const LabelGenerator = () => {
           
           <TabsContent value="defrosted">
             <DefrostedLabelForm onClose={() => setOpen(false)} />
+          </TabsContent>
+          
+          <TabsContent value="ingredient">
+            <IngredientLabelForm onClose={() => setOpen(false)} />
           </TabsContent>
         </Tabs>
       </DialogContent>

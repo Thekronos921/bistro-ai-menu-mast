@@ -22,6 +22,8 @@ interface Ingredient {
   supplier: string;
   supplier_product_code: string;
   current_stock: number;
+  allocated_stock: number;
+  labeled_stock: number;
   min_stock_threshold: number;
   par_level: number;
   category: string;
@@ -252,6 +254,7 @@ const IngredientsManagement = () => {
                 <th className="text-right px-6 py-3 text-sm font-medium text-slate-500">Costo Effettivo</th>
                 <th className="text-left px-6 py-3 text-sm font-medium text-slate-500">Unità</th>
                 <th className="text-right px-6 py-3 text-sm font-medium text-slate-500">Scorte</th>
+                <th className="text-right px-6 py-3 text-sm font-medium text-slate-500">Etichettato</th>
                 <th className="text-center px-6 py-3 text-sm font-medium text-slate-500">Stato</th>
                 <th className="text-left px-6 py-3 text-sm font-medium text-slate-500">Fornitore</th>
                 <th className="text-center px-6 py-3 text-sm font-medium text-slate-500">Sinc.</th>
@@ -320,6 +323,11 @@ const IngredientsManagement = () => {
                     <td className="px-6 py-4 text-right">
                       <span className={ingredient.current_stock <= ingredient.min_stock_threshold && ingredient.min_stock_threshold > 0 ? 'text-red-600 font-semibold' : 'text-slate-800'}>
                         {ingredient.current_stock} {ingredient.unit}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 text-right">
+                      <span className="text-slate-800">
+                        {ingredient.labeled_stock || 0} {ingredient.unit}
                       </span>
                     </td>
                     <td className="px-6 py-4 text-center">

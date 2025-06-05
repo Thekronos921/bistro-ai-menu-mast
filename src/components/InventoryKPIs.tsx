@@ -1,5 +1,5 @@
 
-import { Package, AlertTriangle, TrendingUp, Users, Calculator } from "lucide-react";
+import { Package, AlertTriangle, TrendingUp, Users, Calculator, Tag } from "lucide-react";
 import KPICard from "./KPICard";
 
 interface Ingredient {
@@ -11,6 +11,8 @@ interface Ingredient {
   effective_cost_per_unit: number;
   supplier: string;
   current_stock: number;
+  allocated_stock: number;
+  labeled_stock: number;
   min_stock_threshold: number;
   category: string;
   external_id: string;
@@ -47,8 +49,17 @@ const InventoryKPIs = ({ ingredients }: InventoryKPIsProps) => {
   // Ingredienti sincronizzati con gestionale esterno
   const syncedIngredients = ingredients.filter(ing => ing.external_id && ing.last_synced_at).length;
 
+  // Calcolo totale stock etichettato
+  const totalLabeledStock = ingredients.reduce((sum, ing) => {
+    return sum + (ing.labeled_stock || 0);
+  }, 0);
+
+  // Percentuale di stock etichettato rispetto al totale
+  const totalCurrentStock = ingredients.reduce((sum, ing) => sum + (ing.current_stock || 0), 0);
+  const labeledPercentage = totalCurrentStock > 0 ? (totalLabeledStock / totalCurrentStock) * 100 : 0;
+
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6 mb-6">
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-6 mb-6">
       <KPICard
         title="Valore Totale Scorte"
         value={`€${totalStockValue.toFixed(2)}`}
@@ -87,6 +98,14 @@ const InventoryKPIs = ({ ingredients }: InventoryKPIsProps) => {
         subtitle={`${syncedIngredients}/${ingredients.length} connessi`}
         icon={TrendingUp}
         trend={syncedIngredients === ingredients.length ? "up" : "neutral"}
+      />
+
+      <KPICard
+        title="Stock Etichettato"
+        value={`${labeledPercentage.toFixed(1)}%`}
+        subtitle={`${totalLabeledStock.toFixed(1)} unità etichettate`}
+        icon={Tag}
+        trend="neutral"
       />
     </div>
   );

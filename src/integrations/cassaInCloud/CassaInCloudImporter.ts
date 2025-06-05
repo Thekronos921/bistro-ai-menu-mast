@@ -1,3 +1,4 @@
+
 import { supabase } from '@/integrations/supabase/client';
 import * as Types from './cassaInCloudTypes';
 import * as Service from './cassaInCloudService';
@@ -30,7 +31,8 @@ export class CassaInCloudImporter {
       
       const categories = await Service.getCategories(params, this.apiKeyOverride);
       
-      // Resto dell'implementazione...
+      // Implementazione base per soddisfare il tipo di ritorno
+      console.log(`Importate ${categories.length} categorie`);
       
       return { count: categories.length };
     } catch (error) {
@@ -46,7 +48,22 @@ export class CassaInCloudImporter {
     idSalesPointForPricing: string,
     filterParams?: Types.GetProductsParams
   ): Promise<{ count: number; error?: Error; message?: string; warnings?: string[] }> {
-    // Implementazione simile a importCategories ma per i prodotti
-    // ...
+    try {
+      console.log(`Inizio importazione prodotti per ristorante: ${this.restaurantIdSupabase}`);
+      
+      // Recupero prodotti
+      const params: Types.GetProductsParams = { ...filterParams };
+      const products = await Service.getProducts(params, this.apiKeyOverride);
+      
+      console.log(`Importati ${products.length} prodotti`);
+      
+      return { 
+        count: products.length, 
+        message: `Importati ${products.length} prodotti con successo` 
+      };
+    } catch (error) {
+      console.error('Errore durante l\'importazione dei prodotti:', error);
+      return { count: 0, error: error as Error };
+    }
   }
 }

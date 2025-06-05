@@ -10,9 +10,31 @@ import { useLabels } from '@/hooks/useLabels';
 import { useStorageLocations } from '@/hooks/useStorageLocations';
 import { useInventoryTracking } from '@/hooks/useInventoryTracking';
 
+interface LabelData {
+  id: string;
+  title: string;
+  label_type: string;
+  status: string;
+  quantity?: number;
+  unit?: string;
+  batch_number?: string;
+  expiry_date?: string;
+  storage_locations?: {
+    name: string;
+    type: string;
+  };
+  ingredients?: {
+    name: string;
+  };
+  recipes?: {
+    name: string;
+    portions: number;
+  };
+}
+
 const InventoryTrackingDashboard = () => {
-  const [labels, setLabels] = useState<any[]>([]);
-  const [filteredLabels, setFilteredLabels] = useState<any[]>([]);
+  const [labels, setLabels] = useState<LabelData[]>([]);
+  const [filteredLabels, setFilteredLabels] = useState<LabelData[]>([]);
   const [selectedStorageLocation, setSelectedStorageLocation] = useState<string>('all');
   
   const { fetchLabels, loading } = useLabels();
@@ -29,14 +51,14 @@ const InventoryTrackingDashboard = () => {
 
   const loadLabels = async () => {
     const data = await fetchLabels({ status: 'active' });
-    setLabels(data);
+    setLabels(data as LabelData[]);
   };
 
   const filterLabels = () => {
     let filtered = labels;
     
     if (selectedStorageLocation !== 'all') {
-      filtered = filtered.filter(label => label.storage_location_id === selectedStorageLocation);
+      filtered = filtered.filter(label => label.storage_locations?.name === selectedStorageLocation);
     }
     
     setFilteredLabels(filtered);
@@ -86,14 +108,14 @@ const InventoryTrackingDashboard = () => {
     return icons[type as keyof typeof icons] || '📋';
   };
 
-  const groupedLabels = filteredLabels.reduce((acc, label) => {
+  const groupedLabels = filteredLabels.reduce((acc: Record<string, LabelData[]>, label) => {
     const storageLocation = label.storage_locations?.name || 'Senza posizione';
     if (!acc[storageLocation]) {
       acc[storageLocation] = [];
     }
     acc[storageLocation].push(label);
     return acc;
-  }, {} as Record<string, any[]>);
+  }, {});
 
   return (
     <div className="space-y-6">
@@ -328,7 +350,7 @@ const InventoryTrackingDashboard = () => {
                                 <p className="text-sm text-gray-500 capitalize">{label.label_type}</p>
                               </div>
                             </div>
-                            {getExpiryStatus(label.expiry_date)}
+                            {label.expiry_date && getExpiryStatus(label.expiry_date)}
                           </div>
 
                           {label.storage_locations && (

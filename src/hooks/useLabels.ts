@@ -3,7 +3,7 @@ import { useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useRestaurant } from '@/hooks/useRestaurant';
 import { useToast } from '@/hooks/use-toast';
-import { useInventoryTracking } from './useInventoryTracking';
+import { useInventoryTracking } from '@/hooks/useInventoryTracking';
 
 export interface LabelData {
   id?: string;
@@ -24,7 +24,7 @@ export interface LabelData {
   dish_id?: string;
   storage_location_id?: string;
   ingredient_traceability?: any[];
-  portions?: number;
+  portions?: number; // For recipe labels
 }
 
 export const useLabels = () => {
@@ -84,15 +84,16 @@ export const useLabels = () => {
       if (error) throw error;
 
       // Handle ingredient allocation based on label type
-      if (labelData.label_type === 'defrosted' && labelData.ingredient_id && labelData.quantity) {
-        // Direct ingredient allocation for defrosted items
+      if ((labelData.label_type === 'defrosted' || labelData.label_type === 'ingredient') && labelData.ingredient_id && labelData.quantity) {
+        // Direct ingredient allocation for defrosted items or ingredient labels
         await allocateIngredient(
           labelData.ingredient_id,
           labelId,
           labelData.quantity,
-          `Allocazione per etichetta ${labelData.label_type}: ${labelData.title}`
+          `Allocazione per etichetta ${labelData.label_type}: ${labelData.title}`,
+          labelData.label_type // Passa il tipo di etichetta per gestire labeled_stock
         );
-      } else if (labelData.label_type === 'recipe' && labelData.recipe_id && labelData.portions) {
+      } else if ((labelData.label_type === 'recipe' || labelData.label_type === 'semilavorato') && labelData.recipe_id && labelData.portions) {
         // Allocate all recipe ingredients
         await allocateRecipeIngredients(
           labelData.recipe_id,
@@ -133,6 +134,7 @@ export const useLabels = () => {
     try {
       console.log('Fetching labels with filters:', filters);
       
+      // First, get basic label data
       let query = supabase
         .from('labels')
         .select(`
@@ -167,45 +169,35 @@ export const useLabels = () => {
         throw labelsError;
       }
 
-      console.log('Labels data fetched:', labelsData);
+      console.log('Raw labels data:', labelsData);
 
-      // Enrich with ingredient and recipe data separately to avoid join issues
+      // Now enrich the data with ingredients and recipes information
       const enrichedLabels = await Promise.all((labelsData || []).map(async (label) => {
         let enrichedLabel = { ...label };
 
         // Get ingredient info if this label is linked to an ingredient
         if (label.ingredient_id) {
-          try {
-            const { data: ingredient } = await supabase
-              .from('ingredients')
-              .select('name, unit')
-              .eq('id', label.ingredient_id)
-              .single();
-            
-            if (ingredient) {
-              enrichedLabel.ingredient_name = ingredient.name;
-              enrichedLabel.ingredient_unit = ingredient.unit;
-            }
-          } catch (error) {
-            console.warn('Could not fetch ingredient for label:', label.id);
+          const { data: ingredient } = await supabase
+            .from('ingredients')
+            .select('name, unit')
+            .eq('id', label.ingredient_id)
+            .single();
+          
+          if (ingredient) {
+            enrichedLabel.ingredients = ingredient;
           }
         }
 
         // Get recipe info if this label is linked to a recipe
         if (label.recipe_id) {
-          try {
-            const { data: recipe } = await supabase
-              .from('recipes')
-              .select('name, portions')
-              .eq('id', label.recipe_id)
-              .single();
-            
-            if (recipe) {
-              enrichedLabel.recipe_name = recipe.name;
-              enrichedLabel.recipe_portions = recipe.portions;
-            }
-          } catch (error) {
-            console.warn('Could not fetch recipe for label:', label.id);
+          const { data: recipe } = await supabase
+            .from('recipes')
+            .select('name, portions')
+            .eq('id', label.recipe_id)
+            .single();
+          
+          if (recipe) {
+            enrichedLabel.recipes = recipe;
           }
         }
 

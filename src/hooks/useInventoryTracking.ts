@@ -34,11 +34,25 @@ export const useInventoryTracking = () => {
   const { restaurantId } = useRestaurant();
   const { toast } = useToast();
 
+  /**
+   * Alloca un ingrediente a un'etichetta e aggiorna lo stock
+   * @param ingredientId - ID dell'ingrediente da allocare
+   * @param labelId - ID dell'etichetta a cui allocare l'ingrediente
+   * @param quantity - Quantità da allocare
+   * @param notes - Note opzionali per il movimento di inventario
+   * @param labelType - Tipo di etichetta ('ingredient', 'defrosted', 'recipe', 'semilavorato')
+   * @param reduceCurrentStock - Se true, riduce anche il current_stock (usato per ricette e semilavorati)
+   * @param skipAllocatedStockUpdate - Se true, non incrementa l'allocated_stock (usato per ricette e semilavorati)
+   * @returns true se l'allocazione è avvenuta con successo, false altrimenti
+   */
   const allocateIngredient = async (
     ingredientId: string,
     labelId: string,
     quantity: number,
-    notes?: string
+    notes?: string,
+    labelType?: string,
+    reduceCurrentStock: boolean = false,
+    skipAllocatedStockUpdate: boolean = false
   ) => {
     if (!restaurantId) return false;
 
@@ -47,7 +61,7 @@ export const useInventoryTracking = () => {
       // Get current ingredient stock
       const { data: ingredient, error: ingredientError } = await supabase
         .from('ingredients')
-        .select('current_stock, allocated_stock, name')
+        .select('current_stock, allocated_stock, labeled_stock, name')
         .eq('id', ingredientId)
         .single();
 
@@ -55,6 +69,7 @@ export const useInventoryTracking = () => {
 
       const currentStock = ingredient.current_stock || 0;
       const allocatedStock = ingredient.allocated_stock || 0;
+      const labeledStock = ingredient.labeled_stock || 0;
       const availableStock = currentStock - allocatedStock;
 
       if (availableStock < quantity) {
@@ -78,12 +93,39 @@ export const useInventoryTracking = () => {
 
       if (allocationError) throw allocationError;
 
-      // Update ingredient allocated stock
+      // Prepara i campi da aggiornare
+      const updateFields: { allocated_stock?: number; labeled_stock?: number; current_stock?: number } = {};
+      
+      // Aggiorna lo stock allocato solo se non è richiesto di saltare l'aggiornamento
+      if (!skipAllocatedStockUpdate) {
+        updateFields.allocated_stock = allocatedStock + quantity;
+      }
+      
+      // Se è un'etichetta di tipo 'ingredient', aggiorna anche lo stock etichettato
+      if (labelType === 'ingredient') {
+        console.log('Debug labeled_stock:', { 
+          labelType, 
+          labeledStock, 
+          quantity, 
+          nuovo: labeledStock + quantity 
+        });
+        updateFields.labeled_stock = labeledStock + quantity;
+      }
+      
+      // Se richiesto, riduci anche il current_stock (per ricette e semilavorati)
+      if (reduceCurrentStock) {
+        updateFields.current_stock = currentStock - quantity;
+      }
+      
+      // Verifica che ci siano campi da aggiornare
+      if (Object.keys(updateFields).length === 0) {
+        console.log('Nessun campo da aggiornare per l\'ingrediente', ingredientId);
+        return true;
+      }
+
       const { error: updateError } = await supabase
         .from('ingredients')
-        .update({
-          allocated_stock: allocatedStock + quantity
-        })
+        .update(updateFields)
         .eq('id', ingredientId);
 
       if (updateError) throw updateError;
@@ -95,11 +137,11 @@ export const useInventoryTracking = () => {
           restaurant_id: restaurantId,
           ingredient_id: ingredientId,
           label_id: labelId,
-          movement_type: 'allocated',
-          quantity_change: 0, // No change in current_stock
+          movement_type: skipAllocatedStockUpdate ? 'consumed' : 'allocated',
+          quantity_change: reduceCurrentStock ? -quantity : 0, // Reduce current_stock if requested
           quantity_before: currentStock,
-          quantity_after: currentStock,
-          allocated_quantity_change: quantity,
+          quantity_after: reduceCurrentStock ? currentStock - quantity : currentStock,
+          allocated_quantity_change: skipAllocatedStockUpdate ? 0 : quantity,
           notes: notes
         });
 
@@ -152,18 +194,24 @@ export const useInventoryTracking = () => {
        * 1. SEMILAVORATO/LAVORATO/RECIPE: Quando consumate/scartate, riducono il current_stock
        *    perché rappresentano prodotti finiti che vengono serviti ai clienti
        * 
-       * 2. DEFROSTED/INGREDIENT: Quando consumate/scartate, NON riducono il current_stock
-       *    perché rappresentano solo l'allocazione di ingredienti già esistenti.
-       *    In questo caso liberiamo solo l'allocazione per rendere di nuovo disponibile l'ingrediente.
+       * 2. DEFROSTED/INGREDIENT: 
+       *    - Quando CONSUMATE, NON riducono il current_stock perché rappresentano 
+       *      solo l'allocazione di ingredienti già esistenti.
+       *    - Quando SCARTATE, riducono il current_stock perché il prodotto non è più utilizzabile.
        */
-      const shouldReduceStock = ['semilavorato', 'lavorato', 'recipe'].includes(label.label_type);
+      // Modifica da:
+
+      // A:
+      const shouldReduceStock = 
+        ['lavorato'].includes(label.label_type) || 
+        (action === 'discarded' && ['ingredient', 'defrosted', 'recipe', 'semilavorato'].includes(label.label_type));
 
       console.log(`Should reduce stock for ${label.label_type}: ${shouldReduceStock}`);
 
       for (const allocation of allocations) {
         const { data: ingredient, error: ingredientError } = await supabase
           .from('ingredients')
-          .select('current_stock, allocated_stock, name')
+          .select('current_stock, allocated_stock, labeled_stock, name')
           .eq('id', allocation.ingredient_id)
           .single();
 
@@ -171,6 +219,7 @@ export const useInventoryTracking = () => {
 
         const currentStock = ingredient.current_stock || 0;
         const allocatedStock = ingredient.allocated_stock || 0;
+        const labeledStock = ingredient.labeled_stock || 0;
         
         // Always reduce allocated stock when consuming/discarding
         const newAllocatedStock = Math.max(0, allocatedStock - allocation.allocated_quantity);
@@ -183,19 +232,27 @@ export const useInventoryTracking = () => {
         console.log(`Ingredient ${ingredient.name}:`, {
           currentStock,
           allocatedStock,
+          labeledStock,
           allocationQuantity: allocation.allocated_quantity,
           newCurrentStock,
           newAllocatedStock,
           shouldReduceStock
         });
 
-        // Update ingredient stock
+        // Update ingredient stock with labeled_stock if needed
+        const updateFields: { current_stock: number; allocated_stock: number; labeled_stock?: number } = {
+          current_stock: newCurrentStock,
+          allocated_stock: newAllocatedStock
+        };
+        
+        // If it's an ingredient label type, also update labeled_stock
+        if (label.label_type === 'ingredient') {
+          updateFields.labeled_stock = Math.max(0, labeledStock - allocation.allocated_quantity);
+        }
+
         const { error: updateError } = await supabase
           .from('ingredients')
-          .update({
-            current_stock: newCurrentStock,
-            allocated_stock: newAllocatedStock
-          })
+          .update(updateFields)
           .eq('id', allocation.ingredient_id);
 
         if (updateError) throw updateError;
@@ -251,6 +308,15 @@ export const useInventoryTracking = () => {
     }
   };
 
+  /**
+   * Alloca tutti gli ingredienti di una ricetta a un'etichetta
+   * Riduce il current_stock degli ingredienti ma NON incrementa l'allocated_stock
+   * @param recipeId - ID della ricetta
+   * @param labelId - ID dell'etichetta
+   * @param portions - Numero di porzioni
+   * @param notes - Note opzionali per il movimento di inventario
+   * @returns true se l'allocazione è avvenuta con successo, false altrimenti
+   */
   const allocateRecipeIngredients = async (
     recipeId: string,
     labelId: string,
@@ -298,7 +364,10 @@ export const useInventoryTracking = () => {
           ri.ingredient_id, 
           labelId, 
           neededQuantity, 
-          notes || `Allocazione per ricetta (${portions} porzioni)`
+          notes || `Allocazione per ricetta (${portions} porzioni)`,
+          undefined, // labelType
+          true, // reduceCurrentStock - riduce current_stock alla creazione della ricetta
+          true  // skipAllocatedStockUpdate - non incrementa allocated_stock per ricette/semilavorati
         );
         
         if (!success) {

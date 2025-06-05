@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -42,9 +41,9 @@ const InventoryTrackingDashboard = () => {
   const [labels, setLabels] = useState<EnrichedLabel[]>([]);
   const [filteredLabels, setFilteredLabels] = useState<EnrichedLabel[]>([]);
   const [filters, setFilters] = useState({
-    label_type: '',
-    status: '',
-    storage_location_id: '',
+    label_type: 'all',
+    status: 'all',
+    storage_location_id: 'all',
     search: ''
   });
 
@@ -67,15 +66,15 @@ const InventoryTrackingDashboard = () => {
   useEffect(() => {
     let filtered = labels;
 
-    if (filters.label_type) {
+    if (filters.label_type && filters.label_type !== 'all') {
       filtered = filtered.filter(label => label.label_type === filters.label_type);
     }
 
-    if (filters.status) {
+    if (filters.status && filters.status !== 'all') {
       filtered = filtered.filter(label => label.status === filters.status);
     }
 
-    if (filters.storage_location_id) {
+    if (filters.storage_location_id && filters.storage_location_id !== 'all') {
       filtered = filtered.filter(label => label.storage_location_id === filters.storage_location_id);
     }
 
@@ -183,7 +182,7 @@ const InventoryTrackingDashboard = () => {
                     <SelectValue placeholder="Tipo etichetta" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">Tutti i tipi</SelectItem>
+                    <SelectItem value="all">Tutti i tipi</SelectItem>
                     <SelectItem value="semilavorato">Semilavorato</SelectItem>
                     <SelectItem value="lavorato">Lavorato</SelectItem>
                     <SelectItem value="recipe">Ricetta</SelectItem>
@@ -197,7 +196,7 @@ const InventoryTrackingDashboard = () => {
                     <SelectValue placeholder="Stato" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">Tutti gli stati</SelectItem>
+                    <SelectItem value="all">Tutti gli stati</SelectItem>
                     <SelectItem value="active">Attivo</SelectItem>
                     <SelectItem value="consumed">Consumato</SelectItem>
                     <SelectItem value="expired">Scaduto</SelectItem>
@@ -210,7 +209,7 @@ const InventoryTrackingDashboard = () => {
                     <SelectValue placeholder="Posizione" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">Tutte le posizioni</SelectItem>
+                    <SelectItem value="all">Tutte le posizioni</SelectItem>
                     {storageLocations.map((location) => (
                       <SelectItem key={location.id} value={location.id}>
                         {location.name}

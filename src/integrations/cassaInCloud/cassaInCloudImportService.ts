@@ -5,17 +5,21 @@
 import { supabase } from '@/integrations/supabase/client'; // Assicurati che il percorso sia corretto
 import {
   getCategories,
-  type CassaInCloudCategory,
-  type GetCategoriesParams,
   getProducts, 
-  type GetProductsParams, // Importa la nuova interfaccia per i parametri di getProducts
-  type CassaInCloudProduct,
-  getSoldByProductReport // Aggiungi questa importazione
+  getSoldByProductReport
 } from './cassaInCloudService';
+import type {
+  CassaInCloudCategory,
+  GetCategoriesParams,
+  GetProductsParams,
+  CassaInCloudProduct,
+  GetSoldByProductParams, 
+  GetSoldByProductApiResponse
+} from './cassaInCloudTypes';
 import { mapCassaInCloudProductToInternalProduct } from './cassaInCloudDataMapper';
 import type { InternalProduct } from '@/types/internalProduct';
-// Aggiungi anche l'importazione dei tipi necessari se non sono già importati altrove
-import type { GetSoldByProductParams, GetSoldByProductApiResponse } from './cassaInCloudTypes';
+// Rimuovi questa importazione duplicata
+// import type { GetSoldByProductParams, GetSoldByProductApiResponse } from './cassaInCloudTypes';
 
 export async function importRestaurantCategoriesFromCassaInCloud(
   restaurantIdSupabase: string, // ID del ristorante su Supabase

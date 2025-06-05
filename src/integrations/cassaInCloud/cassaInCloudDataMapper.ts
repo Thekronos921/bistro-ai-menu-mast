@@ -1,11 +1,11 @@
 import { InternalProduct, InternalProductVariant } from '@/types/internalProduct';
 import {
   CassaInCloudProduct,
-  CassaInCloudProductVariantAPI, // Assicurati che sia esportata da cassaInCloudService.ts
+  CassaInCloudProductVariantAPI,
   // CassaInCloudPrice, // Non direttamente usata qui, ma CassaInCloudProduct la usa
   // CassaInCloudDepartment, // Non direttamente usata qui, ma CassaInCloudProduct la usa
   // CassaInCloudCategory, // Non direttamente usata qui, ma CassaInCloudProduct la usa
-} from './cassaInCloudService'; // Importa le interfacce necessarie
+} from './cassaInCloudTypes'; // Modificato: importa direttamente da cassaInCloudTypes invece di cassaInCloudService
 
 export const mapCassaInCloudProductToInternalProduct = (cicProduct: CassaInCloudProduct): InternalProduct => {
   const price = cicProduct.prices && cicProduct.prices.length > 0 ? cicProduct.prices[0].value : 0;

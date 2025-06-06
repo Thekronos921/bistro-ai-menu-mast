@@ -1,7 +1,6 @@
 
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import type { Recipe } from '@/types/recipe';
 
 interface Ingredient {
   id: string;
@@ -9,6 +8,7 @@ interface Ingredient {
   unit: string;
   cost_per_unit: number;
   effective_cost_per_unit?: number;
+  yield_percentage?: number; // Aggiunto questo campo
 }
 
 interface LocalRecipeIngredient {
@@ -17,6 +17,7 @@ interface LocalRecipeIngredient {
   quantity: number;
   unit?: string;
   is_semilavorato?: boolean;
+  recipe_yield_percentage?: number;
   ingredient: Ingredient | null;
 }
 
@@ -24,73 +25,69 @@ export const useRecipeIngredients = (recipeId: string) => {
   const [recipeIngredients, setRecipeIngredients] = useState<LocalRecipeIngredient[]>([]);
 
   useEffect(() => {
-    const loadRecipeIngredients = async () => {
+    const fetchRecipeIngredients = async () => {
+      if (!recipeId) return;
+
       console.log("Loading recipe ingredients for recipe:", recipeId);
       
-      const { data: recipeIngredientsData, error } = await supabase
-        .from('recipe_ingredients')
-        .select(`
-          id,
-          ingredient_id,
-          quantity,
-          unit,
-          is_semilavorato,
-          recipe_yield_percentage,
-          ingredients!inner(
+      try {
+        const { data, error } = await supabase
+          .from('recipe_ingredients')
+          .select(`
             id,
-            name,
+            ingredient_id,
+            quantity,
             unit,
-            cost_per_unit,
-            effective_cost_per_unit
-          )
-        `)
-        .eq('recipe_id', recipeId);
+            is_semilavorato,
+            recipe_yield_percentage,
+            ingredients (
+              id,
+              name,
+              unit,
+              cost_per_unit,
+              effective_cost_per_unit,
+              yield_percentage
+            )
+          `)
+          .eq('recipe_id', recipeId);
 
-      if (error) {
-        console.error("Error loading recipe ingredients:", error);
-        return;
+        if (error) {
+          console.error("Error fetching recipe ingredients:", error);
+          return;
+        }
+
+        console.log("Loaded recipe ingredients raw data:", data);
+
+        const mappedIngredients = data?.map(item => {
+          console.log(`Caricando ${item.ingredients?.name}:`);
+          console.log(`- Quantità salvata: ${item.quantity}`);
+          console.log(`- Unità salvata nel DB: "${item.unit}"`);
+          console.log(`- Unità base ingrediente: "${item.ingredients?.unit}"`);
+          console.log(`- Resa ingrediente: ${item.ingredients?.yield_percentage}%`);
+          
+          // Usa l'unità salvata nel DB se presente, altrimenti quella base dell'ingrediente
+          const finalUnit = item.unit || item.ingredients?.unit || 'g';
+          console.log(`- Unità finale utilizzata: "${finalUnit}"`);
+
+          return {
+            id: item.id,
+            ingredient_id: item.ingredient_id,
+            quantity: item.quantity,
+            unit: finalUnit,
+            is_semilavorato: item.is_semilavorato,
+            recipe_yield_percentage: item.recipe_yield_percentage,
+            ingredient: Array.isArray(item.ingredients) ? item.ingredients[0] : item.ingredients
+          };
+        }) || [];
+
+        console.log("Final mapped ingredients with units:", mappedIngredients);
+        setRecipeIngredients(mappedIngredients);
+      } catch (error) {
+        console.error("Error in fetchRecipeIngredients:", error);
       }
-
-      console.log("Loaded recipe ingredients raw data:", recipeIngredientsData);
-      
-      const mappedIngredients = (recipeIngredientsData || []).map(ri => {
-        // Gestisci il caso in cui ingredients potrebbe essere un array o un oggetto
-        const ingredientData = Array.isArray(ri.ingredients) ? ri.ingredients[0] : ri.ingredients;
-        
-        // IMPORTANTE: usa SEMPRE l'unità salvata nel database se disponibile
-        // Se l'unità salvata è null o undefined, usa quella base dell'ingrediente
-        const unitToUse = ri.unit || ingredientData?.unit || '';
-        
-        console.log(`Caricando ${ingredientData?.name}:`);
-        console.log(`- Quantità salvata: ${ri.quantity}`);
-        console.log(`- Unità salvata nel DB: "${ri.unit}"`);
-        console.log(`- Unità base ingrediente: "${ingredientData?.unit}"`);
-        console.log(`- Unità finale utilizzata: "${unitToUse}"`);
-        
-        return {
-          id: ri.id,
-          ingredient_id: ri.ingredient_id,
-          quantity: ri.quantity,
-          unit: unitToUse, // Usa SEMPRE l'unità salvata nel database
-          is_semilavorato: ri.is_semilavorato || false,
-          recipe_yield_percentage: ri.recipe_yield_percentage,
-          ingredient: ingredientData ? {
-            id: ingredientData.id,
-            name: ingredientData.name,
-            unit: ingredientData.unit,
-            cost_per_unit: ingredientData.cost_per_unit,
-            effective_cost_per_unit: ingredientData.effective_cost_per_unit
-          } : null
-        };
-      });
-
-      console.log("Final mapped ingredients with units:", mappedIngredients);
-      setRecipeIngredients(mappedIngredients);
     };
 
-    if (recipeId) {
-      loadRecipeIngredients();
-    }
+    fetchRecipeIngredients();
   }, [recipeId]);
 
   return { recipeIngredients, setRecipeIngredients };

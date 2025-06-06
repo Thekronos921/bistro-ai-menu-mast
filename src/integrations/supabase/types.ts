@@ -370,6 +370,7 @@ export type Database = {
           expiry_date: string | null
           external_id: string | null
           id: string
+          is_semilavorato: boolean | null
           labeled_stock: number | null
           last_synced_at: string | null
           min_stock_threshold: number | null
@@ -396,6 +397,7 @@ export type Database = {
           expiry_date?: string | null
           external_id?: string | null
           id?: string
+          is_semilavorato?: boolean | null
           labeled_stock?: number | null
           last_synced_at?: string | null
           min_stock_threshold?: number | null
@@ -422,6 +424,7 @@ export type Database = {
           expiry_date?: string | null
           external_id?: string | null
           id?: string
+          is_semilavorato?: boolean | null
           labeled_stock?: number | null
           last_synced_at?: string | null
           min_stock_threshold?: number | null
@@ -756,6 +759,7 @@ export type Database = {
           is_semilavorato: boolean | null
           quantity: number
           recipe_id: string | null
+          recipe_yield_percentage: number | null
           unit: string | null
         }
         Insert: {
@@ -765,6 +769,7 @@ export type Database = {
           is_semilavorato?: boolean | null
           quantity: number
           recipe_id?: string | null
+          recipe_yield_percentage?: number | null
           unit?: string | null
         }
         Update: {
@@ -774,6 +779,7 @@ export type Database = {
           is_semilavorato?: boolean | null
           quantity?: number
           recipe_id?: string | null
+          recipe_yield_percentage?: number | null
           unit?: string | null
         }
         Relationships: [

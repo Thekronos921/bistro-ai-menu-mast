@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Plus } from "lucide-react";
@@ -15,6 +14,7 @@ interface Ingredient {
   unit: string;
   cost_per_unit: number;
   effective_cost_per_unit?: number;
+  yield_percentage?: number;
 }
 
 interface Semilavorato {
@@ -59,7 +59,7 @@ const RecipeIngredientsForm = ({ recipeIngredients, onIngredientsChange, recipeI
 
       const { data: ingredientsData, error: ingredientsError } = await supabase
         .from('ingredients')
-        .select('id, name, unit, cost_per_unit, effective_cost_per_unit')
+        .select('id, name, unit, cost_per_unit, effective_cost_per_unit, yield_percentage')
         .eq('restaurant_id', restaurantId)
         .order('name');
 

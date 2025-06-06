@@ -59,14 +59,16 @@ export const useRecipeIngredients = (recipeId: string) => {
         console.log("Loaded recipe ingredients raw data:", data);
 
         const mappedIngredients = data?.map(item => {
-          console.log(`Caricando ${item.ingredients?.name}:`);
+          // Normalizza sempre item.ingredients come oggetto singolo
+          const ingredientObj = Array.isArray(item.ingredients) ? item.ingredients[0] : item.ingredients;
+          console.log(`Caricando ${ingredientObj?.name}:`);
           console.log(`- Quantità salvata: ${item.quantity}`);
           console.log(`- Unità salvata nel DB: "${item.unit}"`);
-          console.log(`- Unità base ingrediente: "${item.ingredients?.unit}"`);
-          console.log(`- Resa ingrediente: ${item.ingredients?.yield_percentage}%`);
+          console.log(`- Unità base ingrediente: "${ingredientObj?.unit}"`);
+          console.log(`- Resa ingrediente: ${ingredientObj?.yield_percentage}%`);
           
           // Usa l'unità salvata nel DB se presente, altrimenti quella base dell'ingrediente
-          const finalUnit = item.unit || item.ingredients?.unit || 'g';
+          const finalUnit = item.unit || ingredientObj?.unit || 'g';
           console.log(`- Unità finale utilizzata: "${finalUnit}"`);
 
           return {
@@ -76,7 +78,7 @@ export const useRecipeIngredients = (recipeId: string) => {
             unit: finalUnit,
             is_semilavorato: item.is_semilavorato,
             recipe_yield_percentage: item.recipe_yield_percentage,
-            ingredient: Array.isArray(item.ingredients) ? item.ingredients[0] : item.ingredients
+            ingredient: ingredientObj
           };
         }) || [];
 

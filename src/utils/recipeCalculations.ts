@@ -6,6 +6,7 @@ interface RecipeIngredient {
   quantity: number;
   unit?: string; // Aggiungiamo l'unità specifica per questo ingrediente nella ricetta
   is_semilavorato?: boolean;
+  recipe_yield_percentage?: number; // Resa specifica per questo ingrediente in questa ricetta
   ingredients: {
     id: string;
     name: string;
@@ -19,16 +20,26 @@ interface RecipeIngredient {
 export const calculateTotalCost = (recipeIngredients: RecipeIngredient[]) => {
   if (!recipeIngredients) return 0;
   return recipeIngredients.reduce((total, ri) => {
-    const effectiveCost = ri.ingredients.effective_cost_per_unit ?? ri.ingredients.cost_per_unit;
-    const yieldPercentage = ri.ingredients.yield_percentage ?? 100;
+    // Usa sempre effective_cost_per_unit se disponibile, altrimenti cost_per_unit
+    const baseCostPerUnit = ri.ingredients.effective_cost_per_unit ?? ri.ingredients.cost_per_unit;
     
-    // Se l'ingrediente nella ricetta ha un'unità diversa da quella base, converte
-    let adjustedCost = effectiveCost;
+    // NUOVA LOGICA: Determina quale resa usare
+    let finalCostPerUnit = baseCostPerUnit;
+    
+    // 1. Se c'è una resa specifica per la ricetta, usala
+    if (ri.recipe_yield_percentage !== null && ri.recipe_yield_percentage !== undefined) {
+      finalCostPerUnit = baseCostPerUnit / (ri.recipe_yield_percentage / 100);
+    }
+    // 2. Altrimenti, se l'ingrediente ha una resa e non abbiamo già effective_cost_per_unit, applicala
+    else if (!ri.ingredients.effective_cost_per_unit && ri.ingredients.yield_percentage) {
+      const yieldPercentage = ri.ingredients.yield_percentage ?? 100;
+      finalCostPerUnit = baseCostPerUnit / (yieldPercentage / 100);
+    }
+    
+    // Gestione conversione unità
     let adjustedQuantity = ri.quantity;
-    
     if (ri.unit && ri.unit !== ri.ingredients.unit) {
       if (areUnitsCompatible(ri.unit, ri.ingredients.unit)) {
-        // Converte la quantità dall'unità della ricetta all'unità base dell'ingrediente
         adjustedQuantity = convertUnit(ri.quantity, ri.unit, ri.ingredients.unit);
         console.log(`Convertendo ${ri.quantity} ${ri.unit} a ${adjustedQuantity} ${ri.ingredients.unit} per ${ri.ingredients.name}`);
       } else {
@@ -36,10 +47,7 @@ export const calculateTotalCost = (recipeIngredients: RecipeIngredient[]) => {
       }
     }
     
-    // Applica la resa se disponibile
-    const finalCost = adjustedCost * (100 / yieldPercentage);
-    
-    return total + (finalCost * adjustedQuantity);
+    return total + (finalCostPerUnit * adjustedQuantity);
   }, 0);
 };
 

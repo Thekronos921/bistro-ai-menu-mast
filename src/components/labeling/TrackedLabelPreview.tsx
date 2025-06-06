@@ -38,7 +38,7 @@ const TrackedLabelPreview = ({
     const generateQR = async () => {
       try {
         const url = await QRCode.toDataURL(qrData, {
-          width: 140,
+          width: 120,
           margin: 1,
           color: {
             dark: '#000000',
@@ -110,95 +110,71 @@ const TrackedLabelPreview = ({
   };
 
   return (
-    <Card className="w-full max-w-sm mx-auto bg-white shadow-lg border-2 border-gray-200 print:shadow-none print:border-black" data-label-preview>
-      <CardContent className="p-6 space-y-4">
-        {/* Header con titolo e tipo */}
-        <div className="text-center border-b-2 border-gray-200 pb-4">
-          <h3 className="font-bold text-xl text-gray-900 leading-tight mb-3">{title}</h3>
-          <Badge className={`px-4 py-2 ${getTypeColor(type)} border-2`}>
+    <Card className="w-full max-w-xs mx-auto bg-white shadow-lg border-2 border-gray-200 print:shadow-none print:border-black" data-label-preview>
+      <CardContent className="p-4 space-y-3">
+        {/* Header compatto */}
+        <div className="text-center border-b border-gray-200 pb-3">
+          <h3 className="font-bold text-lg text-gray-900 leading-tight mb-2">{title}</h3>
+          <Badge className={`px-3 py-1 ${getTypeColor(type)} border`}>
             {getTypeIcon(type)}
-            <span className="ml-2 font-semibold text-sm">{getTypeName(type)}</span>
+            <span className="ml-2 font-semibold text-xs">{getTypeName(type)}</span>
           </Badge>
         </div>
 
-        {/* QR Code */}
-        <div className="flex justify-center py-3">
+        {/* QR Code compatto */}
+        <div className="flex justify-center py-2">
           {qrCodeUrl && (
-            <div className="p-3 bg-white border-2 border-gray-300 rounded-lg shadow-sm">
+            <div className="p-2 bg-white border border-gray-300 rounded shadow-sm">
               <img
                 src={qrCodeUrl}
                 alt="QR Code"
-                className="w-32 h-32"
+                className="w-24 h-24"
               />
-              <div className="text-center mt-2 text-xs font-medium text-gray-600">Scansiona per tracciare</div>
+              <div className="text-center mt-1 text-[10px] font-medium text-gray-600">Scansiona</div>
             </div>
           )}
         </div>
 
-        {/* Informazioni principali */}
-        <div className="space-y-4 text-sm">
-          {/* Sezione 1: Informazioni di base */}
-          <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
-            <h4 className="text-xs font-bold text-gray-600 uppercase mb-3 pb-1 border-b border-gray-300">Informazioni Base</h4>
-            <div className="space-y-3">
+        {/* Informazioni compatte */}
+        <div className="space-y-2 text-xs">
+          {/* Info base */}
+          <div className="bg-gray-50 p-2 rounded border">
+            <div className="space-y-1">
               {batchNumber && (
                 <div className="flex items-center justify-between">
-                  <div className="flex items-center">
-                    <Info className="w-4 h-4 mr-2 text-gray-500" />
-                    <span className="text-gray-600 font-medium">Lotto:</span>
-                  </div>
-                  <span className="font-mono font-bold text-gray-900">{batchNumber}</span>
+                  <span className="text-gray-600 font-medium">Lotto:</span>
+                  <span className="font-mono font-bold text-gray-900 text-[10px]">{batchNumber}</span>
                 </div>
               )}
 
               {quantity && unit && (
                 <div className="flex items-center justify-between">
-                  <div className="flex items-center">
-                    <Scale className="w-4 h-4 mr-2 text-gray-500" />
-                    <span className="text-gray-600 font-medium">Quantità:</span>
-                  </div>
+                  <span className="text-gray-600 font-medium">Quantità:</span>
                   <span className="font-bold text-gray-900">{quantity} {unit}</span>
-                </div>
-              )}
-
-              {supplier && (
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center">
-                    <Truck className="w-4 h-4 mr-2 text-gray-500" />
-                    <span className="text-gray-600 font-medium">Fornitore:</span>
-                  </div>
-                  <span className="font-medium text-gray-900 text-right max-w-[120px] truncate">{supplier}</span>
                 </div>
               )}
             </div>
           </div>
 
-          {/* Sezione 2: Date importanti */}
+          {/* Date */}
           {(productionDate || expiryDate) && (
-            <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
-              <h4 className="text-xs font-bold text-blue-700 uppercase mb-3 pb-1 border-b border-blue-300">Date Importanti</h4>
-              <div className="space-y-3">
+            <div className="bg-blue-50 p-2 rounded border border-blue-200">
+              <div className="space-y-1">
                 {productionDate && (
                   <div className="flex items-center justify-between">
-                    <div className="flex items-center">
-                      <Clock className="w-4 h-4 mr-2 text-blue-600" />
-                      <span className="text-blue-700 font-medium">Produzione:</span>
-                    </div>
+                    <span className="text-blue-700 font-medium">Produzione:</span>
                     <span className="font-bold text-blue-900">{new Date(productionDate).toLocaleDateString('it-IT')}</span>
                   </div>
                 )}
 
                 {expiryDate && (
-                  <div className={`flex items-center justify-between ${isExpiringSoon() ? 'bg-red-100 -m-2 p-2 rounded border border-red-200' : ''}`}>
-                    <div className="flex items-center">
-                      <Calendar className={`w-4 h-4 mr-2 ${isExpiringSoon() ? 'text-red-600' : 'text-blue-600'}`} />
-                      <span className={`font-medium ${isExpiringSoon() ? 'text-red-700' : 'text-blue-700'}`}>Scadenza:</span>
-                    </div>
+                  <div className={`flex items-center justify-between ${isExpiringSoon() ? 'bg-red-100 -m-1 p-1 rounded border border-red-200' : ''}`}>
+                    <span className={`font-medium ${isExpiringSoon() ? 'text-red-700' : 'text-blue-700'}`}>Scadenza:</span>
                     <div className="flex items-center">
                       <span className={`font-bold ${isExpiringSoon() ? 'text-red-900' : 'text-blue-900'}`}>
                         {new Date(expiryDate).toLocaleDateString('it-IT')}
                       </span>
-                      {isExpiringSoon() && <span className="ml-2 text-red-600">⚠️</span>}
+                      {isExpiringSoon() && <span className="ml-1 text-red-600 text-xs">⚠️</span>}
                     </div>
                   </div>
                 )}
@@ -206,11 +182,11 @@ const TrackedLabelPreview = ({
             </div>
           )}
 
-          {/* Sezione 3: Allergeni */}
+          {/* Allergeni */}
           {allergens && (
-            <div className="bg-yellow-50 p-4 rounded-lg border border-yellow-200">
+            <div className="bg-yellow-50 p-2 rounded border border-yellow-200">
               <div className="flex items-start">
-                <AlertTriangle className="w-4 h-4 mr-2 text-yellow-600 mt-0.5 flex-shrink-0" />
+                <AlertTriangle className="w-3 h-3 mr-1 text-yellow-600 mt-0.5 flex-shrink-0" />
                 <div>
                   <span className="font-bold text-yellow-800 block mb-1">Allergeni:</span>
                   <p className="text-yellow-700 font-medium">{allergens}</p>
@@ -219,11 +195,11 @@ const TrackedLabelPreview = ({
             </div>
           )}
 
-          {/* Sezione 4: Conservazione */}
+          {/* Conservazione */}
           {storageInstructions && (
-            <div className="bg-indigo-50 p-4 rounded-lg border border-indigo-200">
+            <div className="bg-indigo-50 p-2 rounded border border-indigo-200">
               <div className="flex items-start">
-                <Refrigerator className="w-4 h-4 mr-2 text-indigo-600 mt-0.5 flex-shrink-0" />
+                <Refrigerator className="w-3 h-3 mr-1 text-indigo-600 mt-0.5 flex-shrink-0" />
                 <div>
                   <span className="font-bold text-indigo-800 block mb-1">Conservazione:</span>
                   <p className="text-indigo-700 leading-tight">{storageInstructions}</p>
@@ -233,13 +209,12 @@ const TrackedLabelPreview = ({
           )}
         </div>
 
-        {/* Footer con timestamp */}
-        <div className="text-center pt-4 mt-4 border-t-2 border-gray-200 space-y-2">
-          <div className="flex items-center justify-center text-xs text-gray-500">
-            <Info className="w-3 h-3 mr-1" />
-            <span>Generato il {new Date().toLocaleDateString('it-IT')} alle {new Date().toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' })}</span>
+        {/* Footer compatto */}
+        <div className="text-center pt-2 mt-2 border-t border-gray-200 space-y-1">
+          <div className="text-[9px] text-gray-500">
+            Generato il {new Date().toLocaleDateString('it-IT')} alle {new Date().toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' })}
           </div>
-          <div className="text-[10px] text-gray-400 font-medium">
+          <div className="text-[8px] text-gray-400 font-medium">
             Sistema di tracciabilità Bistro AI
           </div>
         </div>

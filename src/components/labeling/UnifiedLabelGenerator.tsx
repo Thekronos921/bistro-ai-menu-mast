@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { QrCode, Package, ChefHat, Snowflake, BookOpen, Tag } from 'lucide-react';
 import UnifiedLabelForm from './UnifiedLabelForm';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 interface UnifiedLabelGeneratorProps {
   onClose?: () => void;
@@ -14,6 +15,7 @@ interface UnifiedLabelGeneratorProps {
 const UnifiedLabelGenerator = ({ onClose, className }: UnifiedLabelGeneratorProps) => {
   const [open, setOpen] = useState(false);
   const [activeTab, setActiveTab] = useState('ingredient');
+  const isMobile = useIsMobile();
 
   const handleClose = () => {
     setOpen(false);
@@ -66,8 +68,8 @@ const UnifiedLabelGenerator = ({ onClose, className }: UnifiedLabelGeneratorProp
           Genera Etichette
         </Button>
       </DialogTrigger>
-      <DialogContent className="max-w-6xl max-h-[95vh] overflow-hidden flex flex-col">
-        <DialogHeader className="flex-shrink-0">
+      <DialogContent className={`${isMobile ? 'max-w-[95vw] h-[95vh]' : 'max-w-4xl max-h-[90vh]'} overflow-hidden flex flex-col`}>
+        <DialogHeader className="flex-shrink-0 pb-4">
           <DialogTitle className="flex items-center space-x-2 text-xl">
             <QrCode className="w-6 h-6 text-blue-600" />
             <span>Generatore Etichette Unificato</span>
@@ -75,18 +77,18 @@ const UnifiedLabelGenerator = ({ onClose, className }: UnifiedLabelGeneratorProp
         </DialogHeader>
         
         <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col overflow-hidden">
-          <TabsList className="grid grid-cols-5 mb-4 flex-shrink-0">
+          <TabsList className={`grid grid-cols-5 mb-4 flex-shrink-0 ${isMobile ? 'h-auto' : ''}`}>
             {labelTypes.map(type => {
               const Icon = type.icon;
               return (
                 <TabsTrigger 
                   key={type.value}
                   value={type.value} 
-                  className="flex flex-col items-center space-y-1 p-3 h-auto"
+                  className={`flex ${isMobile ? 'flex-col' : 'flex-col'} items-center space-y-1 ${isMobile ? 'p-2 text-xs' : 'p-3'} h-auto`}
                   title={type.description}
                 >
                   <Icon className={`w-4 h-4 ${type.color}`} />
-                  <span className="text-xs font-medium">{type.label}</span>
+                  <span className={`${isMobile ? 'text-[10px]' : 'text-xs'} font-medium`}>{type.label}</span>
                 </TabsTrigger>
               );
             })}

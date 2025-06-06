@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -7,8 +6,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { Separator } from '@/components/ui/separator';
-import { CalendarIcon, PrinterIcon, SaveIcon, Package, Info } from 'lucide-react';
+import { CalendarIcon, PrinterIcon, SaveIcon, Info } from 'lucide-react';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { format, addDays } from 'date-fns';
@@ -19,6 +17,7 @@ import { useLabels } from '@/hooks/useLabels';
 import { useStorageLocations } from '@/hooks/useStorageLocations';
 import TrackedLabelPreview from './TrackedLabelPreview';
 import { useToast } from '@/hooks/use-toast';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 interface UnifiedLabelFormProps {
   labelType: 'ingredient' | 'semilavorato' | 'recipe' | 'defrosted' | 'lavorato';
@@ -47,6 +46,7 @@ const UnifiedLabelForm = ({ labelType, onClose }: UnifiedLabelFormProps) => {
   const { saveLabel, loading } = useLabels();
   const { storageLocations } = useStorageLocations();
   const { toast } = useToast();
+  const isMobile = useIsMobile();
 
   const [formData, setFormData] = useState<FormData>({
     title: '',
@@ -279,10 +279,204 @@ const UnifiedLabelForm = ({ labelType, onClose }: UnifiedLabelFormProps) => {
 
   const config = getTypeConfig();
 
+  if (isMobile) {
+    return (
+      <div className="space-y-4 h-full">
+        {/* Header Mobile */}
+        <div className="flex items-center space-x-2 mb-4">
+          <Badge variant="outline" className={`bg-${config.color}-50 text-${config.color}-700 border-${config.color}-200 text-xs`}>
+            {config.title}
+          </Badge>
+        </div>
+
+        {/* Form compatto per mobile */}
+        <div className="space-y-4 overflow-y-auto max-h-[calc(100vh-200px)]">
+          {/* Selezione e quantità */}
+          <Card>
+            <CardContent className="p-3 space-y-3">
+              <div className="space-y-2">
+                <Label className="text-sm">
+                  {labelType === 'ingredient' || labelType === 'defrosted' ? 'Ingrediente' : 'Ricetta'}
+                </Label>
+                <Select
+                  value={formData[config.itemField] || ""}
+                  onValueChange={(value) => {
+                    setFormData(prev => ({ ...prev, [config.itemField]: value }));
+                    const item = config.items.find(i => i.id === value);
+                    setSelectedItem(item);
+                  }}
+                >
+                  <SelectTrigger className="text-sm">
+                    <SelectValue placeholder="Seleziona..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {config.items.map((item) => (
+                      <SelectItem key={item.id} value={item.id}>
+                        {item.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="grid grid-cols-2 gap-2">
+                <div className="space-y-1">
+                  <Label className="text-xs">Quantità</Label>
+                  <Input
+                    type="number"
+                    min="0.1"
+                    step="0.1"
+                    value={formData.quantity}
+                    onChange={(e) => setFormData(prev => ({ ...prev, quantity: parseFloat(e.target.value) || 0 }))}
+                    className="text-sm"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs">Unità</Label>
+                  <Input
+                    value={formData.unit}
+                    onChange={(e) => setFormData(prev => ({ ...prev, unit: e.target.value }))}
+                    className="text-sm"
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label className="text-sm">Titolo</Label>
+                <Input
+                  value={formData.title}
+                  onChange={(e) => setFormData(prev => ({ ...prev, title: e.target.value }))}
+                  placeholder="Nome prodotto..."
+                  className="text-sm"
+                />
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Date */}
+          <Card>
+            <CardContent className="p-3 space-y-3">
+              <div className="grid grid-cols-2 gap-2">
+                <div className="space-y-1">
+                  <Label className="text-xs">Produzione</Label>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button variant="outline" className="w-full justify-start text-left text-xs p-2 h-8">
+                        <CalendarIcon className="mr-1 h-3 w-3" />
+                        {format(formData.production_date, 'dd/MM', { locale: it })}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0">
+                      <Calendar
+                        mode="single"
+                        selected={formData.production_date}
+                        onSelect={(date) => date && setFormData(prev => ({ ...prev, production_date: date }))}
+                        locale={it}
+                      />
+                    </PopoverContent>
+                  </Popover>
+                </div>
+
+                <div className="space-y-1">
+                  <Label className="text-xs">Scadenza</Label>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button variant="outline" className="w-full justify-start text-left text-xs p-2 h-8">
+                        <CalendarIcon className="mr-1 h-3 w-3" />
+                        {formData.expiry_date 
+                          ? format(formData.expiry_date, 'dd/MM', { locale: it })}
+                          : format(calculateExpiryDate(), 'dd/MM', { locale: it })}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0">
+                      <Calendar
+                        mode="single"
+                        selected={formData.expiry_date || calculateExpiryDate()}
+                        onSelect={(date) => setFormData(prev => ({ ...prev, expiry_date: date }))}
+                        locale={it}
+                      />
+                    </PopoverContent>
+                  </Popover>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Altri campi compatti */}
+          <Card>
+            <CardContent className="p-3 space-y-3">
+              <div className="space-y-2">
+                <Label className="text-sm">Conservazione</Label>
+                <Textarea
+                  value={formData.storage_instructions}
+                  onChange={(e) => setFormData(prev => ({ ...prev, storage_instructions: e.target.value }))}
+                  rows={2}
+                  className="text-sm"
+                />
+              </div>
+
+              {formData.allergens && (
+                <div className="space-y-2">
+                  <Label className="text-sm">Allergeni</Label>
+                  <Input
+                    value={formData.allergens}
+                    onChange={(e) => setFormData(prev => ({ ...prev, allergens: e.target.value }))}
+                    className="text-sm"
+                  />
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Preview compatto */}
+          <div className="mt-4">
+            <TrackedLabelPreview
+              title={formData.title || `${config.title} - Anteprima`}
+              type={labelType}
+              productionDate={format(formData.production_date, 'yyyy-MM-dd')}
+              expiryDate={formData.expiry_date ? format(formData.expiry_date, 'yyyy-MM-dd') : format(calculateExpiryDate(), 'yyyy-MM-dd')}
+              batchNumber={formData.batch_number}
+              qrData={qrData}
+              storageInstructions={formData.storage_instructions}
+              allergens={formData.allergens}
+              quantity={formData.quantity}
+              unit={formData.unit}
+              supplier={formData.supplier}
+            />
+          </div>
+
+          {/* Buttons */}
+          <div className="flex space-x-2 pt-4 pb-6">
+            <Button 
+              onClick={() => handleSubmit(false)} 
+              disabled={loading}
+              className="flex-1 text-sm"
+              size="sm"
+            >
+              <SaveIcon className="mr-1 h-3 w-3" />
+              Salva
+            </Button>
+            <Button 
+              onClick={() => handleSubmit(true)} 
+              disabled={loading}
+              variant="outline"
+              className="flex-1 text-sm"
+              size="sm"
+            >
+              <PrinterIcon className="mr-1 h-3 w-3" />
+              Stampa
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Layout Desktop - più compatto
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 h-full">
-      {/* Form Section */}
-      <div className="space-y-6 overflow-y-auto pr-2">
+    <div className="grid grid-cols-3 gap-4 h-full">
+      {/* Form Section - 2 colonne */}
+      <div className="col-span-2 space-y-4 overflow-y-auto pr-2">
         <div className="flex items-center space-x-3">
           <Badge variant="outline" className={`bg-${config.color}-50 text-${config.color}-700 border-${config.color}-200`}>
             {config.title}
@@ -292,9 +486,9 @@ const UnifiedLabelForm = ({ labelType, onClose }: UnifiedLabelFormProps) => {
 
         {/* Selezione Elemento */}
         <Card>
-          <CardContent className="p-4 space-y-4">
+          <CardContent className="p-4 space-y-3">
             <div className="space-y-2">
-              <Label htmlFor="item-select">
+              <Label>
                 {labelType === 'ingredient' || labelType === 'defrosted' ? 'Ingrediente' : 'Ricetta'}
               </Label>
               <Select
@@ -318,13 +512,18 @@ const UnifiedLabelForm = ({ labelType, onClose }: UnifiedLabelFormProps) => {
               </Select>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-3 gap-3">
               <div className="space-y-2">
-                <Label htmlFor="quantity">
-                  {config.showPortions ? 'Numero Porzioni' : 'Quantità'}
-                </Label>
+                <Label>Titolo</Label>
                 <Input
-                  id="quantity"
+                  value={formData.title}
+                  onChange={(e) => setFormData(prev => ({ ...prev, title: e.target.value }))}
+                  placeholder="Nome prodotto..."
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Quantità</Label>
+                <Input
                   type="number"
                   min="0.1"
                   step="0.1"
@@ -333,9 +532,8 @@ const UnifiedLabelForm = ({ labelType, onClose }: UnifiedLabelFormProps) => {
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="unit">Unità</Label>
+                <Label>Unità</Label>
                 <Input
-                  id="unit"
                   value={formData.unit}
                   onChange={(e) => setFormData(prev => ({ ...prev, unit: e.target.value }))}
                 />
@@ -344,43 +542,9 @@ const UnifiedLabelForm = ({ labelType, onClose }: UnifiedLabelFormProps) => {
           </CardContent>
         </Card>
 
-        {/* Informazioni Base */}
-        <Card>
-          <CardContent className="p-4 space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="title">Titolo Etichetta</Label>
-              <Input
-                id="title"
-                value={formData.title}
-                onChange={(e) => setFormData(prev => ({ ...prev, title: e.target.value }))}
-                placeholder="Nome prodotto..."
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="batch">Numero Lotto</Label>
-              <Input
-                id="batch"
-                value={formData.batch_number}
-                onChange={(e) => setFormData(prev => ({ ...prev, batch_number: e.target.value }))}
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="supplier">Fornitore</Label>
-              <Input
-                id="supplier"
-                value={formData.supplier}
-                onChange={(e) => setFormData(prev => ({ ...prev, supplier: e.target.value }))}
-                placeholder="Nome fornitore..."
-              />
-            </div>
-          </CardContent>
-        </Card>
-
         {/* Date */}
         <Card>
-          <CardContent className="p-4 space-y-4">
+          <CardContent className="p-4 space-y-3">
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>Data Produzione</Label>
@@ -397,7 +561,6 @@ const UnifiedLabelForm = ({ labelType, onClose }: UnifiedLabelFormProps) => {
                       selected={formData.production_date}
                       onSelect={(date) => date && setFormData(prev => ({ ...prev, production_date: date }))}
                       locale={it}
-                      disabled={(date) => date < new Date('2020-01-01')}
                     />
                   </PopoverContent>
                 </Popover>
@@ -410,7 +573,7 @@ const UnifiedLabelForm = ({ labelType, onClose }: UnifiedLabelFormProps) => {
                     <Button variant="outline" className="w-full justify-start text-left">
                       <CalendarIcon className="mr-2 h-4 w-4" />
                       {formData.expiry_date 
-                        ? format(formData.expiry_date, 'dd/MM/yyyy', { locale: it })
+                        ? format(formData.expiry_date, 'dd/MM/yyyy', { locale: it })}
                         : format(calculateExpiryDate(), 'dd/MM/yyyy', { locale: it })}
                     </Button>
                   </PopoverTrigger>
@@ -420,7 +583,6 @@ const UnifiedLabelForm = ({ labelType, onClose }: UnifiedLabelFormProps) => {
                       selected={formData.expiry_date || calculateExpiryDate()}
                       onSelect={(date) => setFormData(prev => ({ ...prev, expiry_date: date }))}
                       locale={it}
-                      disabled={(date) => date < formData.production_date}
                     />
                   </PopoverContent>
                 </Popover>
@@ -429,67 +591,35 @@ const UnifiedLabelForm = ({ labelType, onClose }: UnifiedLabelFormProps) => {
           </CardContent>
         </Card>
 
-        {/* Posizione e Conservazione */}
+        {/* Altri campi */}
         <Card>
-          <CardContent className="p-4 space-y-4">
+          <CardContent className="p-4 space-y-3">
             <div className="space-y-2">
-              <Label htmlFor="storage-location">Posizione Storage</Label>
-              <Select
-                value={formData.storage_location_id || "none"}
-                onValueChange={(value) => setFormData(prev => ({ 
-                  ...prev, 
-                  storage_location_id: value === "none" ? undefined : value 
-                }))}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Seleziona posizione..." />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none">Nessuna posizione</SelectItem>
-                  {storageLocations.map((location) => (
-                    <SelectItem key={location.id} value={location.id}>
-                      {location.name} - {location.type}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="storage-instructions">Istruzioni Conservazione</Label>
+              <Label>Istruzioni Conservazione</Label>
               <Textarea
-                id="storage-instructions"
                 value={formData.storage_instructions}
                 onChange={(e) => setFormData(prev => ({ ...prev, storage_instructions: e.target.value }))}
-                placeholder="Temperatura, condizioni particolari..."
-                rows={3}
-              />
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Allergeni e Note */}
-        <Card>
-          <CardContent className="p-4 space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="allergens">Allergeni</Label>
-              <Input
-                id="allergens"
-                value={formData.allergens}
-                onChange={(e) => setFormData(prev => ({ ...prev, allergens: e.target.value }))}
-                placeholder="Glutine, lattosio, uova..."
+                rows={2}
               />
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="notes">Note Aggiuntive</Label>
-              <Textarea
-                id="notes"
-                value={formData.notes}
-                onChange={(e) => setFormData(prev => ({ ...prev, notes: e.target.value }))}
-                placeholder="Note aggiuntive..."
-                rows={3}
-              />
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-2">
+                <Label>Allergeni</Label>
+                <Input
+                  value={formData.allergens}
+                  onChange={(e) => setFormData(prev => ({ ...prev, allergens: e.target.value }))}
+                  placeholder="Glutine, lattosio..."
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Fornitore</Label>
+                <Input
+                  value={formData.supplier}
+                  onChange={(e) => setFormData(prev => ({ ...prev, supplier: e.target.value }))}
+                  placeholder="Nome fornitore..."
+                />
+              </div>
             </div>
           </CardContent>
         </Card>
@@ -516,7 +646,7 @@ const UnifiedLabelForm = ({ labelType, onClose }: UnifiedLabelFormProps) => {
         </div>
       </div>
 
-      {/* Preview Section */}
+      {/* Preview Section - 1 colonna */}
       <div className="space-y-4 overflow-y-auto">
         <TrackedLabelPreview
           title={formData.title || `${config.title} - Anteprima`}

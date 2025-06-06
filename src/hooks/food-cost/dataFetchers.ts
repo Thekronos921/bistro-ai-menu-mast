@@ -1,4 +1,3 @@
-
 import { supabase } from "@/integrations/supabase/client";
 import type { Recipe } from "@/types/recipe";
 import type { Dish, CategoryInfo } from "./types";
@@ -57,12 +56,15 @@ export const fetchDishes = async (restaurantId: string): Promise<Dish[]> => {
           quantity,
           unit,
           is_semilavorato,
+          recipe_yield_percentage,
           ingredients (
             id,
             name,
             unit,
             cost_per_unit,
             effective_cost_per_unit,
+            current_stock,
+            min_stock_threshold,
             yield_percentage
           )
         ),
@@ -78,42 +80,57 @@ export const fetchDishes = async (restaurantId: string): Promise<Dish[]> => {
 
   if (dishesError) throw dishesError;
 
-  // Transform dishes data to flatten category and handle nested recipes
-  return dishesData?.map(dish => ({
-    id: dish.id,
-    name: dish.name,
-    selling_price: dish.selling_price,
-    recipe_id: dish.recipe_id,
-    // Handle category data - it could be an array or a single object
-    category: Array.isArray(dish.category) 
-      ? (dish.category[0] as CategoryInfo)?.name || 'Senza categoria'
-      : (dish.category as CategoryInfo)?.name || 'Senza categoria',
-    // Transform nested recipes array to single recipe if it exists
-    recipes: dish.recipes && Array.isArray(dish.recipes) && dish.recipes.length > 0 
-      ? {
-          id: dish.recipes[0].id,
-          name: dish.recipes[0].name,
-          category: dish.recipes[0].category,
-          preparation_time: dish.recipes[0].preparation_time,
-          difficulty: dish.recipes[0].difficulty,
-          portions: dish.recipes[0].portions,
-          description: dish.recipes[0].description,
-          allergens: dish.recipes[0].allergens,
-          calories: dish.recipes[0].calories,
-          protein: dish.recipes[0].protein,
-          carbs: dish.recipes[0].carbs,
-          fat: dish.recipes[0].fat,
-          restaurant_id: dish.recipes[0].restaurant_id,
-          selling_price: dish.recipes[0].selling_price,
-          is_semilavorato: dish.recipes[0].is_semilavorato,
-          notes_chef: dish.recipes[0].notes_chef,
-          created_at: dish.recipes[0].created_at,
-          updated_at: dish.recipes[0].updated_at,
-          recipe_ingredients: dish.recipes[0].recipe_ingredients || [],
-          recipe_instructions: dish.recipes[0].recipe_instructions || []
-        } as Recipe
-      : undefined
-  })) || [];
+  return (dishesData || []).map(dish => {
+    // Gestione categoria robusta
+    let categoryName = 'Senza categoria';
+    if (Array.isArray(dish.category) && dish.category.length > 0) {
+      categoryName = dish.category[0]?.name || categoryName;
+    } else if (dish.category && typeof dish.category === 'object' && 'name' in dish.category) {
+      categoryName = (dish.category as { name: string }).name || categoryName;
+    }
+
+    // Gestione ricetta annidata robusta
+    let recipe: Recipe | undefined = undefined;
+    if (Array.isArray(dish.recipes) && dish.recipes.length > 0) {
+      const r = dish.recipes[0];
+      recipe = {
+        id: r.id,
+        name: r.name,
+        category: r.category,
+        preparation_time: r.preparation_time,
+        difficulty: r.difficulty,
+        portions: r.portions,
+        description: r.description,
+        allergens: r.allergens,
+        calories: r.calories,
+        protein: r.protein,
+        carbs: r.carbs,
+        fat: r.fat,
+        selling_price: r.selling_price,
+        is_semilavorato: r.is_semilavorato,
+        notes_chef: r.notes_chef,
+        recipe_ingredients: (r.recipe_ingredients || []).map(ri => ({
+          id: ri.id,
+          ingredient_id: ri.ingredient_id,
+          quantity: ri.quantity,
+          unit: ri.unit,
+          is_semilavorato: ri.is_semilavorato,
+          recipe_yield_percentage: ri.recipe_yield_percentage,
+          ingredients: Array.isArray(ri.ingredients) ? ri.ingredients[0] : ri.ingredients
+        })),
+        recipe_instructions: r.recipe_instructions || []
+      };
+    }
+
+    return {
+      id: dish.id,
+      name: dish.name,
+      selling_price: dish.selling_price,
+      recipe_id: dish.recipe_id,
+      category: categoryName,
+      recipes: recipe
+    };
+  });
 };
 
 export const fetchRecipes = async (restaurantId: string): Promise<Recipe[]> => {
@@ -127,12 +144,15 @@ export const fetchRecipes = async (restaurantId: string): Promise<Recipe[]> => {
         quantity,
         unit,
         is_semilavorato,
+        recipe_yield_percentage,
         ingredients (
           id,
           name,
           unit,
           cost_per_unit,
           effective_cost_per_unit,
+          current_stock,
+          min_stock_threshold,
           yield_percentage
         )
       ),
@@ -147,5 +167,16 @@ export const fetchRecipes = async (restaurantId: string): Promise<Recipe[]> => {
 
   if (recipesError) throw recipesError;
 
-  return recipesData || [];
+  return (recipesData || []).map(recipe => ({
+    ...recipe,
+    recipe_ingredients: (recipe.recipe_ingredients || []).map(ri => ({
+      id: ri.id,
+      ingredient_id: ri.ingredient_id,
+      quantity: ri.quantity,
+      unit: ri.unit,
+      is_semilavorato: ri.is_semilavorato,
+      recipe_yield_percentage: ri.recipe_yield_percentage,
+      ingredients: Array.isArray(ri.ingredients) ? ri.ingredients[0] : ri.ingredients
+    }))
+  }));
 };

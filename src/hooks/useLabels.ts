@@ -38,6 +38,7 @@ export const useLabels = () => {
       throw new Error('Restaurant ID not found');
     }
 
+    const isUpdate = !!labelData.id; // Sposta questa dichiarazione fuori dal try
     setLoading(true);
     try {
       const labelId = labelData.id || crypto.randomUUID();
@@ -53,59 +54,82 @@ export const useLabels = () => {
         timestamp: new Date().toISOString()
       };
 
-      // Save label first
-      const { data: savedLabel, error } = await supabase
-        .from('labels')
-        .insert({
-          id: labelId,
-          restaurant_id: restaurantId,
-          label_type: labelData.label_type,
-          title: labelData.title,
-          batch_number: labelData.batch_number,
-          production_date: labelData.production_date,
-          expiry_date: labelData.expiry_date,
-          quantity: labelData.quantity,
-          unit: labelData.unit,
-          storage_instructions: labelData.storage_instructions,
-          allergens: labelData.allergens,
-          supplier: labelData.supplier,
-          notes: labelData.notes,
-          status: labelData.status || 'active',
-          recipe_id: labelData.recipe_id,
-          ingredient_id: labelData.ingredient_id,
-          dish_id: labelData.dish_id,
-          storage_location_id: labelData.storage_location_id,
-          ingredient_traceability: labelData.ingredient_traceability || [],
-          qr_data: qrData
-        })
-        .select()
-        .single();
+      const labelPayload = {
+        restaurant_id: restaurantId,
+        label_type: labelData.label_type,
+        title: labelData.title,
+        batch_number: labelData.batch_number,
+        production_date: labelData.production_date,
+        expiry_date: labelData.expiry_date,
+        quantity: labelData.quantity,
+        unit: labelData.unit,
+        storage_instructions: labelData.storage_instructions,
+        allergens: labelData.allergens,
+        supplier: labelData.supplier,
+        notes: labelData.notes,
+        status: labelData.status || 'active',
+        recipe_id: labelData.recipe_id,
+        ingredient_id: labelData.ingredient_id,
+        dish_id: labelData.dish_id,
+        storage_location_id: labelData.storage_location_id,
+        ingredient_traceability: labelData.ingredient_traceability || [],
+        qr_data: qrData
+      };
+
+      let savedLabel;
+      let error;
+
+      if (isUpdate) {
+        // Aggiorna etichetta esistente
+        const result = await supabase
+          .from('labels')
+          .update(labelPayload)
+          .eq('id', labelId)
+          .select()
+          .single();
+        
+        savedLabel = result.data;
+        error = result.error;
+      } else {
+        // Crea nuova etichetta
+        const result = await supabase
+          .from('labels')
+          .insert({
+            id: labelId,
+            ...labelPayload
+          })
+          .select()
+          .single();
+        
+        savedLabel = result.data;
+        error = result.error;
+      }
 
       if (error) throw error;
 
-      // Handle ingredient allocation based on label type
-      if ((labelData.label_type === 'defrosted' || labelData.label_type === 'ingredient') && labelData.ingredient_id && labelData.quantity) {
-        // Direct ingredient allocation for defrosted items or ingredient labels
-        await allocateIngredient(
-          labelData.ingredient_id,
-          labelId,
-          labelData.quantity,
-          `Allocazione per etichetta ${labelData.label_type}: ${labelData.title}`,
-          labelData.label_type // Passa il tipo di etichetta per gestire labeled_stock
-        );
-      } else if ((labelData.label_type === 'recipe' || labelData.label_type === 'semilavorato') && labelData.recipe_id && labelData.portions) {
-        // Allocate all recipe ingredients
-        await allocateRecipeIngredients(
-          labelData.recipe_id,
-          labelId,
-          labelData.portions,
-          `Allocazione ingredienti per ricetta: ${labelData.title}`
-        );
+      // Handle ingredient allocation only for new labels
+      if (!isUpdate) {
+        if ((labelData.label_type === 'defrosted' || labelData.label_type === 'ingredient') && labelData.ingredient_id && labelData.quantity) {
+          await allocateIngredient(
+            labelData.ingredient_id,
+            labelId,
+            labelData.quantity,
+            `Allocazione per etichetta ${labelData.label_type}: ${labelData.title}`,
+            labelData.label_type
+          );
+        } else if ((labelData.label_type === 'recipe' || labelData.label_type === 'semilavorato') && labelData.recipe_id && labelData.portions) {
+          await allocateRecipeIngredients(
+            labelData.recipe_id,
+            labelId,
+            labelData.portions,
+            `Allocazione ingredienti per ricetta: ${labelData.title}`
+          );
+        }
       }
 
       toast({
-        title: "Etichetta salvata",
-        description: "L'etichetta è stata salvata e l'inventario è stato aggiornato"
+        title: isUpdate ? "Etichetta aggiornata" : "Etichetta salvata",
+        description: isUpdate ? "L'etichetta è stata aggiornata con successo" : "L'etichetta è stata salvata e l'inventario è stato aggiornato"
       });
 
       return savedLabel;
@@ -113,7 +137,7 @@ export const useLabels = () => {
       console.error('Error saving label:', error);
       toast({
         title: "Errore",
-        description: "Errore nel salvataggio dell'etichetta",
+        description: isUpdate ? "Errore nell'aggiornamento dell'etichetta" : "Errore nel salvataggio dell'etichetta",
         variant: "destructive"
       });
       throw error;

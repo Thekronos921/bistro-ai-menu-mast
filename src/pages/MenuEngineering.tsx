@@ -83,6 +83,8 @@ const MenuEngineering = () => {
               id,
               ingredient_id,
               quantity,
+              unit,
+              recipe_yield_percentage,
               ingredients (
                 id,
                 name,

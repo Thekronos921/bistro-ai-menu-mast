@@ -3,8 +3,9 @@ export interface RecipeIngredient {
   id: string;
   ingredient_id: string;
   quantity: number;
-  unit?: string; // Unità specifica per questo ingrediente nella ricetta
+  unit?: string;
   is_semilavorato?: boolean;
+  recipe_yield_percentage?: number; // Resa specifica per questo ingrediente in questa ricetta
   ingredients: {
     id: string;
     name: string;
@@ -14,6 +15,7 @@ export interface RecipeIngredient {
     current_stock?: number;
     min_stock_threshold?: number;
     yield_percentage?: number;
+    allergens?: string; // Aggiunta proprietà allergens
   };
 }
 
@@ -39,4 +41,21 @@ export interface Recipe {
     step_number: number;
     instruction: string;
   }>;
+  // Proprietà opzionali per lo scaling
+  scaled_portions?: number;
+  scaled_preparation_time?: number;
+  scaled_ingredients?: ScaledIngredient[];
+}
+
+// Nuova interfaccia per ingredienti scalati
+export interface ScaledIngredient extends RecipeIngredient {
+  original_quantity: number;
+  scaled_quantity: number;
+}
+
+// Interfaccia per ingredienti espansi
+export interface ExpandedIngredient extends RecipeIngredient {
+  depth: number;
+  parent_recipe_id?: string;
+  parent_recipe_name?: string;
 }

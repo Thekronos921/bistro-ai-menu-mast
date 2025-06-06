@@ -26,7 +26,7 @@ const EditLabelDialog = ({ label, onUpdate }: EditLabelDialogProps) => {
     storage_instructions: label.storage_instructions || '',
     allergens: label.allergens || '',
     notes: label.notes || '',
-    storage_location_id: label.storage_location_id || ''
+    storage_location_id: label.storage_location_id || 'none'
   });
 
   const { saveLabel, loading } = useLabels();
@@ -40,7 +40,8 @@ const EditLabelDialog = ({ label, onUpdate }: EditLabelDialogProps) => {
       await saveLabel({
         ...label,
         ...formData,
-        quantity: formData.quantity ? Number(formData.quantity) : undefined
+        quantity: formData.quantity ? Number(formData.quantity) : undefined,
+        storage_location_id: formData.storage_location_id === 'none' ? null : formData.storage_location_id
       });
       
       toast({
@@ -123,7 +124,7 @@ const EditLabelDialog = ({ label, onUpdate }: EditLabelDialogProps) => {
                 <SelectValue placeholder="Seleziona posizione" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">Nessuna posizione</SelectItem>
+                <SelectItem value="none">Nessuna posizione</SelectItem>
                 {storageLocations.map((location) => (
                   <SelectItem key={location.id} value={location.id}>
                     {location.name}

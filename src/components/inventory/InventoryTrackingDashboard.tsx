@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -5,7 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
-import { Calendar, Package, Clock, AlertTriangle, Filter, Search } from 'lucide-react';
+import { Calendar, Package, Clock, AlertTriangle, Filter, Search, MapPin, Hash } from 'lucide-react';
 import { useLabels } from '@/hooks/useLabels';
 import { useStorageLocations } from '@/hooks/useStorageLocations';
 import { useInventoryTracking } from '@/hooks/useInventoryTracking';
@@ -149,6 +150,16 @@ const InventoryTrackingDashboard = () => {
     return null;
   };
 
+  const formatQuantity = (label: EnrichedLabel) => {
+    if (label.quantity && label.unit) {
+      return `${label.quantity} ${label.unit}`;
+    }
+    if (label.quantity) {
+      return `${label.quantity}`;
+    }
+    return null;
+  };
+
   return (
     <div className="space-y-6">
       <Tabs defaultValue="labels" className="w-full">
@@ -240,13 +251,16 @@ const InventoryTrackingDashboard = () => {
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {filteredLabels.map((label) => (
-                <Card key={label.id} className="hover:shadow-md transition-shadow">
+                <Card key={label.id} className="hover:shadow-md transition-shadow border-l-4 border-l-blue-500">
                   <CardHeader className="pb-3">
                     <div className="flex items-start justify-between">
                       <div className="flex-1">
-                        <h3 className="font-semibold text-lg">{label.title}</h3>
+                        <h3 className="font-semibold text-lg text-gray-900">{label.title}</h3>
                         {label.batch_number && (
-                          <p className="text-sm text-gray-600">Lotto: {label.batch_number}</p>
+                          <div className="flex items-center gap-1 text-sm text-gray-600 mt-1">
+                            <Hash className="w-3 h-3" />
+                            <span>Lotto: {label.batch_number}</span>
+                          </div>
                         )}
                       </div>
                       <div className="flex flex-col gap-1">
@@ -256,63 +270,80 @@ const InventoryTrackingDashboard = () => {
                     </div>
                   </CardHeader>
                   
-                  <CardContent className="space-y-3">
+                  <CardContent className="space-y-4">
+                    {/* Quantity Display - More Prominent */}
+                    {formatQuantity(label) && (
+                      <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm font-medium text-blue-700">Quantità:</span>
+                          <span className="text-lg font-bold text-blue-900">{formatQuantity(label)}</span>
+                        </div>
+                      </div>
+                    )}
+
                     {/* Ingredient or Recipe info */}
                     {label.ingredient_name && (
-                      <div className="text-sm">
-                        <strong>Ingrediente:</strong> {label.ingredient_name}
-                        {label.quantity && label.ingredient_unit && (
-                          <span> - {label.quantity} {label.ingredient_unit}</span>
-                        )}
+                      <div className="text-sm border-l-2 border-green-300 pl-3">
+                        <div className="font-medium text-gray-700">Ingrediente:</div>
+                        <div className="text-gray-900">{label.ingredient_name}</div>
                       </div>
                     )}
                     
                     {label.recipe_name && (
-                      <div className="text-sm">
-                        <strong>Ricetta:</strong> {label.recipe_name}
+                      <div className="text-sm border-l-2 border-purple-300 pl-3">
+                        <div className="font-medium text-gray-700">Ricetta:</div>
+                        <div className="text-gray-900">{label.recipe_name}</div>
                         {label.recipe_portions && (
-                          <span> - {label.recipe_portions} porzioni</span>
+                          <div className="text-gray-600">{label.recipe_portions} porzioni</div>
                         )}
                       </div>
                     )}
 
+                    {/* Storage Location */}
+                    {label.storage_locations && (
+                      <div className="flex items-center gap-2 text-sm bg-gray-50 rounded-md p-2">
+                        <MapPin className="w-4 h-4 text-gray-500" />
+                        <span className="font-medium text-gray-700">Posizione:</span>
+                        <span className="text-gray-900">{label.storage_locations.name}</span>
+                      </div>
+                    )}
+
                     {/* Dates */}
-                    <div className="space-y-1 text-sm">
+                    <div className="space-y-2 text-sm">
                       {label.production_date && (
                         <div className="flex items-center gap-2">
-                          <Calendar className="w-4 h-4" />
-                          <span>Prodotto: {new Date(label.production_date).toLocaleDateString('it-IT')}</span>
+                          <Calendar className="w-4 h-4 text-green-600" />
+                          <span className="text-gray-600">Prodotto:</span>
+                          <span className="font-medium">{new Date(label.production_date).toLocaleDateString('it-IT')}</span>
                         </div>
                       )}
                       
                       {label.expiry_date && (
                         <div className="flex items-center gap-2">
-                          <Clock className="w-4 h-4" />
-                          <span>Scade: {new Date(label.expiry_date).toLocaleDateString('it-IT')}</span>
+                          <Clock className="w-4 h-4 text-orange-600" />
+                          <span className="text-gray-600">Scade:</span>
+                          <span className="font-medium">{new Date(label.expiry_date).toLocaleDateString('it-IT')}</span>
                           {isExpiring(label.expiry_date) && (
                             <AlertTriangle className="w-4 h-4 text-orange-500" />
                           )}
                         </div>
                       )}
                       
-                      {getExpiryWarning(label.expiry_date || '')}
+                      {getExpiryWarning(label.expiry_date || '') && (
+                        <div className="mt-2">
+                          {getExpiryWarning(label.expiry_date || '')}
+                        </div>
+                      )}
                     </div>
-
-                    {/* Storage Location */}
-                    {label.storage_locations && (
-                      <div className="text-sm">
-                        <strong>Posizione:</strong> {label.storage_locations.name}
-                      </div>
-                    )}
 
                     {/* Actions */}
                     {label.status === 'active' && (
-                      <div className="flex gap-2 pt-2">
+                      <div className="flex gap-2 pt-3 border-t">
                         <Button 
                           size="sm" 
                           variant="outline"
                           onClick={() => handleStatusUpdate(label.id, 'consumed')}
-                          className="flex-1"
+                          className="flex-1 text-green-700 border-green-200 hover:bg-green-50"
                         >
                           Consuma
                         </Button>
@@ -320,7 +351,7 @@ const InventoryTrackingDashboard = () => {
                           size="sm" 
                           variant="outline"
                           onClick={() => handleStatusUpdate(label.id, 'discarded')}
-                          className="flex-1"
+                          className="flex-1 text-red-700 border-red-200 hover:bg-red-50"
                         >
                           Scarta
                         </Button>

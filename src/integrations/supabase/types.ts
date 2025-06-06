@@ -370,6 +370,7 @@ export type Database = {
           expiry_date: string | null
           external_id: string | null
           id: string
+          labeled_stock: number | null
           last_synced_at: string | null
           min_stock_threshold: number | null
           name: string
@@ -395,6 +396,7 @@ export type Database = {
           expiry_date?: string | null
           external_id?: string | null
           id?: string
+          labeled_stock?: number | null
           last_synced_at?: string | null
           min_stock_threshold?: number | null
           name: string
@@ -420,6 +422,7 @@ export type Database = {
           expiry_date?: string | null
           external_id?: string | null
           id?: string
+          labeled_stock?: number | null
           last_synced_at?: string | null
           min_stock_threshold?: number | null
           name?: string

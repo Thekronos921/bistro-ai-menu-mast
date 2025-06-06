@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -384,7 +385,7 @@ const UnifiedLabelForm = ({ labelType, onClose }: UnifiedLabelFormProps) => {
                       <Button variant="outline" className="w-full justify-start text-left text-xs p-2 h-8">
                         <CalendarIcon className="mr-1 h-3 w-3" />
                         {formData.expiry_date 
-                          ? format(formData.expiry_date, 'dd/MM', { locale: it })}
+                          ? format(formData.expiry_date, 'dd/MM', { locale: it })
                           : format(calculateExpiryDate(), 'dd/MM', { locale: it })}
                       </Button>
                     </PopoverTrigger>
@@ -573,7 +574,7 @@ const UnifiedLabelForm = ({ labelType, onClose }: UnifiedLabelFormProps) => {
                     <Button variant="outline" className="w-full justify-start text-left">
                       <CalendarIcon className="mr-2 h-4 w-4" />
                       {formData.expiry_date 
-                        ? format(formData.expiry_date, 'dd/MM/yyyy', { locale: it })}
+                        ? format(formData.expiry_date, 'dd/MM/yyyy', { locale: it })
                         : format(calculateExpiryDate(), 'dd/MM/yyyy', { locale: it })}
                     </Button>
                   </PopoverTrigger>

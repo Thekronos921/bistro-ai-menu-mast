@@ -30,6 +30,7 @@ interface LocalRecipeIngredient {
   quantity: number;
   unit?: string;
   is_semilavorato?: boolean;
+  recipe_yield_percentage?: number;
   ingredient: Ingredient | null;
 }
 
@@ -122,6 +123,7 @@ const RecipeIngredientsForm = ({ recipeIngredients, onIngredientsChange, recipeI
       quantity: 0, 
       unit: "",
       is_semilavorato: false,
+      recipe_yield_percentage: undefined,
       ingredient: null 
     }]);
   };

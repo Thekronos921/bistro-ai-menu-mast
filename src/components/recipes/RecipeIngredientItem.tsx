@@ -4,6 +4,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Checkbox } from "@/components/ui/checkbox";
 import { X } from "lucide-react";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import UnitSelector from "@/components/UnitSelector";
 import { convertUnit, areUnitsCompatible } from "@/utils/unitConversion";
 
@@ -13,6 +14,7 @@ interface Ingredient {
   unit: string;
   cost_per_unit: number;
   effective_cost_per_unit?: number;
+  yield_percentage?: number;
 }
 
 interface Semilavorato {
@@ -28,6 +30,7 @@ interface LocalRecipeIngredient {
   quantity: number;
   unit?: string;
   is_semilavorato?: boolean;
+  recipe_yield_percentage?: number;
   ingredient: Ingredient | null;
 }
 
@@ -58,11 +61,23 @@ const RecipeIngredientItem = ({
   const calculateIngredientCost = () => {
     if (!recipeIngredient.ingredient) return 0;
     
-    const effectiveCost = recipeIngredient.ingredient.effective_cost_per_unit ?? recipeIngredient.ingredient.cost_per_unit;
+    const baseCost = recipeIngredient.ingredient.effective_cost_per_unit ?? recipeIngredient.ingredient.cost_per_unit;
     
     // Se è un semilavorato, usa direttamente il costo per porzione
     if (recipeIngredient.is_semilavorato) {
-      return effectiveCost * recipeIngredient.quantity;
+      return baseCost * recipeIngredient.quantity;
+    }
+    
+    // NUOVA LOGICA: Applica la resa specifica per ricetta se presente
+    let effectiveCost = baseCost;
+    
+    // 1. Se c'è una resa specifica per la ricetta, usala
+    if (recipeIngredient.recipe_yield_percentage !== null && recipeIngredient.recipe_yield_percentage !== undefined) {
+      effectiveCost = baseCost / (recipeIngredient.recipe_yield_percentage / 100);
+    }
+    // 2. Altrimenti, se l'ingrediente ha una resa e non abbiamo già effective_cost_per_unit, applicala
+    else if (!recipeIngredient.ingredient.effective_cost_per_unit && recipeIngredient.ingredient.yield_percentage) {
+      effectiveCost = baseCost / (recipeIngredient.ingredient.yield_percentage / 100);
     }
     
     // Il costo dell'ingrediente è sempre per l'unità base dell'ingrediente
@@ -140,13 +155,36 @@ const RecipeIngredientItem = ({
       </Select>
       
       {recipeIngredient.ingredient && !recipeIngredient.is_semilavorato && (
-        <UnitSelector
-          baseUnit={recipeIngredient.ingredient.unit}
-          selectedUnit={recipeIngredient.unit || recipeIngredient.ingredient.unit}
-          quantity={recipeIngredient.quantity}
-          onUnitChange={(unit) => onUpdateUnit(index, unit)}
-          onQuantityChange={(quantity) => onUpdateQuantity(index, quantity)}
-        />
+        <>
+          <UnitSelector
+            baseUnit={recipeIngredient.ingredient.unit}
+            selectedUnit={recipeIngredient.unit || recipeIngredient.ingredient.unit}
+            quantity={recipeIngredient.quantity}
+            onUnitChange={(unit) => onUpdateUnit(index, unit)}
+            onQuantityChange={(quantity) => onUpdateQuantity(index, quantity)}
+          />
+          
+          {/* Campo per la resa specifica per ricetta */}
+          <div className="flex items-center gap-2 mt-2">
+            <Label className="text-xs text-gray-600 min-w-fit">Resa %:</Label>
+            <Input
+              type="number"
+              min="1"
+              max="100"
+              step="0.1"
+              className="w-20 h-8 text-xs"
+              placeholder={recipeIngredient.ingredient?.yield_percentage?.toString() || "100"}
+              value={recipeIngredient.recipe_yield_percentage || ""}
+              onChange={(e) => {
+                const value = e.target.value ? parseFloat(e.target.value) : undefined;
+                onUpdate(index, 'recipe_yield_percentage', value);
+              }}
+            />
+            <span className="text-xs text-gray-500">
+              (base: {recipeIngredient.ingredient?.yield_percentage || 100}%)
+            </span>
+          </div>
+        </>
       )}
       
       {recipeIngredient.is_semilavorato && (

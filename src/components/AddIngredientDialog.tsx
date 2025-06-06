@@ -49,6 +49,7 @@ const AddIngredientDialog: React.FC<AddIngredientDialogProps> = ({ onAddIngredie
 
   const calculateEffectiveCost = () => {
     if (formData.costPerUnit <= 0 || formData.yieldPercentage <= 0) return 0;
+    // Formula corretta: costo effettivo = costo base / (resa% / 100)
     return formData.costPerUnit / (formData.yieldPercentage / 100);
   };
 
@@ -118,6 +119,7 @@ const AddIngredientDialog: React.FC<AddIngredientDialogProps> = ({ onAddIngredie
         unit: formData.unit,
         cost_per_unit: formData.costPerUnit,
         yield_percentage: formData.yieldPercentage,
+        effective_cost_per_unit: calculateEffectiveCost(), // ← MANCA QUESTA RIGA
         supplier: formData.supplier || null,
         supplier_product_code: formData.supplierProductCode || null,
         current_stock: formData.currentStock || 0,

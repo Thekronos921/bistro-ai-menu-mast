@@ -35,6 +35,7 @@ export const useRecipeIngredients = (recipeId: string) => {
           quantity,
           unit,
           is_semilavorato,
+          recipe_yield_percentage,
           ingredients!inner(
             id,
             name,
@@ -72,6 +73,7 @@ export const useRecipeIngredients = (recipeId: string) => {
           quantity: ri.quantity,
           unit: unitToUse, // Usa SEMPRE l'unità salvata nel database
           is_semilavorato: ri.is_semilavorato || false,
+          recipe_yield_percentage: ri.recipe_yield_percentage,
           ingredient: ingredientData ? {
             id: ingredientData.id,
             name: ingredientData.name,

@@ -17,6 +17,7 @@ interface LocalRecipeIngredient {
   quantity: number;
   unit?: string;
   is_semilavorato?: boolean;
+  recipe_yield_percentage?: number;
   ingredient: Ingredient | null;
 }
 
@@ -130,7 +131,8 @@ export const useRecipeSaving = () => {
           ingredient_id: ing.ingredient_id,
           quantity: ing.quantity,
           unit: unitToSave, // Salva l'unità esatta selezionata nel form
-          is_semilavorato: ing.is_semilavorato || false
+          is_semilavorato: ing.is_semilavorato || false,
+          recipe_yield_percentage: ing.recipe_yield_percentage
         };
         
         console.log("Data to save:", dataToSave);

@@ -19,6 +19,7 @@ interface Ingredient {
   unit: string;
   cost_per_unit: number;
   effective_cost_per_unit?: number;
+  yield_percentage?: number;
 }
 
 interface RecipeIngredient {
@@ -26,6 +27,7 @@ interface RecipeIngredient {
   quantity: number;
   is_semilavorato: boolean;
   unit?: string; // Aggiungo l'unità di misura specifica per questo ingrediente nella ricetta
+  recipe_yield_percentage?: number; // Resa specifica per questo ingrediente in questa ricetta
 }
 
 interface RecipeInstruction {
@@ -74,7 +76,7 @@ const AddRecipeDialog: React.FC<AddRecipeDialogProps> = ({ onAddRecipe }) => {
 
       const { data, error } = await supabase
         .from('ingredients')
-        .select('id, name, unit, cost_per_unit, effective_cost_per_unit')
+        .select('id, name, unit, cost_per_unit, effective_cost_per_unit, yield_percentage')
         .eq('restaurant_id', restaurantId)
         .order('name');
 
@@ -107,7 +109,7 @@ const AddRecipeDialog: React.FC<AddRecipeDialogProps> = ({ onAddRecipe }) => {
   };
 
   const addIngredient = () => {
-    setRecipeIngredients([...recipeIngredients, { ingredient_id: '', quantity: 1, is_semilavorato: false, unit: '' }]);
+    setRecipeIngredients([...recipeIngredients, { ingredient_id: '', quantity: 1, is_semilavorato: false, unit: '', recipe_yield_percentage: undefined }]);
   };
 
   const updateIngredient = (index: number, field: string, value: any) => {
@@ -116,9 +118,20 @@ const AddRecipeDialog: React.FC<AddRecipeDialogProps> = ({ onAddRecipe }) => {
     
     // Se viene selezionato un nuovo ingrediente, imposta l'unità di misura predefinita
     if (field === 'ingredient_id') {
-      const selectedIngredient = ingredients.find(ing => ing.id === value);
-      if (selectedIngredient) {
-        updatedIngredients[index].unit = selectedIngredient.unit;
+      if (value === '') {
+        // Reset dell'ingrediente
+        updatedIngredients[index] = {
+          ingredient_id: '',
+          quantity: 1,
+          is_semilavorato: false,
+          unit: '',
+          recipe_yield_percentage: undefined
+        };
+      } else {
+        const selectedIngredient = ingredients.find(ing => ing.id === value);
+        if (selectedIngredient) {
+          updatedIngredients[index].unit = selectedIngredient.unit;
+        }
       }
     }
     
@@ -187,7 +200,12 @@ const AddRecipeDialog: React.FC<AddRecipeDialogProps> = ({ onAddRecipe }) => {
     return recipeIngredients.reduce((total, ri) => {
       const ingredient = ingredients.find(ing => ing.id === ri.ingredient_id);
       if (ingredient) {
-        const effectiveCost = ingredient.effective_cost_per_unit ?? ingredient.cost_per_unit;
+        let effectiveCost = ingredient.effective_cost_per_unit ?? ingredient.cost_per_unit;
+        
+        // Applica la resa specifica per ricetta se presente
+        if (ri.recipe_yield_percentage !== null && ri.recipe_yield_percentage !== undefined) {
+          effectiveCost = effectiveCost / (ri.recipe_yield_percentage / 100);
+        }
         
         // Se l'unità della ricetta è diversa da quella base, converte
         let finalQuantity = ri.quantity;
@@ -238,7 +256,8 @@ const AddRecipeDialog: React.FC<AddRecipeDialogProps> = ({ onAddRecipe }) => {
           ingredient_id: ri.ingredient_id,
           quantity: ri.quantity,
           unit: ri.unit, // Aggiungo l'unità di misura
-          is_semilavorato: ri.is_semilavorato
+          is_semilavorato: ri.is_semilavorato,
+          recipe_yield_percentage: ri.recipe_yield_percentage // Aggiungo la resa specifica
         }));
 
         const { error: ingredientsError } = await supabase
@@ -476,7 +495,13 @@ const AddRecipeDialog: React.FC<AddRecipeDialogProps> = ({ onAddRecipe }) => {
                 let cost = 0;
                 
                 if (selectedIngredient) {
-                  const effectiveCost = selectedIngredient.effective_cost_per_unit ?? selectedIngredient.cost_per_unit;
+                  let effectiveCost = selectedIngredient.effective_cost_per_unit ?? selectedIngredient.cost_per_unit;
+                  
+                  // Applica la resa specifica per ricetta se presente
+                  if (ingredient.recipe_yield_percentage !== null && ingredient.recipe_yield_percentage !== undefined) {
+                    effectiveCost = effectiveCost / (ingredient.recipe_yield_percentage / 100);
+                  }
+                  
                   // Converti la quantità se l'unità è diversa
                   if (ingredient.unit && ingredient.unit !== selectedIngredient.unit) {
                     // Converte la quantità dall'unità della ricetta all'unità base dell'ingrediente
@@ -516,13 +541,36 @@ const AddRecipeDialog: React.FC<AddRecipeDialogProps> = ({ onAddRecipe }) => {
                       </Select>
 
                       {selectedIngredient && !ingredient.is_semilavorato && (
-                        <UnitSelector
-                          baseUnit={selectedIngredient.unit}
-                          selectedUnit={ingredient.unit || selectedIngredient.unit} // Usa l'unità dell'ingrediente se definita, altrimenti quella base
-                          quantity={ingredient.quantity}
-                          onUnitChange={(unit) => updateIngredientUnit(index, unit)}
-                          onQuantityChange={(quantity) => updateIngredientQuantity(index, quantity)}
-                        />
+                        <>
+                          <UnitSelector
+                            baseUnit={selectedIngredient.unit}
+                            selectedUnit={ingredient.unit || selectedIngredient.unit} // Usa l'unità dell'ingrediente se definita, altrimenti quella base
+                            quantity={ingredient.quantity}
+                            onUnitChange={(unit) => updateIngredientUnit(index, unit)}
+                            onQuantityChange={(quantity) => updateIngredientQuantity(index, quantity)}
+                          />
+                          
+                          {/* Campo per la resa specifica per ricetta */}
+                          <div className="flex items-center gap-2 mt-2">
+                            <Label className="text-xs text-gray-600 min-w-fit">Resa %:</Label>
+                            <Input
+                              type="number"
+                              min="1"
+                              max="100"
+                              step="0.1"
+                              className="w-20 h-8 text-xs"
+                              placeholder={selectedIngredient?.yield_percentage?.toString() || "100"}
+                              value={ingredient.recipe_yield_percentage || ""}
+                              onChange={(e) => {
+                                const value = e.target.value ? parseFloat(e.target.value) : undefined;
+                                updateIngredient(index, 'recipe_yield_percentage', value);
+                              }}
+                            />
+                            <span className="text-xs text-gray-500">
+                              (base: {selectedIngredient?.yield_percentage || 100}%)
+                            </span>
+                          </div>
+                        </>
                       )}
                       {(!selectedIngredient || ingredient.is_semilavorato) && (
                         <Input

@@ -8,6 +8,7 @@ import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { useRestaurant } from '@/hooks/useRestaurant';
 import { useLabels } from '@/hooks/useLabels';
+import { useInventoryTracking } from '@/hooks/useInventoryTracking';
 import TrackedLabelPreview from './TrackedLabelPreview';
 
 interface Ingredient {
@@ -35,6 +36,7 @@ const SemilavoratoLabelForm = ({ onClose }: SemilavoratoLabelFormProps) => {
   const { toast } = useToast();
   const { restaurantId } = useRestaurant();
   const { saveLabel } = useLabels();
+  const { allocateRecipeIngredients } = useInventoryTracking();
 
   useEffect(() => {
     fetchIngredients();
@@ -46,18 +48,29 @@ const SemilavoratoLabelForm = ({ onClose }: SemilavoratoLabelFormProps) => {
 
     try {
       const { data, error } = await supabase
-        .from('ingredients')
-        .select('id, name, supplier, cost_per_unit, unit')
+        .from('recipes')
+        .select('id, name, portions')
         .eq('restaurant_id', restaurantId)
+        .eq('is_semilavorato', true)
         .order('name');
 
       if (error) throw error;
-      setIngredients(data || []);
+      
+      // Trasforma i dati per essere compatibili con il resto del componente
+      const transformedData = (data || []).map(recipe => ({
+        id: recipe.id,
+        name: recipe.name,
+        supplier: 'Produzione interna',
+        cost_per_unit: 0, // Calcolato dinamicamente
+        unit: 'porzione'
+      }));
+      
+      setIngredients(transformedData);
     } catch (error) {
-      console.error('Error fetching ingredients:', error);
+      console.error('Error fetching semilavorati:', error);
       toast({
         title: "Errore",
-        description: "Errore nel caricamento degli ingredienti",
+        description: "Errore nel caricamento dei semilavorati",
         variant: "destructive"
       });
     }
@@ -95,8 +108,28 @@ const SemilavoratoLabelForm = ({ onClose }: SemilavoratoLabelFormProps) => {
     const selectedIngredientData = ingredients.find(i => i.id === selectedIngredient);
     if (!selectedIngredientData) return;
 
+    setLoading(true);
     try {
+      // Genera un ID univoco per l'etichetta
+      const labelId = crypto.randomUUID();
+      
+      // Prima alloca gli ingredienti della ricetta del semilavorato
+      // Questo ridurrà automaticamente il current_stock degli ingredienti
+      const allocationSuccess = await allocateRecipeIngredients(
+        selectedIngredient, // L'ID del semilavorato corrisponde all'ID della ricetta
+        labelId,
+        parseFloat(quantity), // Numero di porzioni
+        `Produzione semilavorato: ${selectedIngredientData.name}`
+      );
+
+      if (!allocationSuccess) {
+        setLoading(false);
+        return; // L'errore è già gestito da allocateRecipeIngredients
+      }
+
+      // Poi salva l'etichetta
       await saveLabel({
+        id: labelId, // Usa lo stesso ID generato per l'allocazione
         label_type: 'semilavorato',
         title: selectedIngredientData.name,
         batch_number: batchNumber,
@@ -106,7 +139,7 @@ const SemilavoratoLabelForm = ({ onClose }: SemilavoratoLabelFormProps) => {
         unit: selectedIngredientData.unit,
         storage_instructions: storageInstructions,
         notes: additionalNotes,
-        ingredient_id: selectedIngredient,
+        recipe_id: selectedIngredient, // Collega alla ricetta del semilavorato
         supplier: selectedIngredientData.supplier,
         ingredient_traceability: [{
           ingredient_id: selectedIngredient,
@@ -119,10 +152,19 @@ const SemilavoratoLabelForm = ({ onClose }: SemilavoratoLabelFormProps) => {
 
       toast({
         title: "Etichetta creata",
-        description: "L'etichetta è stata generata e salvata nel sistema di tracciabilità"
+        description: `L'etichetta è stata generata e gli ingredienti sono stati consumati dall'inventario`
       });
+      
+      onClose();
     } catch (error) {
       console.error('Error saving label:', error);
+      toast({
+        title: "Errore",
+        description: "Errore nella creazione dell'etichetta",
+        variant: "destructive"
+      });
+    } finally {
+      setLoading(false);
     }
   };
 

@@ -59,6 +59,7 @@ const AssociateRecipeDialog = ({ dish, onClose, onAssociated }: AssociateRecipeD
             quantity,
             unit,
             is_semilavorato,
+            recipe_yield_percentage,
             ingredients (
               id,
               name,

@@ -4,7 +4,7 @@ import { Link } from "react-router-dom";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import IngredientsManagement from "@/components/IngredientsManagement";
 import InventoryTrackingDashboard from "@/components/inventory/InventoryTrackingDashboard";
-import SimpleLabelGenerator from "@/components/labeling/SimpleLabelGenerator";
+import UnifiedLabelGenerator from "@/components/labeling/UnifiedLabelGenerator";
 
 const Inventory = () => {
   return (
@@ -27,7 +27,7 @@ const Inventory = () => {
                 </div>
               </div>
             </div>
-            <SimpleLabelGenerator />
+            <UnifiedLabelGenerator />
           </div>
         </div>
       </header>

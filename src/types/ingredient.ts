@@ -1,5 +1,3 @@
-
-
 export interface EnhancedIngredient {
   id: string;
   name: string;
@@ -20,12 +18,12 @@ export interface EnhancedIngredient {
   average_pieces_per_kg?: number;
   average_weight_per_piece_g?: number;
   last_lot_conversion_update?: string;
-  current_stock?: number;
+  current_stock: number; // Make this required to match original Ingredient type
   min_stock_threshold?: number;
   restaurant_id: string;
   category?: string;
   supplier: string; // Make this required to match original Ingredient type
-  supplier_product_code?: string;
+  supplier_product_code: string; // Make this required to match original Ingredient type
   notes?: string;
   external_id?: string;
   batch_number?: string;
@@ -92,4 +90,3 @@ export const SUPPORTED_UNITS: UnitDefinition[] = [
   { code: 'cucchiaino', name: 'Cucchiaini', type: 'volume', baseUnit: 'ml', conversionFactor: 5 },
   { code: 'tazza', name: 'Tazze', type: 'volume', baseUnit: 'ml', conversionFactor: 250 }
 ];
-

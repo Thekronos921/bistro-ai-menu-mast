@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -30,7 +29,7 @@ const AddIngredientDialog: React.FC<AddIngredientDialogProps> = ({ onAddIngredie
     supplier: '', // Ensure this is always a string, not undefined
     supplier_product_code: '', // Ensure this is always a string, not undefined
     current_stock: 0,
-    min_stock_threshold: 0,
+    min_stock_threshold: 0, // Ensure this is always a number, not undefined
     notes: ''
   });
 
@@ -57,7 +56,7 @@ const AddIngredientDialog: React.FC<AddIngredientDialogProps> = ({ onAddIngredie
       supplier: '', // Ensure this is always a string, not undefined
       supplier_product_code: '', // Ensure this is always a string, not undefined
       current_stock: 0,
-      min_stock_threshold: 0,
+      min_stock_threshold: 0, // Ensure this is always a number, not undefined
       notes: ''
     });
   };
@@ -110,7 +109,7 @@ const AddIngredientDialog: React.FC<AddIngredientDialogProps> = ({ onAddIngredie
         supplier: formData.supplier || '', // Ensure this is always a string, never null
         supplier_product_code: formData.supplier_product_code || '', // Ensure this is always a string, never null
         current_stock: formData.current_stock || 0,
-        min_stock_threshold: formData.min_stock_threshold || 0,
+        min_stock_threshold: formData.min_stock_threshold || 0, // Ensure this is always a number
         category: formData.category || null,
         notes: formData.notes || null,
         allocated_stock: 0, // Inizializza a 0

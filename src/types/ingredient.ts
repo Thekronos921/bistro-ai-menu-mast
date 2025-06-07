@@ -1,3 +1,4 @@
+
 export interface EnhancedIngredient {
   id: string;
   name: string;
@@ -19,7 +20,7 @@ export interface EnhancedIngredient {
   average_weight_per_piece_g?: number;
   last_lot_conversion_update?: string;
   current_stock: number; // Make this required to match original Ingredient type
-  min_stock_threshold?: number;
+  min_stock_threshold: number; // Make this required to match original Ingredient type
   restaurant_id: string;
   category?: string;
   supplier: string; // Make this required to match original Ingredient type

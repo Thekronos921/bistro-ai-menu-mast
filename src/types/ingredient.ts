@@ -2,6 +2,15 @@
 export interface EnhancedIngredient {
   id: string;
   name: string;
+  
+  // Original properties that must be maintained for compatibility
+  unit: string; // Manteniamo per compatibilità (sarà uguale a primary_unit)
+  allocated_stock: number;
+  labeled_stock: number;
+  last_synced_at?: string;
+  par_level?: number;
+  
+  // Enhanced UMP/UUS properties
   primary_unit: string; // UMP - Unità di Misura Principale (acquisto)
   usage_unit?: string; // UUS - Unità di Utilizzo Standard (ricette)
   cost_per_unit: number;
@@ -22,6 +31,11 @@ export interface EnhancedIngredient {
   expiry_date?: string;
   storage_instructions?: string;
   origin_certification?: string;
+  
+  // Additional fields from original Ingredient type
+  is_semilavorato?: boolean;
+  created_at?: string;
+  updated_at?: string;
 }
 
 export interface IngredientBatch {

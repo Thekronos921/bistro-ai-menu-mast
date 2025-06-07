@@ -110,7 +110,9 @@ const AddIngredientDialog: React.FC<AddIngredientDialogProps> = ({ onAddIngredie
         current_stock: formData.current_stock || 0,
         min_stock_threshold: formData.min_stock_threshold || 0,
         category: formData.category || null,
-        notes: formData.notes || null
+        notes: formData.notes || null,
+        allocated_stock: 0, // Inizializza a 0
+        labeled_stock: 0 // Inizializza a 0
       });
 
       const { error } = await supabase

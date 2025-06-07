@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -27,7 +26,7 @@ const AddIngredientDialog: React.FC<AddIngredientDialogProps> = ({ onAddIngredie
     cost_per_unit: 0,
     yield_percentage: 100,
     category: '',
-    supplier: '',
+    supplier: '', // Ensure this is always a string, not undefined
     supplier_product_code: '',
     current_stock: 0,
     min_stock_threshold: 0,
@@ -54,7 +53,7 @@ const AddIngredientDialog: React.FC<AddIngredientDialogProps> = ({ onAddIngredie
       cost_per_unit: 0,
       yield_percentage: 100,
       category: '',
-      supplier: '',
+      supplier: '', // Ensure this is always a string, not undefined
       supplier_product_code: '',
       current_stock: 0,
       min_stock_threshold: 0,
@@ -107,7 +106,7 @@ const AddIngredientDialog: React.FC<AddIngredientDialogProps> = ({ onAddIngredie
         average_weight_per_piece_g: formData.average_weight_per_piece_g,
         average_pieces_per_kg: formData.average_weight_per_piece_g ? 
           1000 / formData.average_weight_per_piece_g : null,
-        supplier: formData.supplier || null,
+        supplier: formData.supplier || '', // Ensure this is always a string, never null
         supplier_product_code: formData.supplier_product_code || null,
         current_stock: formData.current_stock || 0,
         min_stock_threshold: formData.min_stock_threshold || 0,
@@ -178,4 +177,3 @@ const AddIngredientDialog: React.FC<AddIngredientDialogProps> = ({ onAddIngredie
 };
 
 export default AddIngredientDialog;
-

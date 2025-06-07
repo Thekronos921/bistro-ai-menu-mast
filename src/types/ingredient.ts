@@ -24,7 +24,7 @@ export interface EnhancedIngredient {
   min_stock_threshold?: number;
   restaurant_id: string;
   category?: string;
-  supplier?: string;
+  supplier: string; // Make this required to match original Ingredient type
   supplier_product_code?: string;
   notes?: string;
   external_id?: string;

@@ -1,6 +1,5 @@
-
 import { useState, useEffect } from "react";
-import { Search, Edit, Trash2, AlertTriangle, ExternalLink, Calendar, Package2, Calculator } from "lucide-react";
+import { Search, Edit, Trash2, AlertTriangle, ExternalLink, Calendar, Package2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -12,14 +11,37 @@ import EditIngredientDialog from "./EditIngredientDialog";
 import InventoryKPIs from "./InventoryKPIs";
 import StockStatusBadge, { StockStatus } from "./StockStatusBadge";
 import LabelGenerator from "./labeling/LabelGenerator";
-import { calculateEffectiveCostPerUsageUnit, formatQuantityDisplay } from "@/utils/enhancedUnitConversion";
-import type { EnhancedIngredient } from "@/types/ingredient";
+
+interface Ingredient {
+  id: string;
+  name: string;
+  unit: string;
+  cost_per_unit: number;
+  yield_percentage: number;
+  effective_cost_per_unit: number;
+  supplier: string;
+  supplier_product_code: string;
+  current_stock: number;
+  allocated_stock: number;
+  labeled_stock: number;
+  min_stock_threshold: number;
+  par_level: number;
+  category: string;
+  external_id: string;
+  notes: string;
+  last_synced_at: string;
+  restaurant_id: string;
+  batch_number: string;
+  expiry_date: string;
+  storage_instructions: string;
+  origin_certification: string;
+}
 
 const IngredientsManagement = () => {
-  const [ingredients, setIngredients] = useState<EnhancedIngredient[]>([]);
+  const [ingredients, setIngredients] = useState<Ingredient[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [loading, setLoading] = useState(true);
-  const [editingIngredient, setEditingIngredient] = useState<EnhancedIngredient | null>(null);
+  const [editingIngredient, setEditingIngredient] = useState<Ingredient | null>(null);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const { toast } = useToast();
   const { restaurantId } = useRestaurant();
@@ -106,7 +128,7 @@ const IngredientsManagement = () => {
     return 'ok';
   };
 
-  const handleEditIngredient = (ingredient: EnhancedIngredient) => {
+  const handleEditIngredient = (ingredient: Ingredient) => {
     setEditingIngredient(ingredient);
     setEditDialogOpen(true);
   };
@@ -129,11 +151,11 @@ const IngredientsManagement = () => {
   );
 
   const lowStockIngredients = ingredients.filter(ing => 
-    ing.current_stock && ing.current_stock <= (ing.min_stock_threshold || 0) && (ing.min_stock_threshold || 0) > 0
+    ing.current_stock <= ing.min_stock_threshold && ing.min_stock_threshold > 0
   );
 
   const expiringIngredients = ingredients.filter(ing => {
-    const status = getExpiryStatus(ing.expiry_date || '');
+    const status = getExpiryStatus(ing.expiry_date);
     return status === 'expired' || status === 'expiring';
   });
 
@@ -173,7 +195,7 @@ const IngredientsManagement = () => {
             {expiringIngredients.slice(0, 3).map(ing => (
               <div key={ing.id} className="text-sm text-orange-600">
                 {ing.name}: {ing.expiry_date ? new Date(ing.expiry_date).toLocaleDateString('it-IT') : 'N/A'}
-                {getExpiryStatus(ing.expiry_date || '') === 'expired' && (
+                {getExpiryStatus(ing.expiry_date) === 'expired' && (
                   <span className="ml-2 text-red-600 font-semibold">SCADUTO</span>
                 )}
               </div>
@@ -200,8 +222,7 @@ const IngredientsManagement = () => {
           <div className="mt-2 space-y-1">
             {lowStockIngredients.map(ing => (
               <div key={ing.id} className="text-sm text-red-600">
-                {ing.name}: {ing.current_stock} {ing.primary_unit} 
-                (min: {ing.min_stock_threshold} {ing.primary_unit})
+                {ing.name}: {ing.current_stock} {ing.unit} (min: {ing.min_stock_threshold} {ing.unit})
               </div>
             ))}
           </div>
@@ -227,24 +248,23 @@ const IngredientsManagement = () => {
               <tr>
                 <th className="text-left px-6 py-3 text-sm font-medium text-slate-500">Nome</th>
                 <th className="text-left px-6 py-3 text-sm font-medium text-slate-500">Categoria</th>
-                <th className="text-center px-6 py-3 text-sm font-medium text-slate-500">Unità</th>
+                <th className="text-center px-6 py-3 text-sm font-medium text-slate-500">Lotto/Scadenza</th>
                 <th className="text-right px-6 py-3 text-sm font-medium text-slate-500">Costo Acquisto</th>
                 <th className="text-right px-6 py-3 text-sm font-medium text-slate-500">Resa %</th>
-                <th className="text-right px-6 py-3 text-sm font-medium text-slate-500">Costo Utilizzo</th>
+                <th className="text-right px-6 py-3 text-sm font-medium text-slate-500">Costo Effettivo</th>
+                <th className="text-left px-6 py-3 text-sm font-medium text-slate-500">Unità</th>
                 <th className="text-right px-6 py-3 text-sm font-medium text-slate-500">Scorte</th>
-                <th className="text-center px-6 py-3 text-sm font-medium text-slate-500">Conversioni</th>
+                <th className="text-right px-6 py-3 text-sm font-medium text-slate-500">Etichettato</th>
                 <th className="text-center px-6 py-3 text-sm font-medium text-slate-500">Stato</th>
                 <th className="text-left px-6 py-3 text-sm font-medium text-slate-500">Fornitore</th>
+                <th className="text-center px-6 py-3 text-sm font-medium text-slate-500">Sinc.</th>
                 <th className="text-center px-6 py-3 text-sm font-medium text-slate-500">Azioni</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-stone-200">
               {filteredIngredients.map((ingredient) => {
-                const stockStatus = getStockStatus(ingredient.current_stock || 0, ingredient.min_stock_threshold || 0);
-                const expiryStatus = getExpiryStatus(ingredient.expiry_date || '');
-                const effectiveUsageUnit = ingredient.usage_unit || ingredient.primary_unit;
-                const usageUnitCost = calculateEffectiveCostPerUsageUnit(ingredient);
-                
+                const stockStatus = getStockStatus(ingredient.current_stock, ingredient.min_stock_threshold);
+                const expiryStatus = getExpiryStatus(ingredient.expiry_date);
                 return (
                   <tr key={ingredient.id} className="hover:bg-slate-50">
                     <td className="px-6 py-4 font-medium text-slate-800">
@@ -268,54 +288,47 @@ const IngredientsManagement = () => {
                     <td className="px-6 py-4 text-slate-600">{ingredient.category || '-'}</td>
                     <td className="px-6 py-4 text-center">
                       <div className="space-y-1">
-                        <div className="flex items-center justify-center gap-1">
-                          <Badge variant="secondary" className="text-xs">
-                            UMP: {ingredient.primary_unit}
-                          </Badge>
-                        </div>
-                        {effectiveUsageUnit !== ingredient.primary_unit && (
-                          <div className="flex items-center justify-center gap-1">
-                            <Badge variant="default" className="text-xs">
-                              UUS: {effectiveUsageUnit}
-                            </Badge>
+                        {ingredient.batch_number && (
+                          <div className="flex items-center justify-center">
+                            <Package2 className="w-3 h-3 text-gray-400 mr-1" />
+                            <span className="text-xs text-gray-600">{ingredient.batch_number}</span>
+                          </div>
+                        )}
+                        {ingredient.expiry_date && (
+                          <div className="flex items-center justify-center">
+                            <Calendar className="w-3 h-3 text-gray-400 mr-1" />
+                            <span className={`text-xs ${
+                              expiryStatus === 'expired' ? 'text-red-600 font-semibold' :
+                              expiryStatus === 'expiring' ? 'text-orange-600 font-semibold' :
+                              expiryStatus === 'warning' ? 'text-yellow-600' : 'text-gray-600'
+                            }`}>
+                              {new Date(ingredient.expiry_date).toLocaleDateString('it-IT')}
+                              {expiryStatus === 'expired' && <span className="ml-1">⚠️</span>}
+                              {expiryStatus === 'expiring' && <span className="ml-1">🔔</span>}
+                            </span>
                           </div>
                         )}
                       </div>
                     </td>
-                    <td className="px-6 py-4 text-right font-medium">
-                      €{ingredient.cost_per_unit.toFixed(2)}/{ingredient.primary_unit}
-                    </td>
+                    <td className="px-6 py-4 text-right font-medium">€{ingredient.cost_per_unit.toFixed(2)}</td>
                     <td className="px-6 py-4 text-right">
                       <Badge variant={ingredient.yield_percentage < 80 ? "destructive" : ingredient.yield_percentage < 90 ? "secondary" : "default"}>
                         {ingredient.yield_percentage}%
                       </Badge>
                     </td>
                     <td className="px-6 py-4 text-right font-bold text-blue-600">
-                      €{usageUnitCost.toFixed(4)}/{effectiveUsageUnit}
+                      €{(ingredient.effective_cost_per_unit || 0).toFixed(2)}
                     </td>
+                    <td className="px-6 py-4 text-slate-600">{ingredient.unit}</td>
                     <td className="px-6 py-4 text-right">
-                      <span className={(ingredient.current_stock || 0) <= (ingredient.min_stock_threshold || 0) && (ingredient.min_stock_threshold || 0) > 0 ? 'text-red-600 font-semibold' : 'text-slate-800'}>
-                        {formatQuantityDisplay(ingredient.current_stock || 0, ingredient.primary_unit)}
+                      <span className={ingredient.current_stock <= ingredient.min_stock_threshold && ingredient.min_stock_threshold > 0 ? 'text-red-600 font-semibold' : 'text-slate-800'}>
+                        {ingredient.current_stock} {ingredient.unit}
                       </span>
                     </td>
-                    <td className="px-6 py-4 text-center">
-                      {ingredient.average_weight_per_piece_g ? (
-                        <div className="space-y-1">
-                          <div className="flex items-center justify-center gap-1">
-                            <Calculator className="w-3 h-3 text-green-500" />
-                            <span className="text-xs text-green-600">
-                              {ingredient.average_weight_per_piece_g}g/pz
-                            </span>
-                          </div>
-                          {ingredient.last_lot_conversion_update && (
-                            <div className="text-xs text-gray-500">
-                              Agg. {new Date(ingredient.last_lot_conversion_update).toLocaleDateString('it-IT')}
-                            </div>
-                          )}
-                        </div>
-                      ) : (
-                        <span className="text-xs text-gray-400">-</span>
-                      )}
+                    <td className="px-6 py-4 text-right">
+                      <span className="text-slate-800">
+                        {ingredient.labeled_stock || 0} {ingredient.unit}
+                      </span>
                     </td>
                     <td className="px-6 py-4 text-center">
                       <div className="space-y-1">
@@ -334,6 +347,15 @@ const IngredientsManagement = () => {
                           <div className="text-xs text-gray-500">{ingredient.supplier_product_code}</div>
                         )}
                       </div>
+                    </td>
+                    <td className="px-6 py-4 text-center">
+                      {ingredient.last_synced_at ? (
+                        <div className="text-xs text-green-600">
+                          {new Date(ingredient.last_synced_at).toLocaleDateString('it-IT')}
+                        </div>
+                      ) : (
+                        <div className="text-xs text-gray-400">Mai</div>
+                      )}
                     </td>
                     <td className="px-6 py-4 text-center">
                       <div className="flex justify-center space-x-2">

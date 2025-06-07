@@ -283,13 +283,6 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "ingredient_allocations_ingredient_id_fkey"
-            columns: ["ingredient_id"]
-            isOneToOne: false
-            referencedRelation: "ingredients_with_conversions"
-            referencedColumns: ["id"]
-          },
-          {
             foreignKeyName: "ingredient_allocations_label_id_fkey"
             columns: ["label_id"]
             isOneToOne: false
@@ -308,11 +301,7 @@ export type Database = {
       ingredient_batches: {
         Row: {
           batch_number: string
-          calculated_pieces_per_kg: number | null
-          calculated_weight_per_piece_g: number | null
-          cost_per_piece: number | null
           created_at: string
-          effective_cost_per_piece: number | null
           expiry_date: string
           id: string
           ingredient_id: string | null
@@ -322,16 +311,11 @@ export type Database = {
           restaurant_id: string | null
           storage_location: string | null
           supplier_delivery_date: string | null
-          total_pieces_count: number | null
           updated_at: string
         }
         Insert: {
           batch_number: string
-          calculated_pieces_per_kg?: number | null
-          calculated_weight_per_piece_g?: number | null
-          cost_per_piece?: number | null
           created_at?: string
-          effective_cost_per_piece?: number | null
           expiry_date: string
           id?: string
           ingredient_id?: string | null
@@ -341,16 +325,11 @@ export type Database = {
           restaurant_id?: string | null
           storage_location?: string | null
           supplier_delivery_date?: string | null
-          total_pieces_count?: number | null
           updated_at?: string
         }
         Update: {
           batch_number?: string
-          calculated_pieces_per_kg?: number | null
-          calculated_weight_per_piece_g?: number | null
-          cost_per_piece?: number | null
           created_at?: string
-          effective_cost_per_piece?: number | null
           expiry_date?: string
           id?: string
           ingredient_id?: string | null
@@ -360,7 +339,6 @@ export type Database = {
           restaurant_id?: string | null
           storage_location?: string | null
           supplier_delivery_date?: string | null
-          total_pieces_count?: number | null
           updated_at?: string
         }
         Relationships: [
@@ -369,13 +347,6 @@ export type Database = {
             columns: ["ingredient_id"]
             isOneToOne: false
             referencedRelation: "ingredients"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "ingredient_batches_ingredient_id_fkey"
-            columns: ["ingredient_id"]
-            isOneToOne: false
-            referencedRelation: "ingredients_with_conversions"
             referencedColumns: ["id"]
           },
           {
@@ -390,8 +361,6 @@ export type Database = {
       ingredients: {
         Row: {
           allocated_stock: number
-          average_pieces_per_kg: number | null
-          average_weight_per_piece_g: number | null
           batch_number: string | null
           category: string | null
           cost_per_unit: number
@@ -403,27 +372,22 @@ export type Database = {
           id: string
           is_semilavorato: boolean | null
           labeled_stock: number | null
-          last_lot_conversion_update: string | null
           last_synced_at: string | null
           min_stock_threshold: number | null
           name: string
           notes: string | null
           origin_certification: string | null
           par_level: number | null
-          primary_unit: string
           restaurant_id: string
           storage_instructions: string | null
           supplier: string | null
           supplier_product_code: string | null
           unit: string
           updated_at: string
-          usage_unit: string | null
           yield_percentage: number
         }
         Insert: {
           allocated_stock?: number
-          average_pieces_per_kg?: number | null
-          average_weight_per_piece_g?: number | null
           batch_number?: string | null
           category?: string | null
           cost_per_unit: number
@@ -435,27 +399,22 @@ export type Database = {
           id?: string
           is_semilavorato?: boolean | null
           labeled_stock?: number | null
-          last_lot_conversion_update?: string | null
           last_synced_at?: string | null
           min_stock_threshold?: number | null
           name: string
           notes?: string | null
           origin_certification?: string | null
           par_level?: number | null
-          primary_unit?: string
           restaurant_id: string
           storage_instructions?: string | null
           supplier?: string | null
           supplier_product_code?: string | null
           unit?: string
           updated_at?: string
-          usage_unit?: string | null
           yield_percentage?: number
         }
         Update: {
           allocated_stock?: number
-          average_pieces_per_kg?: number | null
-          average_weight_per_piece_g?: number | null
           batch_number?: string | null
           category?: string | null
           cost_per_unit?: number
@@ -467,21 +426,18 @@ export type Database = {
           id?: string
           is_semilavorato?: boolean | null
           labeled_stock?: number | null
-          last_lot_conversion_update?: string | null
           last_synced_at?: string | null
           min_stock_threshold?: number | null
           name?: string
           notes?: string | null
           origin_certification?: string | null
           par_level?: number | null
-          primary_unit?: string
           restaurant_id?: string
           storage_instructions?: string | null
           supplier?: string | null
           supplier_product_code?: string | null
           unit?: string
           updated_at?: string
-          usage_unit?: string | null
           yield_percentage?: number
         }
         Relationships: [
@@ -587,13 +543,6 @@ export type Database = {
             columns: ["ingredient_id"]
             isOneToOne: false
             referencedRelation: "ingredients"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "inventory_movements_ingredient_id_fkey"
-            columns: ["ingredient_id"]
-            isOneToOne: false
-            referencedRelation: "ingredients_with_conversions"
             referencedColumns: ["id"]
           },
           {
@@ -839,13 +788,6 @@ export type Database = {
             columns: ["ingredient_id"]
             isOneToOne: false
             referencedRelation: "ingredients"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "recipe_ingredients_ingredient_id_fkey"
-            columns: ["ingredient_id"]
-            isOneToOne: false
-            referencedRelation: "ingredients_with_conversions"
             referencedColumns: ["id"]
           },
           {
@@ -1274,128 +1216,9 @@ export type Database = {
       }
     }
     Views: {
-      ingredients_with_conversions: {
-        Row: {
-          allocated_stock: number | null
-          average_pieces_per_kg: number | null
-          average_weight_per_piece_g: number | null
-          batch_number: string | null
-          category: string | null
-          cost_per_unit: number | null
-          cost_per_usage_unit: number | null
-          created_at: string | null
-          current_stock: number | null
-          effective_cost_per_unit: number | null
-          effective_usage_unit: string | null
-          expiry_date: string | null
-          external_id: string | null
-          id: string | null
-          is_semilavorato: boolean | null
-          labeled_stock: number | null
-          last_lot_conversion_update: string | null
-          last_synced_at: string | null
-          min_stock_threshold: number | null
-          name: string | null
-          notes: string | null
-          origin_certification: string | null
-          par_level: number | null
-          primary_unit: string | null
-          restaurant_id: string | null
-          storage_instructions: string | null
-          supplier: string | null
-          supplier_product_code: string | null
-          unit: string | null
-          updated_at: string | null
-          usage_unit: string | null
-          usage_units_per_primary_unit: number | null
-          yield_percentage: number | null
-        }
-        Insert: {
-          allocated_stock?: number | null
-          average_pieces_per_kg?: number | null
-          average_weight_per_piece_g?: number | null
-          batch_number?: string | null
-          category?: string | null
-          cost_per_unit?: number | null
-          cost_per_usage_unit?: never
-          created_at?: string | null
-          current_stock?: number | null
-          effective_cost_per_unit?: number | null
-          effective_usage_unit?: never
-          expiry_date?: string | null
-          external_id?: string | null
-          id?: string | null
-          is_semilavorato?: boolean | null
-          labeled_stock?: number | null
-          last_lot_conversion_update?: string | null
-          last_synced_at?: string | null
-          min_stock_threshold?: number | null
-          name?: string | null
-          notes?: string | null
-          origin_certification?: string | null
-          par_level?: number | null
-          primary_unit?: string | null
-          restaurant_id?: string | null
-          storage_instructions?: string | null
-          supplier?: string | null
-          supplier_product_code?: string | null
-          unit?: string | null
-          updated_at?: string | null
-          usage_unit?: string | null
-          usage_units_per_primary_unit?: never
-          yield_percentage?: number | null
-        }
-        Update: {
-          allocated_stock?: number | null
-          average_pieces_per_kg?: number | null
-          average_weight_per_piece_g?: number | null
-          batch_number?: string | null
-          category?: string | null
-          cost_per_unit?: number | null
-          cost_per_usage_unit?: never
-          created_at?: string | null
-          current_stock?: number | null
-          effective_cost_per_unit?: number | null
-          effective_usage_unit?: never
-          expiry_date?: string | null
-          external_id?: string | null
-          id?: string | null
-          is_semilavorato?: boolean | null
-          labeled_stock?: number | null
-          last_lot_conversion_update?: string | null
-          last_synced_at?: string | null
-          min_stock_threshold?: number | null
-          name?: string | null
-          notes?: string | null
-          origin_certification?: string | null
-          par_level?: number | null
-          primary_unit?: string | null
-          restaurant_id?: string | null
-          storage_instructions?: string | null
-          supplier?: string | null
-          supplier_product_code?: string | null
-          unit?: string | null
-          updated_at?: string | null
-          usage_unit?: string | null
-          usage_units_per_primary_unit?: never
-          yield_percentage?: number | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "fk_ingredients_restaurant"
-            columns: ["restaurant_id"]
-            isOneToOne: false
-            referencedRelation: "restaurants"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
+      [_ in never]: never
     }
     Functions: {
-      calculate_effective_cost_per_usage_unit: {
-        Args: { ingredient_id_param: string }
-        Returns: number
-      }
       calculate_recipe_cost: {
         Args: { recipe_id_param: string }
         Returns: {
@@ -1421,10 +1244,6 @@ export type Database = {
       }
       recalculate_dependent_recipe_costs: {
         Args: { changed_ingredient_id: string; is_semilavorato_param?: boolean }
-        Returns: undefined
-      }
-      update_ingredient_conversion_from_latest_batch: {
-        Args: { ingredient_id_param: string }
         Returns: undefined
       }
       update_recipe_costs: {

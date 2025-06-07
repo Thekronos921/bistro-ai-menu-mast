@@ -1,4 +1,5 @@
 
+
 export interface EnhancedIngredient {
   id: string;
   name: string;
@@ -14,7 +15,7 @@ export interface EnhancedIngredient {
   primary_unit: string; // UMP - Unità di Misura Principale (acquisto)
   usage_unit?: string; // UUS - Unità di Utilizzo Standard (ricette)
   cost_per_unit: number;
-  effective_cost_per_unit?: number;
+  effective_cost_per_unit: number; // Make this required to match original Ingredient type
   yield_percentage: number;
   average_pieces_per_kg?: number;
   average_weight_per_piece_g?: number;
@@ -91,3 +92,4 @@ export const SUPPORTED_UNITS: UnitDefinition[] = [
   { code: 'cucchiaino', name: 'Cucchiaini', type: 'volume', baseUnit: 'ml', conversionFactor: 5 },
   { code: 'tazza', name: 'Tazze', type: 'volume', baseUnit: 'ml', conversionFactor: 250 }
 ];
+

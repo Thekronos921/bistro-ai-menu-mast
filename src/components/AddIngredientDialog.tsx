@@ -94,6 +94,8 @@ const AddIngredientDialog: React.FC<AddIngredientDialogProps> = ({ onAddIngredie
 
     setLoading(true);
     try {
+      const effectiveCost = calculateEffectiveCost();
+      
       const ingredientData = withRestaurantId({
         name: formData.name,
         unit: formData.primary_unit, // Manteniamo compatibilità con campo esistente
@@ -101,7 +103,7 @@ const AddIngredientDialog: React.FC<AddIngredientDialogProps> = ({ onAddIngredie
         usage_unit: formData.usage_unit,
         cost_per_unit: formData.cost_per_unit,
         yield_percentage: formData.yield_percentage,
-        effective_cost_per_unit: calculateEffectiveCost(),
+        effective_cost_per_unit: effectiveCost, // Ensure this is always provided
         average_weight_per_piece_g: formData.average_weight_per_piece_g,
         average_pieces_per_kg: formData.average_weight_per_piece_g ? 
           1000 / formData.average_weight_per_piece_g : null,
@@ -176,3 +178,4 @@ const AddIngredientDialog: React.FC<AddIngredientDialogProps> = ({ onAddIngredie
 };
 
 export default AddIngredientDialog;
+

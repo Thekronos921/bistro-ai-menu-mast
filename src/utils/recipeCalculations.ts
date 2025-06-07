@@ -23,16 +23,21 @@ export const calculateTotalCost = (recipeIngredients: RecipeIngredient[]) => {
     // Usa sempre effective_cost_per_unit se disponibile, altrimenti cost_per_unit
     const baseCostPerUnit = ri.ingredients.effective_cost_per_unit ?? ri.ingredients.cost_per_unit;
     
-    // NUOVA LOGICA: Determina quale resa usare
+    // LOGICA CORRETTA: Evita doppi calcoli della resa
     let finalCostPerUnit = baseCostPerUnit;
     
-    // 1. Se c'è una resa specifica per la ricetta, usala
+    // 1. Se c'è una resa specifica per la ricetta, usala sul costo base
     if (ri.recipe_yield_percentage !== null && ri.recipe_yield_percentage !== undefined) {
-      finalCostPerUnit = baseCostPerUnit / (ri.recipe_yield_percentage / 100);
+      // Se abbiamo effective_cost_per_unit, dobbiamo prima "rimuovere" la resa base
+      let costToUse = baseCostPerUnit;
+      if (ri.ingredients.effective_cost_per_unit && ri.ingredients.yield_percentage && ri.ingredients.yield_percentage !== 100) {
+        costToUse = ri.ingredients.cost_per_unit;
+      }
+      finalCostPerUnit = costToUse / (ri.recipe_yield_percentage / 100);
     }
     // 2. Altrimenti, se l'ingrediente ha una resa e non abbiamo già effective_cost_per_unit, applicala
-    else if (!ri.ingredients.effective_cost_per_unit && ri.ingredients.yield_percentage) {
-      const yieldPercentage = ri.ingredients.yield_percentage ?? 100;
+    else if (!ri.ingredients.effective_cost_per_unit && ri.ingredients.yield_percentage && ri.ingredients.yield_percentage !== 100) {
+      const yieldPercentage = ri.ingredients.yield_percentage;
       finalCostPerUnit = baseCostPerUnit / (yieldPercentage / 100);
     }
     

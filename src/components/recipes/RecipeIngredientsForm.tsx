@@ -66,9 +66,10 @@ const RecipeIngredientsForm = ({ recipeIngredients, onIngredientsChange, recipeI
       if (ingredientsError) throw ingredientsError;
       setIngredients(ingredientsData || []);
 
+      // Fetch semilavorati con i costi calcolati dal database
       const { data: semilavoratiData, error: semilavoratiError } = await supabase
         .from('recipes')
-        .select('id, name, portions')
+        .select('id, name, portions, calculated_cost_per_portion, cost_last_calculated_at')
         .eq('is_semilavorato', true)
         .eq('restaurant_id', restaurantId)
         .neq('id', recipeId)
@@ -76,35 +77,13 @@ const RecipeIngredientsForm = ({ recipeIngredients, onIngredientsChange, recipeI
 
       if (semilavoratiError) throw semilavoratiError;
       
-      const semilavoratiWithCosts = await Promise.all((semilavoratiData || []).map(async (sem) => {
-        const { data: recipeIngredientsData } = await supabase
-          .from('recipe_ingredients')
-          .select(`
-            quantity,
-            unit,
-            is_semilavorato,
-            ingredients!inner(cost_per_unit, effective_cost_per_unit)
-          `)
-          .eq('recipe_id', sem.id);
-
-        const totalCost = (recipeIngredientsData || []).reduce((sum, ri) => {
-          const ingredients = ri.ingredients as any;
-          const effectiveCost = ingredients?.effective_cost_per_unit ?? (ingredients?.cost_per_unit || 0);
-          let finalQuantity = ri.quantity;
-          
-          if (ri.unit && ri.unit !== ingredients?.unit) {
-            finalQuantity = convertUnit(ri.quantity, ri.unit, ingredients?.unit || 'g');
-          }
-          
-          return sum + (finalQuantity * effectiveCost);
-        }, 0);
-        
-        return {
-          ...sem,
-          cost_per_portion: sem.portions > 0 ? totalCost / sem.portions : 0
-        };
+      const semilavoratiWithCosts = (semilavoratiData || []).map(sem => ({
+        ...sem,
+        // Usa il costo calcolato dal database se disponibile, altrimenti calcola localmente
+        cost_per_portion: sem.calculated_cost_per_portion ?? 0
       }));
 
+      console.log("Loaded semilavorati with database costs:", semilavoratiWithCosts);
       setSemilavorati(semilavoratiWithCosts);
     } catch (error) {
       console.error("Error fetching ingredients:", error);
@@ -142,12 +121,14 @@ const RecipeIngredientsForm = ({ recipeIngredients, onIngredientsChange, recipeI
           updatedIng.quantity = 0;
           updatedIng.unit = "";
           updatedIng.ingredient = null;
+          updatedIng.recipe_yield_percentage = undefined;
         }
         
         if (field === 'ingredient_id') {
           if (updatedIng.is_semilavorato) {
             const semilavorato = semilavorati.find(s => s.id === value);
             if (semilavorato) {
+              console.log(`Selected semilavorato: ${semilavorato.name}, cost per portion: €${semilavorato.cost_per_portion}`);
               updatedIng.ingredient = {
                 id: semilavorato.id,
                 name: semilavorato.name,
@@ -161,8 +142,6 @@ const RecipeIngredientsForm = ({ recipeIngredients, onIngredientsChange, recipeI
             const ingredient = ingredients.find(ingredient => ingredient.id === value);
             if (ingredient) {
               updatedIng.ingredient = ingredient;
-              // IMPORTANTE: quando selezioni un nuovo ingrediente, usa l'unità base come default
-              // ma l'utente può poi cambiarla tramite UnitSelector
               updatedIng.unit = ingredient.unit;
             }
           }
@@ -230,6 +209,9 @@ const RecipeIngredientsForm = ({ recipeIngredients, onIngredientsChange, recipeI
           <span className="font-bold text-purple-600">
             €{portions > 0 ? (totalCost / portions).toFixed(2) : '0.00'}
           </span>
+        </div>
+        <div className="text-xs text-slate-500">
+          I costi verranno ricalcolati automaticamente al salvataggio
         </div>
       </div>
     </div>

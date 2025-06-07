@@ -1,11 +1,10 @@
-
 export interface RecipeIngredient {
   id: string;
   ingredient_id: string;
   quantity: number;
   unit?: string;
   is_semilavorato?: boolean;
-  recipe_yield_percentage?: number; // Resa specifica per questo ingrediente in questa ricetta
+  recipe_yield_percentage?: number;
   ingredients: {
     id: string;
     name: string;
@@ -15,7 +14,7 @@ export interface RecipeIngredient {
     current_stock?: number;
     min_stock_threshold?: number;
     yield_percentage?: number;
-    allergens?: string; // Aggiunta proprietà allergens
+    allergens?: string;
   };
 }
 
@@ -35,6 +34,9 @@ export interface Recipe {
   is_semilavorato?: boolean;
   notes_chef?: string;
   selling_price?: number;
+  calculated_total_cost?: number;
+  calculated_cost_per_portion?: number;
+  cost_last_calculated_at?: string;
   recipe_ingredients: RecipeIngredient[];
   recipe_instructions: Array<{
     id: string;

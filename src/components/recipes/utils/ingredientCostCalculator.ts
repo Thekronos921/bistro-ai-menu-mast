@@ -16,48 +16,60 @@ interface LocalRecipeIngredient {
   quantity: number;
   unit?: string;
   is_semilavorato?: boolean;
-  recipe_yield_percentage?: number; // Resa specifica per questo ingrediente in questa ricetta
+  recipe_yield_percentage?: number;
   ingredient: Ingredient | null;
 }
 
-export const calculateTotalCost = (recipeIngredients: LocalRecipeIngredient[]) => {
+interface Recipe {
+  id: string;
+  name: string;
+  portions: number;
+  calculated_total_cost?: number;
+  calculated_cost_per_portion?: number;
+  cost_last_calculated_at?: string;
+}
+
+export const calculateTotalCost = (recipeIngredients: LocalRecipeIngredient[], recipe?: Recipe) => {
+  // Se abbiamo una ricetta con costo calcolato dal database, usalo
+  if (recipe?.calculated_total_cost !== null && recipe?.calculated_total_cost !== undefined) {
+    console.log(`Using database calculated total cost: €${recipe.calculated_total_cost.toFixed(2)}`);
+    return recipe.calculated_total_cost;
+  }
+
+  // Altrimenti calcola localmente
   if (!recipeIngredients) return 0;
   
   return recipeIngredients.reduce((total, recipeIngredient) => {
     if (!recipeIngredient.ingredient) return total;
     
-    const baseCost = recipeIngredient.ingredient.effective_cost_per_unit ?? recipeIngredient.ingredient.cost_per_unit;
-    
-    // Se è un semilavorato, usa direttamente il costo per porzione
+    // Per i semilavorati, usa il costo per porzione
     if (recipeIngredient.is_semilavorato) {
-      return total + (baseCost * recipeIngredient.quantity);
+      const costPerPortion = recipeIngredient.ingredient.effective_cost_per_unit ?? recipeIngredient.ingredient.cost_per_unit;
+      console.log(`Semilavorato ${recipeIngredient.ingredient.name}: ${recipeIngredient.quantity} porzioni × €${costPerPortion} = €${(costPerPortion * recipeIngredient.quantity).toFixed(2)}`);
+      return total + (costPerPortion * recipeIngredient.quantity);
     }
     
-    // LOGICA CORRETTA: Evita doppi calcoli della resa
+    const baseCost = recipeIngredient.ingredient.effective_cost_per_unit ?? recipeIngredient.ingredient.cost_per_unit;
     let effectiveCost = baseCost;
     
-    // 1. Se c'è una resa specifica per la ricetta, usala sul costo base
+    // Applicare resa specifica se presente
     if (recipeIngredient.recipe_yield_percentage !== null && recipeIngredient.recipe_yield_percentage !== undefined) {
-      // Se abbiamo effective_cost_per_unit, dobbiamo prima "rimuovere" la resa base
       let costToUse = baseCost;
       if (recipeIngredient.ingredient.effective_cost_per_unit && recipeIngredient.ingredient.yield_percentage && recipeIngredient.ingredient.yield_percentage !== 100) {
         costToUse = recipeIngredient.ingredient.cost_per_unit;
       }
       effectiveCost = costToUse / (recipeIngredient.recipe_yield_percentage / 100);
     }
-    // 2. Altrimenti, se l'ingrediente ha una resa e non abbiamo già effective_cost_per_unit, applicala
     else if (!recipeIngredient.ingredient.effective_cost_per_unit && recipeIngredient.ingredient.yield_percentage && recipeIngredient.ingredient.yield_percentage !== 100) {
       effectiveCost = baseCost / (recipeIngredient.ingredient.yield_percentage / 100);
     }
     
-    // Il costo dell'ingrediente è sempre per l'unità base dell'ingrediente
-    // Se l'unità della ricetta è diversa da quella base, converti la quantità
+    // Gestione conversione unità
     const recipeUnit = recipeIngredient.unit || recipeIngredient.ingredient.unit;
     const baseUnit = recipeIngredient.ingredient.unit;
     
     if (recipeUnit !== baseUnit && areUnitsCompatible(recipeUnit, baseUnit)) {
       try {
-        // Converti la quantità dall'unità della ricetta all'unità base dell'ingrediente
         const quantityInBaseUnit = convertUnit(recipeIngredient.quantity, recipeUnit, baseUnit);
         console.log(`Calcolo costo totale per ${recipeIngredient.ingredient.name}:`);
         console.log(`- Quantità ricetta: ${recipeIngredient.quantity} ${recipeUnit}`);
@@ -72,7 +84,6 @@ export const calculateTotalCost = (recipeIngredients: LocalRecipeIngredient[]) =
       }
     }
     
-    // Se le unità sono uguali o non compatibili, usa la quantità direttamente
     return total + (effectiveCost * recipeIngredient.quantity);
   }, 0);
 };

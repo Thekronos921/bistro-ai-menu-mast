@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -116,21 +115,21 @@ export const useRecipeSaving = () => {
 
       console.log("Preparing ingredients data to save:");
       const ingredientsData = validIngredients.map(ing => {
-        // CRITICO: Salva SEMPRE l'unità attualmente selezionata nel form
-        // NON usare mai l'unità base dell'ingrediente come fallback
-        const unitToSave = ing.unit; // Usa esattamente l'unità selezionata
+        const unitToSave = ing.unit;
         
         console.log(`Salvando ingrediente ${ing.ingredient?.name}:`);
         console.log(`- Quantità: ${ing.quantity}`);
         console.log(`- Unità selezionata: "${ing.unit}"`);
         console.log(`- Unità base ingrediente: "${ing.ingredient?.unit}"`);
         console.log(`- Unità che verrà salvata: "${unitToSave}"`);
+        console.log(`- È semilavorato: ${ing.is_semilavorato}`);
+        console.log(`- Resa specifica ricetta: ${ing.recipe_yield_percentage}%`);
         
         const dataToSave = {
           recipe_id: recipeId,
           ingredient_id: ing.ingredient_id,
           quantity: ing.quantity,
-          unit: unitToSave, // Salva l'unità esatta selezionata nel form
+          unit: unitToSave,
           is_semilavorato: ing.is_semilavorato || false,
           recipe_yield_percentage: ing.recipe_yield_percentage
         };
@@ -148,6 +147,19 @@ export const useRecipeSaving = () => {
       if (ingredientsError) {
         console.error("Ingredients insert error:", ingredientsError);
         throw ingredientsError;
+      }
+
+      // Dopo aver salvato gli ingredienti, ricalcolare i costi usando la funzione del database
+      console.log("Triggering cost recalculation for recipe:", recipeId);
+      const { error: costUpdateError } = await supabase
+        .rpc('update_recipe_costs', { recipe_id_param: recipeId });
+
+      if (costUpdateError) {
+        console.error("Cost update error:", costUpdateError);
+        // Non bloccare il salvataggio per errori di calcolo costi
+        console.warn("Could not update costs, but recipe was saved successfully");
+      } else {
+        console.log("Recipe costs updated successfully");
       }
 
       console.log("Deleting old recipe instructions");
@@ -182,7 +194,7 @@ export const useRecipeSaving = () => {
 
       toast({
         title: "Successo",
-        description: "Ricetta aggiornata con successo"
+        description: "Ricetta aggiornata con successo. I costi sono stati ricalcolati automaticamente."
       });
 
       return true;

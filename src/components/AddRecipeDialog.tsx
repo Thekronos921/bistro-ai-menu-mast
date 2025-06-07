@@ -200,11 +200,21 @@ const AddRecipeDialog: React.FC<AddRecipeDialogProps> = ({ onAddRecipe }) => {
     return recipeIngredients.reduce((total, ri) => {
       const ingredient = ingredients.find(ing => ing.id === ri.ingredient_id);
       if (ingredient) {
-        let effectiveCost = ingredient.effective_cost_per_unit ?? ingredient.cost_per_unit;
+        // Usa il costo base per evitare doppi calcoli della resa
+        let baseCost = ingredient.effective_cost_per_unit ?? ingredient.cost_per_unit;
+        let effectiveCost = baseCost;
         
-        // Applica la resa specifica per ricetta se presente
+        // Se c'è una resa specifica per la ricetta, applicala solo sul costo base
         if (ri.recipe_yield_percentage !== null && ri.recipe_yield_percentage !== undefined) {
-          effectiveCost = effectiveCost / (ri.recipe_yield_percentage / 100);
+          // Se abbiamo effective_cost_per_unit, dobbiamo prima "rimuovere" la resa base
+          if (ingredient.effective_cost_per_unit && ingredient.yield_percentage && ingredient.yield_percentage !== 100) {
+            baseCost = ingredient.cost_per_unit;
+          }
+          effectiveCost = baseCost / (ri.recipe_yield_percentage / 100);
+        }
+        // Se non c'è resa specifica ma l'ingrediente ha una resa e non abbiamo effective_cost_per_unit
+        else if (!ingredient.effective_cost_per_unit && ingredient.yield_percentage && ingredient.yield_percentage !== 100) {
+          effectiveCost = baseCost / (ingredient.yield_percentage / 100);
         }
         
         // Se l'unità della ricetta è diversa da quella base, converte
@@ -495,11 +505,21 @@ const AddRecipeDialog: React.FC<AddRecipeDialogProps> = ({ onAddRecipe }) => {
                 let cost = 0;
                 
                 if (selectedIngredient) {
-                  let effectiveCost = selectedIngredient.effective_cost_per_unit ?? selectedIngredient.cost_per_unit;
+                  // Usa il costo base per evitare doppi calcoli della resa
+                  let baseCost = selectedIngredient.effective_cost_per_unit ?? selectedIngredient.cost_per_unit;
+                  let effectiveCost = baseCost;
                   
-                  // Applica la resa specifica per ricetta se presente
+                  // Se c'è una resa specifica per la ricetta, applicala solo sul costo base
                   if (ingredient.recipe_yield_percentage !== null && ingredient.recipe_yield_percentage !== undefined) {
-                    effectiveCost = effectiveCost / (ingredient.recipe_yield_percentage / 100);
+                    // Se abbiamo effective_cost_per_unit, dobbiamo prima "rimuovere" la resa base
+                    if (selectedIngredient.effective_cost_per_unit && selectedIngredient.yield_percentage && selectedIngredient.yield_percentage !== 100) {
+                      baseCost = selectedIngredient.cost_per_unit;
+                    }
+                    effectiveCost = baseCost / (ingredient.recipe_yield_percentage / 100);
+                  }
+                  // Se non c'è resa specifica ma l'ingrediente ha una resa e non abbiamo effective_cost_per_unit
+                  else if (!selectedIngredient.effective_cost_per_unit && selectedIngredient.yield_percentage && selectedIngredient.yield_percentage !== 100) {
+                    effectiveCost = baseCost / (selectedIngredient.yield_percentage / 100);
                   }
                   
                   // Converti la quantità se l'unità è diversa

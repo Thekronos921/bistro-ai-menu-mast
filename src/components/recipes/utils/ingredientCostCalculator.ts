@@ -33,15 +33,20 @@ export const calculateTotalCost = (recipeIngredients: LocalRecipeIngredient[]) =
       return total + (baseCost * recipeIngredient.quantity);
     }
     
-    // NUOVA LOGICA: Applica la resa specifica per ricetta se presente
+    // LOGICA CORRETTA: Evita doppi calcoli della resa
     let effectiveCost = baseCost;
     
-    // 1. Se c'è una resa specifica per la ricetta, usala
+    // 1. Se c'è una resa specifica per la ricetta, usala sul costo base
     if (recipeIngredient.recipe_yield_percentage !== null && recipeIngredient.recipe_yield_percentage !== undefined) {
-      effectiveCost = baseCost / (recipeIngredient.recipe_yield_percentage / 100);
+      // Se abbiamo effective_cost_per_unit, dobbiamo prima "rimuovere" la resa base
+      let costToUse = baseCost;
+      if (recipeIngredient.ingredient.effective_cost_per_unit && recipeIngredient.ingredient.yield_percentage && recipeIngredient.ingredient.yield_percentage !== 100) {
+        costToUse = recipeIngredient.ingredient.cost_per_unit;
+      }
+      effectiveCost = costToUse / (recipeIngredient.recipe_yield_percentage / 100);
     }
     // 2. Altrimenti, se l'ingrediente ha una resa e non abbiamo già effective_cost_per_unit, applicala
-    else if (!recipeIngredient.ingredient.effective_cost_per_unit && recipeIngredient.ingredient.yield_percentage) {
+    else if (!recipeIngredient.ingredient.effective_cost_per_unit && recipeIngredient.ingredient.yield_percentage && recipeIngredient.ingredient.yield_percentage !== 100) {
       effectiveCost = baseCost / (recipeIngredient.ingredient.yield_percentage / 100);
     }
     

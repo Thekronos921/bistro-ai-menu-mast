@@ -115,9 +115,10 @@ const EditIngredientDialog = ({ ingredient, open, onOpenChange, onIngredientUpda
         .update({
           name: formData.name,
           unit: formData.unit,
-          cost_per_unit: formData.cost_per_unit,
+          cost_per_unit: formData.cost_per_unit, // ← Modifica solo questo campo
           yield_percentage: formData.yield_percentage,
-          effective_cost_per_unit: calculateEffectiveCost(), // ← MANCA QUESTA RIGA
+          // Rimuovi questa riga completamente:
+          // effective_cost_per_unit: calculateEffectiveCost(),
           supplier: formData.supplier || null,
           supplier_product_code: formData.supplier_product_code || null,
           current_stock: formData.current_stock,

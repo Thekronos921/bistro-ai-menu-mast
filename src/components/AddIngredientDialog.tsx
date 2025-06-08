@@ -119,7 +119,6 @@ const AddIngredientDialog: React.FC<AddIngredientDialogProps> = ({ onAddIngredie
         unit: formData.unit,
         cost_per_unit: formData.costPerUnit,
         yield_percentage: formData.yieldPercentage,
-        effective_cost_per_unit: calculateEffectiveCost(), // ← MANCA QUESTA RIGA
         supplier: formData.supplier || null,
         supplier_product_code: formData.supplierProductCode || null,
         current_stock: formData.currentStock || 0,

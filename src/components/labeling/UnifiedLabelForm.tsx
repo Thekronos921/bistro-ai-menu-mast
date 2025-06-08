@@ -64,11 +64,19 @@ const UnifiedLabelForm = ({ labelType, onClose }: UnifiedLabelFormProps) => {
   const [ingredients, setIngredients] = useState<any[]>([]);
   const [recipes, setRecipes] = useState<any[]>([]);
   const [selectedItem, setSelectedItem] = useState<any>(null);
+  const [isLoadingData, setIsLoadingData] = useState(false);
 
   useEffect(() => {
     if (restaurantId) {
-      loadIngredients();
-      loadRecipes();
+      const loadData = async () => {
+        setIsLoadingData(true);
+        try {
+          await Promise.all([loadIngredients(), loadRecipes()]);
+        } finally {
+          setIsLoadingData(false);
+        }
+      };
+      loadData();
     }
   }, [restaurantId]);
 
@@ -90,6 +98,11 @@ const UnifiedLabelForm = ({ labelType, onClose }: UnifiedLabelFormProps) => {
       setIngredients(data || []);
     } catch (error) {
       console.error('Error loading ingredients:', error);
+      toast({
+        title: "Errore",
+        description: "Impossibile caricare gli ingredienti",
+        variant: "destructive"
+      });
     }
   };
 
@@ -97,7 +110,7 @@ const UnifiedLabelForm = ({ labelType, onClose }: UnifiedLabelFormProps) => {
     try {
       const { data, error } = await supabase
         .from('recipes')
-        .select('id, name, portions, allergens, description')
+        .select('id, name, portions, allergens, description, is_semilavorato')
         .eq('restaurant_id', restaurantId)
         .order('name');
 
@@ -105,6 +118,11 @@ const UnifiedLabelForm = ({ labelType, onClose }: UnifiedLabelFormProps) => {
       setRecipes(data || []);
     } catch (error) {
       console.error('Error loading recipes:', error);
+      toast({
+        title: "Errore",
+        description: "Impossibile caricare le ricette",
+        variant: "destructive"
+      });
     }
   };
 
@@ -263,7 +281,7 @@ const UnifiedLabelForm = ({ labelType, onClose }: UnifiedLabelFormProps) => {
       semilavorato: { 
         title: 'Etichetta Semilavorato', 
         color: 'blue', 
-        items: recipes.filter(r => r.is_semilavorato !== false), 
+        items: recipes.filter(r => r.is_semilavorato === true), 
         itemField: 'recipe_id',
         showPortions: true 
       },
@@ -275,17 +293,37 @@ const UnifiedLabelForm = ({ labelType, onClose }: UnifiedLabelFormProps) => {
         showPortions: true 
       }
     };
-    return configs[labelType];
+    return configs[labelType] || {
+      title: 'Etichetta Generica',
+      color: 'gray',
+      items: [],
+      itemField: 'id',
+      showPortions: false
+    };
   };
 
   const config = getTypeConfig();
+
+  // Verifica di sicurezza per evitare errori se config è undefined
+  if (!config || !config.items) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="text-center">
+          <p className="text-gray-500">Errore nel caricamento della configurazione</p>
+          <Button onClick={onClose} variant="outline" className="mt-2">
+            Chiudi
+          </Button>
+        </div>
+      </div>
+    );
+  }
 
   if (isMobile) {
     return (
       <div className="space-y-4 h-full">
         {/* Header Mobile */}
         <div className="flex items-center space-x-2 mb-4">
-          <Badge variant="outline" className={`bg-${config.color}-50 text-${config.color}-700 border-${config.color}-200 text-xs`}>
+          <Badge variant="outline" className={`bg-${config?.color || 'gray'}-50 text-${config?.color || 'gray'}-700 border-${config?.color || 'gray'}-200 text-xs`}>
             {config.title}
           </Badge>
         </div>
@@ -302,20 +340,35 @@ const UnifiedLabelForm = ({ labelType, onClose }: UnifiedLabelFormProps) => {
                 <Select
                   value={formData[config.itemField] || ""}
                   onValueChange={(value) => {
-                    setFormData(prev => ({ ...prev, [config.itemField]: value }));
-                    const item = config.items.find(i => i.id === value);
-                    setSelectedItem(item);
+                    if (config.itemField) {
+                      setFormData(prev => ({ ...prev, [config.itemField]: value }));
+                      const item = config.items.find(i => i.id === value);
+                      setSelectedItem(item);
+                    }
                   }}
+                  disabled={isLoadingData}
                 >
                   <SelectTrigger className="text-sm">
-                    <SelectValue placeholder="Seleziona..." />
+                    <SelectValue 
+                      placeholder={
+                        isLoadingData 
+                          ? "Caricamento..." 
+                          : "Seleziona..."
+                      } 
+                    />
                   </SelectTrigger>
                   <SelectContent>
-                    {config.items.map((item) => (
-                      <SelectItem key={item.id} value={item.id}>
-                        {item.name}
-                      </SelectItem>
-                    ))}
+                    {config.items.length === 0 && !isLoadingData ? (
+                      <div className="px-2 py-1.5 text-sm text-gray-500">
+                        Nessun elemento disponibile
+                      </div>
+                    ) : (
+                      config.items.map((item) => (
+                        <SelectItem key={item.id} value={item.id}>
+                          {item.name}
+                        </SelectItem>
+                      ))
+                    )}
                   </SelectContent>
                 </Select>
               </div>
@@ -479,7 +532,7 @@ const UnifiedLabelForm = ({ labelType, onClose }: UnifiedLabelFormProps) => {
       {/* Form Section - 2 colonne */}
       <div className="col-span-2 space-y-4 overflow-y-auto pr-2">
         <div className="flex items-center space-x-3">
-          <Badge variant="outline" className={`bg-${config.color}-50 text-${config.color}-700 border-${config.color}-200`}>
+          <Badge variant="outline" className={`bg-${config?.color || 'gray'}-50 text-${config?.color || 'gray'}-700 border-${config?.color || 'gray'}-200`}>
             {config.title}
           </Badge>
           <Info className="w-4 h-4 text-gray-400" />
@@ -495,20 +548,35 @@ const UnifiedLabelForm = ({ labelType, onClose }: UnifiedLabelFormProps) => {
               <Select
                 value={formData[config.itemField] || ""}
                 onValueChange={(value) => {
-                  setFormData(prev => ({ ...prev, [config.itemField]: value }));
-                  const item = config.items.find(i => i.id === value);
-                  setSelectedItem(item);
+                  if (config.itemField) {
+                    setFormData(prev => ({ ...prev, [config.itemField]: value }));
+                    const item = config.items.find(i => i.id === value);
+                    setSelectedItem(item);
+                  }
                 }}
+                disabled={isLoadingData}
               >
                 <SelectTrigger>
-                  <SelectValue placeholder={`Seleziona ${labelType === 'ingredient' || labelType === 'defrosted' ? 'ingrediente' : 'ricetta'}...`} />
+                  <SelectValue 
+                    placeholder={
+                      isLoadingData 
+                        ? "Caricamento..." 
+                        : `Seleziona ${labelType === 'ingredient' || labelType === 'defrosted' ? 'ingrediente' : 'ricetta'}...`
+                    } 
+                  />
                 </SelectTrigger>
                 <SelectContent>
-                  {config.items.map((item) => (
-                    <SelectItem key={item.id} value={item.id}>
-                      {item.name}
-                    </SelectItem>
-                  ))}
+                  {config.items.length === 0 && !isLoadingData ? (
+                    <div className="px-2 py-1.5 text-sm text-gray-500">
+                      Nessun elemento disponibile
+                    </div>
+                  ) : (
+                    config.items.map((item) => (
+                      <SelectItem key={item.id} value={item.id}>
+                        {item.name}
+                      </SelectItem>
+                    ))
+                  )}
                 </SelectContent>
               </Select>
             </div>

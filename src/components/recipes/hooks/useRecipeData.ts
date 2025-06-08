@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -58,15 +59,15 @@ export const useRecipeIngredients = (recipeId: string) => {
         console.log("Loaded recipe ingredients raw data:", data);
 
         const mappedIngredients = data?.map(item => {
+          // Normalizza sempre item.ingredients come oggetto singolo
           const ingredientObj = Array.isArray(item.ingredients) ? item.ingredients[0] : item.ingredients;
           console.log(`Caricando ${ingredientObj?.name}:`);
           console.log(`- Quantità salvata: ${item.quantity}`);
           console.log(`- Unità salvata nel DB: "${item.unit}"`);
           console.log(`- Unità base ingrediente: "${ingredientObj?.unit}"`);
-          console.log(`- È semilavorato: ${item.is_semilavorato}`);
-          console.log(`- Resa specifica ricetta: ${item.recipe_yield_percentage}%`);
           console.log(`- Resa ingrediente: ${ingredientObj?.yield_percentage}%`);
           
+          // Usa l'unità salvata nel DB se presente, altrimenti quella base dell'ingrediente
           const finalUnit = item.unit || ingredientObj?.unit || 'g';
           console.log(`- Unità finale utilizzata: "${finalUnit}"`);
 

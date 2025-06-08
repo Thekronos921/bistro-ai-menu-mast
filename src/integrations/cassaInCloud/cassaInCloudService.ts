@@ -408,9 +408,6 @@ export const getSoldByProductReport = async (params: GetSoldByProductParams, api
   }
   */
 
-  const menuMode = params.menuMode !== undefined ? params.menuMode : '0';
-  reportUrl.searchParams.append('menuMode', menuMode);
-
   // TODO: Gestire 'sorts' se necessario. La sua struttura complessa (array di oggetti) 
   // potrebbe richiedere una serializzazione personalizzata o l'invio nel corpo della richiesta se l'API lo supporta per GET con corpo.
   // Per ora, lo omettiamo se inviato come query param semplice.

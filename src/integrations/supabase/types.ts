@@ -834,12 +834,9 @@ export type Database = {
       recipes: {
         Row: {
           allergens: string | null
-          calculated_cost_per_portion: number | null
-          calculated_total_cost: number | null
           calories: number | null
           carbs: number | null
           category: string
-          cost_last_calculated_at: string | null
           created_at: string
           description: string | null
           difficulty: string
@@ -857,12 +854,9 @@ export type Database = {
         }
         Insert: {
           allergens?: string | null
-          calculated_cost_per_portion?: number | null
-          calculated_total_cost?: number | null
           calories?: number | null
           carbs?: number | null
           category: string
-          cost_last_calculated_at?: string | null
           created_at?: string
           description?: string | null
           difficulty: string
@@ -880,12 +874,9 @@ export type Database = {
         }
         Update: {
           allergens?: string | null
-          calculated_cost_per_portion?: number | null
-          calculated_total_cost?: number | null
           calories?: number | null
           carbs?: number | null
           category?: string
-          cost_last_calculated_at?: string | null
           created_at?: string
           description?: string | null
           difficulty?: string
@@ -1219,13 +1210,6 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      calculate_recipe_cost: {
-        Args: { recipe_id_param: string }
-        Returns: {
-          total_cost: number
-          cost_per_portion: number
-        }[]
-      }
       get_category_name: {
         Args: { cat_id: string }
         Returns: string
@@ -1237,18 +1221,6 @@ export type Database = {
       is_owner_or_manager: {
         Args: Record<PropertyKey, never>
         Returns: boolean
-      }
-      recalculate_all_recipe_costs: {
-        Args: Record<PropertyKey, never>
-        Returns: undefined
-      }
-      recalculate_dependent_recipe_costs: {
-        Args: { changed_ingredient_id: string; is_semilavorato_param?: boolean }
-        Returns: undefined
-      }
-      update_recipe_costs: {
-        Args: { recipe_id_param: string }
-        Returns: undefined
       }
     }
     Enums: {

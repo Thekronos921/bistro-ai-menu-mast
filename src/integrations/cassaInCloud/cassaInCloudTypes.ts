@@ -76,7 +76,6 @@ export interface GetSoldByProductParams {
   idProducts?: string[];
   idDepartments?: string[];
   idCategories?: string[];
-  menuMode?: string;
   sorts?: any[]; // Definire meglio se necessario
 }
 

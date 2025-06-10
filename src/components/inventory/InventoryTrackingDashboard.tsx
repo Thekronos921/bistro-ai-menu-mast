@@ -51,7 +51,7 @@ const InventoryTrackingDashboard = () => {
   const [filteredLabels, setFilteredLabels] = useState<EnrichedLabel[]>([]);
   const [filters, setFilters] = useState({
     label_type: 'all',
-    status: 'all',
+    status: 'active',
     storage_location_id: 'all',
     search: ''
   });

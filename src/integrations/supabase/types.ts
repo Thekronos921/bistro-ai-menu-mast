@@ -101,6 +101,7 @@ export type Database = {
           created_at: string
           dish_category: string | null
           dish_name: string
+          external_product_id: string | null
           id: string
           meal_period: string | null
           quantity_sold: number
@@ -112,6 +113,7 @@ export type Database = {
           created_at?: string
           dish_category?: string | null
           dish_name: string
+          external_product_id?: string | null
           id?: string
           meal_period?: string | null
           quantity_sold?: number
@@ -123,6 +125,7 @@ export type Database = {
           created_at?: string
           dish_category?: string | null
           dish_name?: string
+          external_product_id?: string | null
           id?: string
           meal_period?: string | null
           quantity_sold?: number
@@ -246,6 +249,72 @@ export type Database = {
           },
         ]
       }
+      external_sales_data: {
+        Row: {
+          bill_id_external: string
+          created_at: string
+          dish_id: string | null
+          document_row_id_external: string | null
+          id: string
+          operator_id_external: string | null
+          operator_name: string | null
+          price_per_unit_sold: number
+          quantity_sold: number
+          raw_bill_data: Json | null
+          restaurant_id: string
+          sale_timestamp: string
+          total_amount_sold_for_row: number
+          unmapped_product_description: string | null
+        }
+        Insert: {
+          bill_id_external: string
+          created_at?: string
+          dish_id?: string | null
+          document_row_id_external?: string | null
+          id?: string
+          operator_id_external?: string | null
+          operator_name?: string | null
+          price_per_unit_sold: number
+          quantity_sold: number
+          raw_bill_data?: Json | null
+          restaurant_id: string
+          sale_timestamp: string
+          total_amount_sold_for_row: number
+          unmapped_product_description?: string | null
+        }
+        Update: {
+          bill_id_external?: string
+          created_at?: string
+          dish_id?: string | null
+          document_row_id_external?: string | null
+          id?: string
+          operator_id_external?: string | null
+          operator_name?: string | null
+          price_per_unit_sold?: number
+          quantity_sold?: number
+          raw_bill_data?: Json | null
+          restaurant_id?: string
+          sale_timestamp?: string
+          total_amount_sold_for_row?: number
+          unmapped_product_description?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fk_external_sales_dish"
+            columns: ["dish_id"]
+            isOneToOne: false
+            referencedRelation: "dishes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fk_external_sales_restaurant"
+            columns: ["restaurant_id"]
+            isOneToOne: false
+            referencedRelation: "restaurants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       ingredient_allocations: {
         Row: {
           allocated_quantity: number
@@ -283,6 +352,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "ingredient_allocations_ingredient_id_fkey"
+            columns: ["ingredient_id"]
+            isOneToOne: false
+            referencedRelation: "ingredients_with_conversions"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "ingredient_allocations_label_id_fkey"
             columns: ["label_id"]
             isOneToOne: false
@@ -301,7 +377,11 @@ export type Database = {
       ingredient_batches: {
         Row: {
           batch_number: string
+          calculated_pieces_per_kg: number | null
+          calculated_weight_per_piece_g: number | null
+          cost_per_piece: number | null
           created_at: string
+          effective_cost_per_piece: number | null
           expiry_date: string
           id: string
           ingredient_id: string | null
@@ -311,11 +391,16 @@ export type Database = {
           restaurant_id: string | null
           storage_location: string | null
           supplier_delivery_date: string | null
+          total_pieces_count: number | null
           updated_at: string
         }
         Insert: {
           batch_number: string
+          calculated_pieces_per_kg?: number | null
+          calculated_weight_per_piece_g?: number | null
+          cost_per_piece?: number | null
           created_at?: string
+          effective_cost_per_piece?: number | null
           expiry_date: string
           id?: string
           ingredient_id?: string | null
@@ -325,11 +410,16 @@ export type Database = {
           restaurant_id?: string | null
           storage_location?: string | null
           supplier_delivery_date?: string | null
+          total_pieces_count?: number | null
           updated_at?: string
         }
         Update: {
           batch_number?: string
+          calculated_pieces_per_kg?: number | null
+          calculated_weight_per_piece_g?: number | null
+          cost_per_piece?: number | null
           created_at?: string
+          effective_cost_per_piece?: number | null
           expiry_date?: string
           id?: string
           ingredient_id?: string | null
@@ -339,6 +429,7 @@ export type Database = {
           restaurant_id?: string | null
           storage_location?: string | null
           supplier_delivery_date?: string | null
+          total_pieces_count?: number | null
           updated_at?: string
         }
         Relationships: [
@@ -347,6 +438,13 @@ export type Database = {
             columns: ["ingredient_id"]
             isOneToOne: false
             referencedRelation: "ingredients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ingredient_batches_ingredient_id_fkey"
+            columns: ["ingredient_id"]
+            isOneToOne: false
+            referencedRelation: "ingredients_with_conversions"
             referencedColumns: ["id"]
           },
           {
@@ -360,7 +458,10 @@ export type Database = {
       }
       ingredients: {
         Row: {
+          allergens: string | null
           allocated_stock: number
+          average_pieces_per_kg: number | null
+          average_weight_per_piece_g: number | null
           batch_number: string | null
           category: string | null
           cost_per_unit: number
@@ -372,22 +473,28 @@ export type Database = {
           id: string
           is_semilavorato: boolean | null
           labeled_stock: number | null
+          last_lot_conversion_update: string | null
           last_synced_at: string | null
           min_stock_threshold: number | null
           name: string
           notes: string | null
           origin_certification: string | null
           par_level: number | null
+          primary_unit: string
           restaurant_id: string
           storage_instructions: string | null
           supplier: string | null
           supplier_product_code: string | null
           unit: string
           updated_at: string
+          usage_unit: string | null
           yield_percentage: number
         }
         Insert: {
+          allergens?: string | null
           allocated_stock?: number
+          average_pieces_per_kg?: number | null
+          average_weight_per_piece_g?: number | null
           batch_number?: string | null
           category?: string | null
           cost_per_unit: number
@@ -399,22 +506,28 @@ export type Database = {
           id?: string
           is_semilavorato?: boolean | null
           labeled_stock?: number | null
+          last_lot_conversion_update?: string | null
           last_synced_at?: string | null
           min_stock_threshold?: number | null
           name: string
           notes?: string | null
           origin_certification?: string | null
           par_level?: number | null
+          primary_unit?: string
           restaurant_id: string
           storage_instructions?: string | null
           supplier?: string | null
           supplier_product_code?: string | null
           unit?: string
           updated_at?: string
+          usage_unit?: string | null
           yield_percentage?: number
         }
         Update: {
+          allergens?: string | null
           allocated_stock?: number
+          average_pieces_per_kg?: number | null
+          average_weight_per_piece_g?: number | null
           batch_number?: string | null
           category?: string | null
           cost_per_unit?: number
@@ -426,18 +539,21 @@ export type Database = {
           id?: string
           is_semilavorato?: boolean | null
           labeled_stock?: number | null
+          last_lot_conversion_update?: string | null
           last_synced_at?: string | null
           min_stock_threshold?: number | null
           name?: string
           notes?: string | null
           origin_certification?: string | null
           par_level?: number | null
+          primary_unit?: string
           restaurant_id?: string
           storage_instructions?: string | null
           supplier?: string | null
           supplier_product_code?: string | null
           unit?: string
           updated_at?: string
+          usage_unit?: string | null
           yield_percentage?: number
         }
         Relationships: [
@@ -543,6 +659,13 @@ export type Database = {
             columns: ["ingredient_id"]
             isOneToOne: false
             referencedRelation: "ingredients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inventory_movements_ingredient_id_fkey"
+            columns: ["ingredient_id"]
+            isOneToOne: false
+            referencedRelation: "ingredients_with_conversions"
             referencedColumns: ["id"]
           },
           {
@@ -791,6 +914,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "recipe_ingredients_ingredient_id_fkey"
+            columns: ["ingredient_id"]
+            isOneToOne: false
+            referencedRelation: "ingredients_with_conversions"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "recipe_ingredients_recipe_id_fkey"
             columns: ["recipe_id"]
             isOneToOne: false
@@ -834,9 +964,12 @@ export type Database = {
       recipes: {
         Row: {
           allergens: string | null
+          calculated_cost_per_portion: number | null
+          calculated_total_cost: number | null
           calories: number | null
           carbs: number | null
           category: string
+          cost_last_calculated_at: string | null
           created_at: string
           description: string | null
           difficulty: string
@@ -854,9 +987,12 @@ export type Database = {
         }
         Insert: {
           allergens?: string | null
+          calculated_cost_per_portion?: number | null
+          calculated_total_cost?: number | null
           calories?: number | null
           carbs?: number | null
           category: string
+          cost_last_calculated_at?: string | null
           created_at?: string
           description?: string | null
           difficulty: string
@@ -874,9 +1010,12 @@ export type Database = {
         }
         Update: {
           allergens?: string | null
+          calculated_cost_per_portion?: number | null
+          calculated_total_cost?: number | null
           calories?: number | null
           carbs?: number | null
           category?: string
+          cost_last_calculated_at?: string | null
           created_at?: string
           description?: string | null
           difficulty?: string
@@ -942,6 +1081,7 @@ export type Database = {
       }
       restaurants: {
         Row: {
+          cic_sales_point_id: string | null
           city: string
           country: string
           created_at: string
@@ -955,6 +1095,7 @@ export type Database = {
           vat_number: string | null
         }
         Insert: {
+          cic_sales_point_id?: string | null
           city: string
           country: string
           created_at?: string
@@ -968,6 +1109,7 @@ export type Database = {
           vat_number?: string | null
         }
         Update: {
+          cic_sales_point_id?: string | null
           city?: string
           country?: string
           created_at?: string
@@ -1059,6 +1201,72 @@ export type Database = {
           weather_condition?: string | null
         }
         Relationships: []
+      }
+      sales_product_details: {
+        Row: {
+          created_at: string
+          id: string
+          id_menu_product: string | null
+          is_composition_entry: boolean | null
+          is_menu_entry: boolean | null
+          menu_product_name: string | null
+          percent_total: number | null
+          product_id: string
+          product_name: string
+          profit: number | null
+          quantity: number
+          report_date: string
+          restaurant_id: string
+          sales_data_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          id_menu_product?: string | null
+          is_composition_entry?: boolean | null
+          is_menu_entry?: boolean | null
+          menu_product_name?: string | null
+          percent_total?: number | null
+          product_id: string
+          product_name: string
+          profit?: number | null
+          quantity?: number
+          report_date: string
+          restaurant_id: string
+          sales_data_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          id_menu_product?: string | null
+          is_composition_entry?: boolean | null
+          is_menu_entry?: boolean | null
+          menu_product_name?: string | null
+          percent_total?: number | null
+          product_id?: string
+          product_name?: string
+          profit?: number | null
+          quantity?: number
+          report_date?: string
+          restaurant_id?: string
+          sales_data_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sales_product_details_restaurant_id_fkey"
+            columns: ["restaurant_id"]
+            isOneToOne: false
+            referencedRelation: "restaurants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sales_product_details_sales_data_id_fkey"
+            columns: ["sales_data_id"]
+            isOneToOne: false
+            referencedRelation: "sales_data"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       storage_locations: {
         Row: {
@@ -1207,9 +1415,135 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      ingredients_with_conversions: {
+        Row: {
+          allocated_stock: number | null
+          average_pieces_per_kg: number | null
+          average_weight_per_piece_g: number | null
+          batch_number: string | null
+          category: string | null
+          cost_per_unit: number | null
+          cost_per_usage_unit: number | null
+          created_at: string | null
+          current_stock: number | null
+          effective_cost_per_unit: number | null
+          effective_usage_unit: string | null
+          expiry_date: string | null
+          external_id: string | null
+          id: string | null
+          is_semilavorato: boolean | null
+          labeled_stock: number | null
+          last_lot_conversion_update: string | null
+          last_synced_at: string | null
+          min_stock_threshold: number | null
+          name: string | null
+          notes: string | null
+          origin_certification: string | null
+          par_level: number | null
+          primary_unit: string | null
+          restaurant_id: string | null
+          storage_instructions: string | null
+          supplier: string | null
+          supplier_product_code: string | null
+          unit: string | null
+          updated_at: string | null
+          usage_unit: string | null
+          usage_units_per_primary_unit: number | null
+          yield_percentage: number | null
+        }
+        Insert: {
+          allocated_stock?: number | null
+          average_pieces_per_kg?: number | null
+          average_weight_per_piece_g?: number | null
+          batch_number?: string | null
+          category?: string | null
+          cost_per_unit?: number | null
+          cost_per_usage_unit?: never
+          created_at?: string | null
+          current_stock?: number | null
+          effective_cost_per_unit?: number | null
+          effective_usage_unit?: never
+          expiry_date?: string | null
+          external_id?: string | null
+          id?: string | null
+          is_semilavorato?: boolean | null
+          labeled_stock?: number | null
+          last_lot_conversion_update?: string | null
+          last_synced_at?: string | null
+          min_stock_threshold?: number | null
+          name?: string | null
+          notes?: string | null
+          origin_certification?: string | null
+          par_level?: number | null
+          primary_unit?: string | null
+          restaurant_id?: string | null
+          storage_instructions?: string | null
+          supplier?: string | null
+          supplier_product_code?: string | null
+          unit?: string | null
+          updated_at?: string | null
+          usage_unit?: string | null
+          usage_units_per_primary_unit?: never
+          yield_percentage?: number | null
+        }
+        Update: {
+          allocated_stock?: number | null
+          average_pieces_per_kg?: number | null
+          average_weight_per_piece_g?: number | null
+          batch_number?: string | null
+          category?: string | null
+          cost_per_unit?: number | null
+          cost_per_usage_unit?: never
+          created_at?: string | null
+          current_stock?: number | null
+          effective_cost_per_unit?: number | null
+          effective_usage_unit?: never
+          expiry_date?: string | null
+          external_id?: string | null
+          id?: string | null
+          is_semilavorato?: boolean | null
+          labeled_stock?: number | null
+          last_lot_conversion_update?: string | null
+          last_synced_at?: string | null
+          min_stock_threshold?: number | null
+          name?: string | null
+          notes?: string | null
+          origin_certification?: string | null
+          par_level?: number | null
+          primary_unit?: string | null
+          restaurant_id?: string | null
+          storage_instructions?: string | null
+          supplier?: string | null
+          supplier_product_code?: string | null
+          unit?: string | null
+          updated_at?: string | null
+          usage_unit?: string | null
+          usage_units_per_primary_unit?: never
+          yield_percentage?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fk_ingredients_restaurant"
+            columns: ["restaurant_id"]
+            isOneToOne: false
+            referencedRelation: "restaurants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Functions: {
+      calculate_effective_cost_per_usage_unit: {
+        Args: { ingredient_id_param: string }
+        Returns: number
+      }
+      calculate_recipe_cost: {
+        Args: { recipe_id_param: string }
+        Returns: {
+          total_cost: number
+          cost_per_portion: number
+        }[]
+      }
       get_category_name: {
         Args: { cat_id: string }
         Returns: string
@@ -1221,6 +1555,22 @@ export type Database = {
       is_owner_or_manager: {
         Args: Record<PropertyKey, never>
         Returns: boolean
+      }
+      recalculate_all_recipe_costs: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
+      }
+      recalculate_dependent_recipe_costs: {
+        Args: { changed_ingredient_id: string; is_semilavorato_param?: boolean }
+        Returns: undefined
+      }
+      update_ingredient_conversion_from_latest_batch: {
+        Args: { ingredient_id_param: string }
+        Returns: undefined
+      }
+      update_recipe_costs: {
+        Args: { recipe_id_param: string }
+        Returns: undefined
       }
     }
     Enums: {

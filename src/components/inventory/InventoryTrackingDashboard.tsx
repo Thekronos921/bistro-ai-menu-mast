@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -5,7 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
-import { Calendar, Package, Clock, AlertTriangle, Filter, Search, MapPin, Hash } from 'lucide-react';
+import { Calendar, Package, Clock, AlertTriangle, Filter, Search, MapPin, Hash, Refrigerator, Snowflake, Archive, Home, Wine } from 'lucide-react';
 import { useLabels } from '@/hooks/useLabels';
 import { useStorageLocations } from '@/hooks/useStorageLocations';
 import { useInventoryTracking } from '@/hooks/useInventoryTracking';
@@ -109,6 +110,24 @@ const InventoryTrackingDashboard = () => {
     }
   };
 
+  // Funzione per ottenere l'icona della posizione storage
+  const getStorageLocationIcon = (storageLocationId?: string) => {
+    if (!storageLocationId) return MapPin;
+    
+    const location = storageLocations.find(loc => loc.id === storageLocationId);
+    if (!location) return MapPin;
+    
+    const iconMap: Record<string, any> = {
+      'refrigerator': Refrigerator,
+      'freezer': Snowflake,
+      'pantry': Archive,
+      'storage_room': Home,
+      'wine_cellar': Wine
+    };
+    
+    return iconMap[location.type] || MapPin;
+  };
+
   // Funzione per ottenere il colore del bordo basato sulla posizione storage
   const getStorageLocationBorderColor = (storageLocationId?: string) => {
     if (!storageLocationId) return 'border-l-gray-400';
@@ -125,6 +144,24 @@ const InventoryTrackingDashboard = () => {
     };
     
     return colorMap[location.type] || 'border-l-gray-400';
+  };
+
+  // Funzione per ottenere il colore del badge della posizione storage
+  const getStorageLocationBadgeColor = (storageLocationId?: string) => {
+    if (!storageLocationId) return 'bg-gray-100 text-gray-800';
+    
+    const location = storageLocations.find(loc => loc.id === storageLocationId);
+    if (!location) return 'bg-gray-100 text-gray-800';
+    
+    const colorMap: Record<string, string> = {
+      'refrigerator': 'bg-blue-100 text-blue-800 border-blue-200',
+      'freezer': 'bg-cyan-100 text-cyan-800 border-cyan-200',
+      'pantry': 'bg-yellow-100 text-yellow-800 border-yellow-200',
+      'storage_room': 'bg-green-100 text-green-800 border-green-200',
+      'wine_cellar': 'bg-purple-100 text-purple-800 border-purple-200'
+    };
+    
+    return colorMap[location.type] || 'bg-gray-100 text-gray-800';
   };
 
   // Raggruppamento etichette per posizione storage
@@ -293,122 +330,135 @@ const InventoryTrackingDashboard = () => {
                   </h3>
                   
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                    {locationLabels.map((label) => (
-                      <Card 
-                        key={label.id} 
-                        className={`hover:shadow-md transition-shadow border-l-4 ${getStorageLocationBorderColor(label.storage_location_id)}`}
-                      >
-                        <CardHeader className="pb-3">
-                          <div className="flex items-start justify-between">
-                            <div className="flex-1">
-                              <h3 className="font-semibold text-lg text-gray-900">{label.title}</h3>
-                              {label.batch_number && (
-                                <div className="flex items-center gap-1 text-sm text-gray-600 mt-1">
-                                  <Hash className="w-3 h-3" />
-                                  <span>Lotto: {label.batch_number}</span>
-                                </div>
-                              )}
-                            </div>
-                            <div className="flex flex-col gap-1">
-                              {getTypeBadge(label.label_type)}
-                              {getStatusBadge(label.status || 'active')}
-                            </div>
-                          </div>
-                        </CardHeader>
-                        
-                        <CardContent className="space-y-4">
-                          {/* Quantity Display */}
-                          {formatQuantity(label) && (
-                            <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
-                              <div className="flex items-center justify-between">
-                                <span className="text-sm font-medium text-blue-700">Quantità:</span>
-                                <span className="text-lg font-bold text-blue-900">{formatQuantity(label)}</span>
+                    {locationLabels.map((label) => {
+                      const StorageIcon = getStorageLocationIcon(label.storage_location_id);
+                      return (
+                        <Card 
+                          key={label.id} 
+                          className={`hover:shadow-md transition-shadow border-l-4 ${getStorageLocationBorderColor(label.storage_location_id)}`}
+                        >
+                          <CardHeader className="pb-3">
+                            <div className="flex items-start justify-between">
+                              <div className="flex-1">
+                                <h3 className="font-semibold text-lg text-gray-900">{label.title}</h3>
+                                {label.batch_number && (
+                                  <div className="flex items-center gap-1 text-sm text-gray-600 mt-1">
+                                    <Hash className="w-3 h-3" />
+                                    <span>Lotto: {label.batch_number}</span>
+                                  </div>
+                                )}
+                              </div>
+                              <div className="flex flex-col gap-1">
+                                {getTypeBadge(label.label_type)}
+                                {getStatusBadge(label.status || 'active')}
                               </div>
                             </div>
-                          )}
 
-                          {/* Ingredient or Recipe info */}
-                          {label.ingredient_name && (
-                            <div className="text-sm border-l-2 border-green-300 pl-3">
-                              <div className="font-medium text-gray-700">Ingrediente:</div>
-                              <div className="text-gray-900">{label.ingredient_name}</div>
+                            {/* Storage Location Badge - Prominente */}
+                            <div className="mt-3">
+                              <Badge 
+                                className={`flex items-center gap-2 w-fit px-3 py-1 text-sm font-medium border ${getStorageLocationBadgeColor(label.storage_location_id)}`}
+                              >
+                                <StorageIcon className="w-4 h-4" />
+                                <span>{label.storage_locations?.name || 'Posizione non specificata'}</span>
+                              </Badge>
                             </div>
-                          )}
+                          </CardHeader>
                           
-                          {label.recipe_name && (
-                            <div className="text-sm border-l-2 border-purple-300 pl-3">
-                              <div className="font-medium text-gray-700">Ricetta:</div>
-                              <div className="text-gray-900">{label.recipe_name}</div>
-                              {label.recipe_portions && (
-                                <div className="text-gray-600">{label.recipe_portions} porzioni</div>
-                              )}
-                            </div>
-                          )}
+                          <CardContent className="space-y-4">
+                            {/* Quantity Display */}
+                            {formatQuantity(label) && (
+                              <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                                <div className="flex items-center justify-between">
+                                  <span className="text-sm font-medium text-blue-700">Quantità:</span>
+                                  <span className="text-lg font-bold text-blue-900">{formatQuantity(label)}</span>
+                                </div>
+                              </div>
+                            )}
 
-                          {/* Dates */}
-                          <div className="space-y-2 text-sm">
-                            {label.production_date && (
-                              <div className="flex items-center gap-2">
-                                <Calendar className="w-4 h-4 text-green-600" />
-                                <span className="text-gray-600">Prodotto:</span>
-                                <span className="font-medium">{new Date(label.production_date).toLocaleDateString('it-IT')}</span>
+                            {/* Ingredient or Recipe info */}
+                            {label.ingredient_name && (
+                              <div className="text-sm border-l-2 border-green-300 pl-3">
+                                <div className="font-medium text-gray-700">Ingrediente:</div>
+                                <div className="text-gray-900">{label.ingredient_name}</div>
                               </div>
                             )}
                             
-                            {label.expiry_date && (
-                              <div className="flex items-center gap-2">
-                                <Clock className="w-4 h-4 text-orange-600" />
-                                <span className="text-gray-600">Scade:</span>
-                                <span className="font-medium">{new Date(label.expiry_date).toLocaleDateString('it-IT')}</span>
-                                {isExpiring(label.expiry_date) && (
-                                  <AlertTriangle className="w-4 h-4 text-orange-500" />
+                            {label.recipe_name && (
+                              <div className="text-sm border-l-2 border-purple-300 pl-3">
+                                <div className="font-medium text-gray-700">Ricetta:</div>
+                                <div className="text-gray-900">{label.recipe_name}</div>
+                                {label.recipe_portions && (
+                                  <div className="text-gray-600">{label.recipe_portions} porzioni</div>
                                 )}
                               </div>
                             )}
-                            
-                            {getExpiryWarning(label.expiry_date || '') && (
-                              <div className="mt-2">
-                                {getExpiryWarning(label.expiry_date || '')}
-                              </div>
-                            )}
-                          </div>
 
-                          {/* Action Buttons */}
-                          <div className="space-y-2 pt-3 border-t">
-                            {/* Action buttons for QR, Print, Edit */}
-                            <div className="flex gap-2">
-                              {label.qr_data && (
-                                <LabelQRDialog qrData={label.qr_data} title={label.title} />
+                            {/* Dates */}
+                            <div className="space-y-2 text-sm">
+                              {label.production_date && (
+                                <div className="flex items-center gap-2">
+                                  <Calendar className="w-4 h-4 text-green-600" />
+                                  <span className="text-gray-600">Prodotto:</span>
+                                  <span className="font-medium">{new Date(label.production_date).toLocaleDateString('it-IT')}</span>
+                                </div>
                               )}
-                              <LabelPrintDialog label={label} />
-                              <EditLabelDialog label={label} onUpdate={loadLabels} />
+                              
+                              {label.expiry_date && (
+                                <div className="flex items-center gap-2">
+                                  <Clock className="w-4 h-4 text-orange-600" />
+                                  <span className="text-gray-600">Scade:</span>
+                                  <span className="font-medium">{new Date(label.expiry_date).toLocaleDateString('it-IT')}</span>
+                                  {isExpiring(label.expiry_date) && (
+                                    <AlertTriangle className="w-4 h-4 text-orange-500" />
+                                  )}
+                                </div>
+                              )}
+                              
+                              {getExpiryWarning(label.expiry_date || '') && (
+                                <div className="mt-2">
+                                  {getExpiryWarning(label.expiry_date || '')}
+                                </div>
+                              )}
                             </div>
 
-                            {/* Status action buttons */}
-                            {label.status === 'active' && (
+                            {/* Action Buttons */}
+                            <div className="space-y-2 pt-3 border-t">
+                              {/* Action buttons for QR, Print, Edit */}
                               <div className="flex gap-2">
-                                <Button 
-                                  size="sm" 
-                                  variant="outline"
-                                  onClick={() => handleStatusUpdate(label.id, 'consumed')}
-                                  className="flex-1 text-green-700 border-green-200 hover:bg-green-50"
-                                >
-                                  Consuma
-                                </Button>
-                                <Button 
-                                  size="sm" 
-                                  variant="outline"
-                                  onClick={() => handleStatusUpdate(label.id, 'discarded')}
-                                  className="flex-1 text-red-700 border-red-200 hover:bg-red-50"
-                                >
-                                  Scarta
-                                </Button>
+                                {label.qr_data && (
+                                  <LabelQRDialog qrData={label.qr_data} title={label.title} />
+                                )}
+                                <LabelPrintDialog label={label} />
+                                <EditLabelDialog label={label} onUpdate={loadLabels} />
                               </div>
-                            )}
-                          </div>
-                        </CardContent>
-                      </Card>
-                    ))}
+
+                              {/* Status action buttons */}
+                              {label.status === 'active' && (
+                                <div className="flex gap-2">
+                                  <Button 
+                                    size="sm" 
+                                    variant="outline"
+                                    onClick={() => handleStatusUpdate(label.id, 'consumed')}
+                                    className="flex-1 text-green-700 border-green-200 hover:bg-green-50"
+                                  >
+                                    Consuma
+                                  </Button>
+                                  <Button 
+                                    size="sm" 
+                                    variant="outline"
+                                    onClick={() => handleStatusUpdate(label.id, 'discarded')}
+                                    className="flex-1 text-red-700 border-red-200 hover:bg-red-50"
+                                  >
+                                    Scarta
+                                  </Button>
+                                </div>
+                              )}
+                            </div>
+                          </CardContent>
+                        </Card>
+                      );
+                    })}
                   </div>
                 </div>
               ))}

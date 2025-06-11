@@ -1,4 +1,3 @@
-
 import { ArrowRight, BarChart3, Calculator, ChefHat, Package, TrendingUp, Users, Utensils, PieChart, Calendar, Target, Zap } from "lucide-react";
 import { Link } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -228,20 +227,22 @@ const Index = () => {
               </Card>
             </Link>
 
-            <Card className="group hover:shadow-lg transition-all duration-300 hover:scale-105 cursor-pointer border-0 bg-gradient-to-br from-green-50 to-emerald-50">
-              <CardContent className="p-4 text-center">
-                <Target className="w-8 h-8 text-green-600 mx-auto mb-2" />
-                <h4 className="font-semibold text-slate-800 group-hover:text-green-600 transition-colors">
-                  Target & KPI
-                </h4>
-              </CardContent>
-            </Card>
+            <Link to="/reservations">
+              <Card className="group hover:shadow-lg transition-all duration-300 hover:scale-105 cursor-pointer border-0 bg-gradient-to-br from-green-50 to-emerald-50">
+                <CardContent className="p-4 text-center">
+                  <Target className="w-8 h-8 text-green-600 mx-auto mb-2" />
+                  <h4 className="font-semibold text-slate-800 group-hover:text-green-600 transition-colors">
+                    Gestione Prenotazioni
+                  </h4>
+                </CardContent>
+              </Card>
+            </Link>
 
             <Card className="group hover:shadow-lg transition-all duration-300 hover:scale-105 cursor-pointer border-0 bg-gradient-to-br from-violet-50 to-purple-50">
               <CardContent className="p-4 text-center">
                 <Zap className="w-8 h-8 text-violet-600 mx-auto mb-2" />
                 <h4 className="font-semibold text-slate-800 group-hover:text-violet-600 transition-colors">
-                  Automazioni
+                  Analisi Avanzate
                 </h4>
               </CardContent>
             </Card>

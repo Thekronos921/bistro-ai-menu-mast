@@ -1041,6 +1041,81 @@ export type Database = {
           },
         ]
       }
+      reservations: {
+        Row: {
+          booking_type: string | null
+          calculated_score: number | null
+          created_at: string
+          customer_email: string | null
+          customer_name: string
+          customer_notes: string | null
+          customer_phone: string | null
+          dish_id: string | null
+          final_score: number | null
+          id: string
+          internal_notes: string | null
+          number_of_guests: number
+          reservation_time: string
+          restaurant_id: string
+          social_score: number | null
+          status: Database["public"]["Enums"]["reservation_status"]
+          updated_at: string
+        }
+        Insert: {
+          booking_type?: string | null
+          calculated_score?: number | null
+          created_at?: string
+          customer_email?: string | null
+          customer_name: string
+          customer_notes?: string | null
+          customer_phone?: string | null
+          dish_id?: string | null
+          final_score?: number | null
+          id?: string
+          internal_notes?: string | null
+          number_of_guests: number
+          reservation_time: string
+          restaurant_id: string
+          social_score?: number | null
+          status?: Database["public"]["Enums"]["reservation_status"]
+          updated_at?: string
+        }
+        Update: {
+          booking_type?: string | null
+          calculated_score?: number | null
+          created_at?: string
+          customer_email?: string | null
+          customer_name?: string
+          customer_notes?: string | null
+          customer_phone?: string | null
+          dish_id?: string | null
+          final_score?: number | null
+          id?: string
+          internal_notes?: string | null
+          number_of_guests?: number
+          reservation_time?: string
+          restaurant_id?: string
+          social_score?: number | null
+          status?: Database["public"]["Enums"]["reservation_status"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "reservations_dish_id_fkey"
+            columns: ["dish_id"]
+            isOneToOne: false
+            referencedRelation: "dishes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reservations_restaurant_id_fkey"
+            columns: ["restaurant_id"]
+            isOneToOne: false
+            referencedRelation: "restaurants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       restaurant_categories: {
         Row: {
           created_at: string
@@ -1574,6 +1649,14 @@ export type Database = {
       }
     }
     Enums: {
+      reservation_status:
+        | "nuova"
+        | "approvata"
+        | "in_attesa"
+        | "rifiutata"
+        | "completata"
+        | "annullata_cliente"
+        | "annullata_ristorante"
       restaurant_type:
         | "ristorante"
         | "bar"
@@ -1700,6 +1783,15 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
+      reservation_status: [
+        "nuova",
+        "approvata",
+        "in_attesa",
+        "rifiutata",
+        "completata",
+        "annullata_cliente",
+        "annullata_ristorante",
+      ],
       restaurant_type: [
         "ristorante",
         "bar",

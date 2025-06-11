@@ -1,4 +1,3 @@
-
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -24,6 +23,7 @@ import CassaInCloudIntegration from "./pages/CassaInCloudIntegration";
 import EventCalendar from "./pages/EventCalendar";
 import StaffDashboard from "./pages/StaffDashboard";
 import LabelView from "./pages/LabelView";
+import Reservations from "./pages/Reservations";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -111,6 +111,12 @@ const App = () => (
               <ProtectedRoute>
                 <PostRegistrationSetup />
                 <StaffDashboard />
+              </ProtectedRoute>
+            } />
+            <Route path="/reservations" element={
+              <ProtectedRoute>
+                <PostRegistrationSetup />
+                <Reservations />
               </ProtectedRoute>
             } />
             <Route path="*" element={<NotFound />} />

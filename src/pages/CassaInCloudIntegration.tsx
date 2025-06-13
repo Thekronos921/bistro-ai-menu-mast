@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useRef } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -477,8 +478,8 @@ const CassaInCloudIntegration = () => {
       
       // Preparazione dei parametri per la richiesta del report vendite
       const params = {
-        start: 0, // Add required start parameter
-        limit: 1000, // Add required limit parameter  
+        start: 0,
+        limit: 100, // Limite ragionevole per il numero di prodotti venduti da recuperare
         datetimeFrom: dateFrom,
         datetimeTo: dateTo,
         idsSalesPoint: salesPointId ? [salesPointId] : undefined

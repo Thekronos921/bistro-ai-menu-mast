@@ -106,24 +106,27 @@ const CustomerAnalysis = () => {
   };
 
   const handleCreateCustomer = async (customerData: any) => {
+    console.log('Creating customer with data:', customerData);
     await createCustomer(customerData);
   };
 
   const handleEditCustomer = (customer: Customer) => {
+    console.log('Editing customer:', customer);
     setEditingCustomer(customer);
     setShowAddDialog(true);
   };
 
   const handleUpdateCustomer = async (customerData: any) => {
+    console.log('Updating customer with data:', customerData);
     if (editingCustomer) {
-      await updateCustomer(editingCustomer.id, customerData);
+      await updateCustomer(editingCustomer.customer_uuid || editingCustomer.id, customerData);
       setEditingCustomer(null);
     }
   };
 
   const handleDeleteCustomer = async (customer: Customer) => {
     if (window.confirm(`Sei sicuro di voler eliminare il cliente ${customer.name || customer.email}?`)) {
-      await deleteCustomer(customer.id);
+      await deleteCustomer(customer.customer_uuid || customer.id);
     }
   };
 

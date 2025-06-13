@@ -477,8 +477,8 @@ const CassaInCloudIntegration = () => {
       
       // Preparazione dei parametri per la richiesta del report vendite
       const params = {
-        start: 0,
-        limit: 100, // Limite ragionevole per il numero di prodotti venduti da recuperare
+        start: 0, // Add required start parameter
+        limit: 1000, // Add required limit parameter  
         datetimeFrom: dateFrom,
         datetimeTo: dateTo,
         idsSalesPoint: salesPointId ? [salesPointId] : undefined
@@ -541,9 +541,10 @@ const CassaInCloudIntegration = () => {
         }
 
         const params = {
+          start: 0,
+          limit: 100,
           datetimeFrom: currentStartDate.toISOString().split('T')[0] + 'T00:00:00',
-          datetimeTo: currentEndDate.toISOString().split('T')[0] + 'T23:59:59',
-          // Altri parametri come start, limit possono essere gestiti internamente da importReceiptsFromCassaInCloud se necessario
+          datetimeTo: currentEndDate.toISOString().split('T')[0] + 'T23:59:59'
         };
 
         toast({ title: 'Importazione Ricevute', description: `Importazione blocco dal ${params.datetimeFrom.split('T')[0]} al ${params.datetimeTo.split('T')[0]}...` });
@@ -649,45 +650,6 @@ const CassaInCloudIntegration = () => {
       return <Badge variant="destructive"><XCircle className="w-3 h-3 mr-1" />Errore</Badge>;
     }
     return <Badge variant="secondary"><AlertCircle className="w-3 h-3 mr-1" />Non Connesso</Badge>;
-  };
-
-  const handleImportReceipts = async () => {
-    if (!dateRange.from || !dateRange.to) {
-      toast({
-        title: "Errore",
-        description: "Seleziona un periodo valido per l'importazione",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    setIsImporting(true);
-    try {
-      const datetimeFrom = dateRange.from.toISOString();
-      const datetimeTo = dateRange.to.toISOString();
-      
-      // Include required start and limit parameters
-      await cassaInCloudImporter.importReceipts({
-        datetimeFrom,
-        datetimeTo,
-        start: 0,
-        limit: 1000
-      });
-      
-      toast({
-        title: "Successo",
-        description: "Importazione scontrini completata",
-      });
-    } catch (error) {
-      console.error('Error importing receipts:', error);
-      toast({
-        title: "Errore",
-        description: "Errore durante l'importazione degli scontrini",
-        variant: "destructive",
-      });
-    } finally {
-      setIsImporting(false);
-    }
   };
 
   return (

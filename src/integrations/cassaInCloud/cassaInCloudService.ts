@@ -1,372 +1,774 @@
-import axios from 'axios';
-import { CassaInCloudSettings } from './cassaInCloudTypes';
-import { getPreferenceValues } from '@raycast/api';
-import { CassaInCloudProduct, GetProductsParams, GetProductsApiResponse, CassaInCloudReceipt, GetReceiptsParams, GetReceiptsApiResponse, GetRoomsParams, GetRoomsApiResponse, GetTablesParams, GetTablesApiResponse, CassaInCloudRoom, CassaInCloudTable } from './cassaInCloudTypes';
+import { supabase } from '@/integrations/supabase/client';
+import {
+  AccessTokenResponse,
+  StoredToken,
+  CassaInCloudSalesPoint,
+  GetProductsParams,
+  CassaInCloudProduct,
+  GetCategoriesParams,
+  CassaInCloudCategory,
+  GetSoldByProductParams,
+  GetSoldByProductApiResponse,
+  CassaInCloudCustomer,
+  GetCustomersParams,
+  GetCustomersApiResponse,
+  GetReceiptsParams,
+  GetReceiptsApiResponse,
+  GetRoomsParams, // Add this import
+  GetRoomsApiResponse, // Add this import
+  GetTablesParams, // Add this import
+  GetTablesApiResponse, // Add this import
+  CassaInCloudReceipt,
+  GetProductsApiResponse,
+  GetCategoriesApiResponse,
+  GetSalesPointsApiResponse,
+  GetStockApiResponse,
+  CassaInCloudStock
+} from './cassaInCloudTypes';
+import { mapCassaInCloudProductToInternalProduct } from './cassaInCloudDataMapper';
+import type { InternalProduct } from '@/types/internalProduct';
 
-export class CassaInCloudService {
-  private readonly baseURL = 'https://api.cassaInCloud.it/v1';
-  private readonly apiKey: string;
-  private readonly companyId: string;
-  private readonly salesPointId: string;
+const TOKEN_STORAGE_KEY = 'cassaInCloudToken';
 
-  constructor() {
-    const preferences = getPreferenceValues<CassaInCloudSettings>();
-    this.apiKey = preferences.apiKey;
-    this.companyId = preferences.companyId;
-    this.salesPointId = preferences.salesPointId;
+/**
+ * Funzione di utilità per ottenere e validare il token di accesso.
+ * Se il token non esiste o è scaduto, ne richiede uno nuovo.
+ * @param apiKeyOverride Chiave API opzionale per sovrascrivere quella di default.
+ * @returns Il token di accesso valido.
+ * @throws Error se non è possibile ottenere un token valido.
+ */
+async function getValidAccessToken(apiKeyOverride?: string): Promise<string> {
+  const apiKey = apiKeyOverride || process.env.NEXT_PUBLIC_CASSANCLOUD_API_KEY;
 
-    if (!this.apiKey || !this.companyId || !this.salesPointId) {
-      throw new Error('Cassa In Cloud API Key, Company ID, and Sales Point ID are required.');
-    }
+  if (!apiKey) {
+    throw new Error('Chiave API CassaInCloud non configurata.');
   }
 
-  private async makeRequest(endpoint: string, method: 'get' | 'post' | 'put' | 'delete' = 'get', data?: any) {
-    const url = `${this.baseURL}${endpoint}`;
-    console.log(`CassaInCloudService: Making ${method.toUpperCase()} request to ${url}`);
+  let storedToken: StoredToken | null = getStoredToken();
 
-    try {
-      const response = await axios({
-        method,
-        url,
-        data,
-        headers: {
-          'Content-Type': 'application/json',
-          'CIC-API-KEY': this.apiKey,
-          'CIC-COMPANY-ID': this.companyId,
-          'CIC-SALES-POINT-ID': this.salesPointId,
-        },
-      });
-
-      console.log(`CassaInCloudService: ${method.toUpperCase()} request to ${url} successful`);
-      return response;
-    } catch (error: any) {
-      console.error(`CassaInCloudService: ${method.toUpperCase()} request to ${url} failed`, error.response ? error.response.data : error.message);
-      throw error;
-    }
+  if (!storedToken || isTokenExpired(storedToken)) {
+    storedToken = await fetchAccessToken(apiKey);
+    storeToken(storedToken);
   }
 
-  async getProducts(params: GetProductsParams = {}): Promise<GetProductsApiResponse> {
-    console.log('CassaInCloudService: Getting products with params', params);
+  return storedToken.token;
+}
 
-    try {
-      const queryParams = new URLSearchParams();
-      if (params.start !== undefined) queryParams.append('start', params.start.toString());
-      if (params.limit !== undefined) queryParams.append('limit', params.limit.toString());
-      if (params.ids !== undefined) {
-        if (Array.isArray(params.ids)) {
-          params.ids.forEach((id) => queryParams.append('ids', id));
-        } else {
-          queryParams.append('ids', params.ids);
-        }
-      }
-      if (params.department_ids !== undefined) {
-        if (Array.isArray(params.department_ids)) {
-          params.department_ids.forEach((id) => queryParams.append('department_ids', id));
-        } else {
-          queryParams.append('department_ids', params.department_ids);
-        }
-      }
-      if (params.is_active !== undefined) queryParams.append('is_active', params.is_active.toString());
-      if (params.price_list_ids !== undefined) {
-        if (Array.isArray(params.price_list_ids)) {
-          params.price_list_ids.forEach((id) => queryParams.append('price_list_ids', id));
-        } else {
-          queryParams.append('price_list_ids', params.price_list_ids);
-        }
-      }
+/**
+ * Recupera il token di accesso dallo storage locale.
+ * @returns Il token di accesso se presente, altrimenti null.
+ */
+function getStoredToken(): StoredToken | null {
+  const tokenString = localStorage.getItem(TOKEN_STORAGE_KEY);
+  if (tokenString) {
+    return JSON.parse(tokenString) as StoredToken;
+  }
+  return null;
+}
 
-      const response = await this.makeRequest(`/Products?${queryParams.toString()}`);
+/**
+ * Verifica se il token di accesso è scaduto.
+ * @param token Il token di accesso da verificare.
+ * @returns True se il token è scaduto, altrimenti false.
+ */
+function isTokenExpired(token: StoredToken): boolean {
+  return token.expiresAt <= Date.now();
+}
 
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
+/**
+ * Richiede un nuovo token di accesso all'API di CassaInCloud.
+ * @param apiKey La chiave API per l'autenticazione.
+ * @returns Il nuovo token di accesso.
+ * @throws Error se la richiesta fallisce.
+ */
+async function fetchAccessToken(apiKey: string): Promise<StoredToken> {
+  const url = 'https://api.cassaincloud.it/v2/auth/token';
+  const headers = {
+    'Content-Type': 'application/x-www-form-urlencoded'
+  };
+  const body = `grant_type=client_credentials&client_id=${apiKey}`;
 
-      const data: GetProductsApiResponse = await response.json();
-      console.log('CassaInCloudService: Got products response', data);
+  try {
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: headers,
+      body: body
+    });
 
-      return data;
-    } catch (error) {
-      console.error('CassaInCloudService: Error getting products:', error);
-      throw error;
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error(`Errore HTTP ${response.status} durante fetchAccessToken:`, errorText);
+      throw new Error(`Errore HTTP ${response.status}: ${errorText}`);
     }
+
+    const data: AccessTokenResponse = await response.json();
+    const expiresAt = Date.now() + (data.expires_in * 1000); // Converti in millisecondi
+    return {
+      token: data.access_token,
+      expiresAt: expiresAt
+    };
+  } catch (error) {
+    console.error('Errore durante fetchAccessToken:', error);
+    throw error;
+  }
+}
+
+/**
+ * Salva il token di accesso nello storage locale.
+ * @param token Il token di accesso da salvare.
+ */
+function storeToken(token: StoredToken): void {
+  localStorage.setItem(TOKEN_STORAGE_KEY, JSON.stringify(token));
+}
+
+/**
+ * Recupera tutti i punti vendita da CassaInCloud
+ */
+export async function getSalesPoints(apiKeyOverride?: string): Promise<CassaInCloudSalesPoint[]> {
+  const token = await getValidAccessToken(apiKeyOverride);
+  if (!token) {
+    throw new Error('Token di accesso non disponibile');
   }
 
-  async getProductById(productId: string): Promise<CassaInCloudProduct | null> {
-    console.log(`CassaInCloudService: Getting product by ID ${productId}`);
-
-    try {
-      const response = await this.makeRequest(`/Products/${productId}`);
-
-      if (!response.ok) {
-        if (response.status === 404) {
-          console.warn(`CassaInCloudService: Product with ID ${productId} not found`);
-          return null;
-        }
-        throw new Error(`HTTP error! status: ${response.status}`);
+  try {
+    const response = await fetch('https://api.cassaincloud.it/v2/sales-points', {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
       }
+    });
 
-      const product: CassaInCloudProduct = await response.json();
-      console.log(`CassaInCloudService: Got product by ID ${productId}`, product);
-      return product;
-    } catch (error) {
-      console.error(`CassaInCloudService: Error getting product by ID ${productId}`, error);
-      throw error;
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error(`Errore HTTP ${response.status} durante getSalesPoints:`, errorText);
+      throw new Error(`Errore HTTP ${response.status}: ${errorText}`);
     }
+
+    const data: GetSalesPointsApiResponse = await response.json();
+    return data.salesPoint || [];
+  } catch (error) {
+    console.error('Errore durante getSalesPoints:', error);
+    throw error;
+  }
+}
+
+/**
+ * Recupera tutte le categorie da CassaInCloud
+ */
+export async function getCategories(
+  params: GetCategoriesParams,
+  apiKeyOverride?: string
+): Promise<CassaInCloudCategory[]> {
+  const token = await getValidAccessToken(apiKeyOverride);
+  if (!token) {
+    throw new Error('Token di accesso non disponibile');
   }
 
-  async getReceipts(params: GetReceiptsParams): Promise<GetReceiptsApiResponse> {
-    console.log('CassaInCloudService: Getting receipts with params', params);
-
-    try {
-      const queryParams = new URLSearchParams();
-      if (params.start !== undefined) queryParams.append('start', params.start.toString());
-      if (params.limit !== undefined) queryParams.append('limit', params.limit.toString());
-      if (params.ids !== undefined) {
-        if (Array.isArray(params.ids)) {
-          params.ids.forEach((id) => queryParams.append('ids', id));
-        } else {
-          queryParams.append('ids', params.ids);
-        }
-      }
-      if (params.datetimeFrom) queryParams.append('datetimeFrom', params.datetimeFrom);
-      if (params.datetimeTo) queryParams.append('datetimeTo', params.datetimeTo);
-      if (params.id_user) queryParams.append('id_user', params.id_user);
-      if (params.id_customer) queryParams.append('id_customer', params.id_customer);
-      if (params.payment_method_ids) {
-        if (Array.isArray(params.payment_method_ids)) {
-          params.payment_method_ids.forEach((id) => queryParams.append('payment_method_ids', id));
-        } else {
-          queryParams.append('payment_method_ids', params.payment_method_ids);
-        }
-      }
-      if (params.status) queryParams.append('status', params.status);
-      if (params.cashed !== undefined) queryParams.append('cashed', params.cashed.toString());
-      if (params.id_delivery_boy) queryParams.append('id_delivery_boy', params.id_delivery_boy);
-      if (params.delivery_boy_name) queryParams.append('delivery_boy_name', params.delivery_boy_name);
-      if (params.table_ids) {
-        if (Array.isArray(params.table_ids)) {
-          params.table_ids.forEach((id) => queryParams.append('table_ids', id));
-        } else {
-          queryParams.append('table_ids', params.table_ids);
-        }
-      }
-      if (params.room_ids) {
-        if (Array.isArray(params.room_ids)) {
-          params.room_ids.forEach((id) => queryParams.append('room_ids', id));
-        } else {
-          queryParams.append('room_ids', params.room_ids);
-        }
-      }
-      if (params.is_delivery !== undefined) queryParams.append('is_delivery', params.is_delivery.toString());
-      if (params.delivery_address) queryParams.append('delivery_address', params.delivery_address);
-      if (params.delivery_city) queryParams.append('delivery_city', params.delivery_city);
-      if (params.delivery_zip_code) queryParams.append('delivery_zip_code', params.delivery_zip_code);
-      if (params.delivery_country) queryParams.append('delivery_country', params.delivery_country);
-      if (params.customer_name) queryParams.append('customer_name', params.customer_name);
-      if (params.customer_phone) queryParams.append('customer_phone', params.customer_phone);
-      if (params.customer_email) queryParams.append('customer_email', params.customer_email);
-      if (params.customer_fiscal_code) queryParams.append('customer_fiscal_code', params.customer_fiscal_code);
-      if (params.customer_vat_number) queryParams.append('customer_vat_number', params.customer_vat_number);
-      if (params.customer_external_id) queryParams.append('customer_external_id', params.customer_external_id);
-      if (params.customer_ids) {
-        if (Array.isArray(params.customer_ids)) {
-          params.customer_ids.forEach((id) => queryParams.append('customer_ids', id));
-        } else {
-          queryParams.append('customer_ids', params.customer_ids);
-        }
-      }
-      if (params.note) queryParams.append('note', params.note);
-      if (params.order_id) queryParams.append('order_id', params.order_id);
-      if (params.is_order !== undefined) queryParams.append('is_order', params.is_order.toString());
-      if (params.created_from) queryParams.append('created_from', params.created_from);
-      if (params.created_to) queryParams.append('created_to', params.created_to);
-      if (params.total_amount_from !== undefined) queryParams.append('total_amount_from', params.total_amount_from.toString());
-      if (params.total_amount_to !== undefined) queryParams.append('total_amount_to', params.total_amount_to.toString());
-      if (params.cash_amount_from !== undefined) queryParams.append('cash_amount_from', params.cash_amount_from.toString());
-      if (params.cash_amount_to !== undefined) queryParams.append('cash_amount_to', params.cash_amount_to.toString());
-      if (params.electronic_amount_from !== undefined) queryParams.append('electronic_amount_from', params.electronic_amount_from.toString());
-      if (params.electronic_amount_to !== undefined) queryParams.append('electronic_amount_to', params.electronic_amount_to.toString());
-      if (params.change_amount_from !== undefined) queryParams.append('change_amount_from', params.change_amount_from.toString());
-      if (params.change_amount_to !== undefined) queryParams.append('change_amount_to', params.change_amount_to.toString());
-      if (params.num_receipt_id) queryParams.append('num_receipt_id', params.num_receipt_id);
-      if (params.delivery_fee_from !== undefined) queryParams.append('delivery_fee_from', params.delivery_fee_from.toString());
-      if (params.delivery_fee_to !== undefined) queryParams.append('delivery_fee_to', params.delivery_fee_to.toString());
-      if (params.customer_shipping_address) queryParams.append('customer_shipping_address', params.customer_shipping_address);
-      if (params.customer_shipping_city) queryParams.append('customer_shipping_city', params.customer_shipping_city);
-      if (params.customer_shipping_zip_code) queryParams.append('customer_shipping_zip_code', params.customer_shipping_zip_code);
-      if (params.customer_shipping_country) queryParams.append('customer_shipping_country', params.customer_shipping_country);
-
-      const response = await this.makeRequest(`/Receipts?${queryParams.toString()}`);
-
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-
-      const data: GetReceiptsApiResponse = await response.json();
-      console.log('CassaInCloudService: Got receipts response', data);
-
-      return data;
-    } catch (error) {
-      console.error('CassaInCloudService: Error getting receipts:', error);
-      throw error;
-    }
+  // Costruisci i parametri della query
+  const queryParams = new URLSearchParams();
+  if (params.idsSalesPoint && params.idsSalesPoint.length > 0) {
+    params.idsSalesPoint.forEach(id => queryParams.append('idsSalesPoint', id));
+  }
+  if (params.description) {
+    queryParams.append('description', params.description);
+  }
+  if (params.lastUpdateFrom) {
+    queryParams.append('lastUpdateFrom', params.lastUpdateFrom.toString());
+  }
+  if (params.lastUpdateTo) {
+    queryParams.append('lastUpdateTo', params.lastUpdateTo.toString());
+  }
+  if (params.enabledForChannels && params.enabledForChannels.length > 0) {
+    params.enabledForChannels.forEach(channel => queryParams.append('enabledForChannels', channel));
+  }
+  if (params.itemListVisibility !== undefined) {
+    queryParams.append('itemListVisibility', params.itemListVisibility.toString());
+  }
+  if (params.searchTerm) {
+    queryParams.append('searchTerm', params.searchTerm);
+  }
+  if (params.limit) {
+    queryParams.append('limit', params.limit.toString());
+  }
+  if (params.offset) {
+    queryParams.append('offset', params.offset.toString());
   }
 
-  async getRooms(params: GetRoomsParams = {}): Promise<GetRoomsApiResponse> {
-    console.log('CassaInCloudService: Getting rooms with params', params);
-    
-    try {
-      const queryParams = new URLSearchParams();
-      if (params.start !== undefined) queryParams.append('start', params.start.toString());
-      if (params.limit !== undefined) queryParams.append('limit', params.limit.toString());
+  const url = `https://api.cassaincloud.it/v2/categories?${queryParams.toString()}`;
 
-      const response = await this.makeRequest(`/Rooms?${queryParams.toString()}`);
-      
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
+  try {
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
       }
+    });
 
-      const data: GetRoomsApiResponse = await response.json();
-      console.log('CassaInCloudService: Got rooms response', data);
-      
-      return data;
-    } catch (error) {
-      console.error('CassaInCloudService: Error getting rooms:', error);
-      throw error;
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error(`Errore HTTP ${response.status} durante getCategories:`, errorText);
+      throw new Error(`Errore HTTP ${response.status}: ${errorText}`);
     }
+
+    const data: GetCategoriesApiResponse = await response.json();
+    return data.categories || [];
+  } catch (error) {
+    console.error('Errore durante getCategories:', error);
+    throw error;
+  }
+}
+
+/**
+ * Recupera tutti i prodotti da CassaInCloud e li mappa in InternalProduct
+ */
+export async function getProducts(
+  idSalesPointForPricing: string,
+  filterParams?: GetProductsParams,
+  apiKeyOverride?: string
+): Promise<InternalProduct[]> {
+  const token = await getValidAccessToken(apiKeyOverride);
+  if (!token) {
+    throw new Error('Token di accesso non disponibile');
   }
 
-  async getTables(params: GetTablesParams = {}): Promise<GetTablesApiResponse> {
-    console.log('CassaInCloudService: Getting tables with params', params);
-    
-    try {
-      const queryParams = new URLSearchParams();
-      if (params.start !== undefined) queryParams.append('start', params.start.toString());
-      if (params.limit !== undefined) queryParams.append('limit', params.limit.toString());
-      if (params.roomId) queryParams.append('roomId', params.roomId);
-
-      const response = await this.makeRequest(`/Tables?${queryParams.toString()}`);
-      
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-
-      const data: GetTablesApiResponse = await response.json();
-      console.log('CassaInCloudService: Got tables response', data);
-      
-      return data;
-    } catch (error) {
-      console.error('CassaInCloudService: Error getting tables:', error);
-      throw error;
-    }
+  // Costruisci i parametri della query
+  const queryParams = new URLSearchParams();
+  if (filterParams?.idsSalesPoint && filterParams.idsSalesPoint.length > 0) {
+    filterParams.idsSalesPoint.forEach(id => queryParams.append('idsSalesPoint', id));
+  }
+  if (filterParams?.description) {
+    queryParams.append('description', filterParams.description);
+  }
+  if (filterParams?.lastUpdateFrom) {
+    queryParams.append('lastUpdateFrom', filterParams.lastUpdateFrom.toString());
+  }
+  if (filterParams?.lastUpdateTo) {
+    queryParams.append('lastUpdateTo', filterParams.lastUpdateTo.toString());
+  }
+  if (filterParams?.enabledForChannels && filterParams.enabledForChannels.length > 0) {
+    filterParams.enabledForChannels.forEach(channel => queryParams.append('enabledForChannels', channel));
+  }
+  if (filterParams?.itemListVisibility !== undefined) {
+    queryParams.append('itemListVisibility', filterParams.itemListVisibility.toString());
+  }
+  if (filterParams?.idCategories && filterParams.idCategories.length > 0) {
+    filterParams.idCategories.forEach(id => queryParams.append('idCategories', id));
+  }
+  if (filterParams?.idDepartments && filterParams.idDepartments.length > 0) {
+    filterParams.idDepartments.forEach(id => queryParams.append('idDepartments', id));
+  }
+   if (filterParams?.categoryId) {
+    queryParams.append('categoryId', filterParams.categoryId);
+  }
+  if (filterParams?.searchTerm) {
+    queryParams.append('searchTerm', filterParams.searchTerm);
+  }
+  if (filterParams?.limit) {
+    queryParams.append('limit', filterParams.limit.toString());
+  }
+  if (filterParams?.offset) {
+    queryParams.append('offset', filterParams.offset.toString());
   }
 
-  async createCustomer(customerData: any): Promise<any> {
-    console.log('CassaInCloudService: Creating customer', customerData);
+  const url = `https://api.cassaincloud.it/v2/products?${queryParams.toString()}`;
 
-    try {
-      const response = await this.makeRequest('/Customers', 'post', customerData);
-
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
+  try {
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
       }
+    });
 
-      const data = await response.json();
-      console.log('CassaInCloudService: Customer created', data);
-      return data;
-    } catch (error) {
-      console.error('CassaInCloudService: Error creating customer:', error);
-      throw error;
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error(`Errore HTTP ${response.status} durante getProducts:`, errorText);
+      throw new Error(`Errore HTTP ${response.status}: ${errorText}`);
     }
+
+    const data: GetProductsApiResponse = await response.json();
+    if (!data.products) {
+      console.warn('Nessun prodotto trovato nella risposta API:', data);
+      return [];
+    }
+
+    // Mappa i prodotti CassaInCloud in InternalProduct
+    const internalProducts: InternalProduct[] = data.products.map(product =>
+      mapCassaInCloudProductToInternalProduct(product)
+    );
+
+    return internalProducts;
+  } catch (error) {
+    console.error('Errore durante getProducts:', error);
+    throw error;
+  }
+}
+
+/**
+ * Recupera il report delle vendite per prodotto da CassaInCloud
+ */
+export async function getSoldByProductReport(
+  params: GetSoldByProductParams,
+  apiKeyOverride?: string
+): Promise<GetSoldByProductApiResponse> {
+  const token = await getValidAccessToken(apiKeyOverride);
+  if (!token) {
+    throw new Error('Token di accesso non disponibile');
   }
 
-  async updateCustomer(customerId: string, customerData: any): Promise<any> {
-    console.log(`CassaInCloudService: Updating customer ${customerId}`, customerData);
+  // Costruisci i parametri della query
+  const queryParams = new URLSearchParams();
+  queryParams.append('start', params.start.toString());
+  queryParams.append('limit', params.limit.toString());
 
-    try {
-      const response = await this.makeRequest(`/Customers/${customerId}`, 'put', customerData);
+  // Gestione delle date
+  queryParams.append('datetimeFrom', typeof params.datetimeFrom === 'string' ? params.datetimeFrom : params.datetimeFrom.toString());
+  queryParams.append('datetimeTo', typeof params.datetimeTo === 'string' ? params.datetimeTo : params.datetimeTo.toString());
 
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-
-      const data = await response.json();
-      console.log(`CassaInCloudService: Customer ${customerId} updated`, data);
-      return data;
-    } catch (error) {
-      console.error(`CassaInCloudService: Error updating customer ${customerId}:`, error);
-      throw error;
-    }
+  if (params.idsSalesPoint && params.idsSalesPoint.length > 0) {
+    params.idsSalesPoint.forEach(id => queryParams.append('idsSalesPoint', id));
+  }
+  if (params.idProducts && params.idProducts.length > 0) {
+    params.idProducts.forEach(id => queryParams.append('idProducts', id));
+  }
+  if (params.idDepartments && params.idDepartments.length > 0) {
+    params.idDepartments.forEach(id => queryParams.append('idDepartments', id));
+  }
+  if (params.idCategories && params.idCategories.length > 0) {
+    params.idCategories.forEach(id => queryParams.append('idCategories', id));
+  }
+  if (params.sorts && params.sorts.length > 0) {
+    params.sorts.forEach(sort => queryParams.append('sorts', JSON.stringify(sort)));
   }
 
-  async deleteCustomer(customerId: string): Promise<void> {
-    console.log(`CassaInCloudService: Deleting customer ${customerId}`);
+  const url = `https://api.cassaincloud.it/v2/reports/sold-by-product?${queryParams.toString()}`;
 
-    try {
-      const response = await this.makeRequest(`/Customers/${customerId}`, 'delete');
-
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
+  try {
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
       }
+    });
 
-      console.log(`CassaInCloudService: Customer ${customerId} deleted`);
-    } catch (error) {
-      console.error(`CassaInCloudService: Error deleting customer ${customerId}:`, error);
-      throw error;
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error(`Errore HTTP ${response.status} durante getSoldByProductReport:`, errorText);
+      throw new Error(`Errore HTTP ${response.status}: ${errorText}`);
     }
+
+    const data: GetSoldByProductApiResponse = await response.json();
+    return data;
+  } catch (error) {
+    console.error('Errore durante getSoldByProductReport:', error);
+    throw error;
+  }
+}
+
+/**
+ * Recupera tutti i clienti da CassaInCloud
+ */
+export async function getCustomers(
+  params: GetCustomersParams,
+  apiKeyOverride?: string
+): Promise<CassaInCloudCustomer[]> {
+  const token = await getValidAccessToken(apiKeyOverride);
+  if (!token) {
+    throw new Error('Token di accesso non disponibile');
   }
 
-  async getReceiptsInRange(
-    datetimeFrom: string,
-    datetimeTo: string,
-    limit: number = 100,
-    start: number = 0
-  ): Promise<GetReceiptsApiResponse> {
-    console.log(`CassaInCloudService: Getting receipts from ${datetimeFrom} to ${datetimeTo}`);
-    
-    try {
-      const params: GetReceiptsParams = {
-        datetimeFrom,
-        datetimeTo,
-        limit,
-        start
-      };
+  console.log('Parametri ricevuti per getCustomers:', params);
 
-      // Ensure ids is an array before using map
-      if (params.ids && typeof params.ids === 'string') {
-        params.ids = [params.ids];
+  // Costruisci i parametri della query
+  const queryParams = new URLSearchParams();
+  
+  // Parametri obbligatori
+  queryParams.append('start', params.start.toString());
+  queryParams.append('limit', params.limit.toString());
+
+  // Parametri opzionali
+  if (params.sorts && params.sorts.length > 0) {
+    params.sorts.forEach(sort => queryParams.append('sorts', JSON.stringify(sort)));
+  }
+
+  if (params.ids && params.ids.length > 0) {
+    params.ids.forEach(id => queryParams.append('ids', id));
+  }
+
+  if (params.vatNumber) {
+    queryParams.append('vatNumber', params.vatNumber);
+  }
+
+  if (params.fiscalCode) {
+    queryParams.append('fiscalCode', params.fiscalCode);
+  }
+
+  if (params.name) {
+    queryParams.append('name', params.name);
+  }
+
+  if (params.email) {
+    queryParams.append('email', params.email);
+  }
+
+  if (params.idsOrganization && params.idsOrganization.length > 0) {
+    params.idsOrganization.forEach(id => queryParams.append('idsOrganization', id));
+  }
+
+  if (params.lastUpdateFrom !== undefined) {
+    queryParams.append('lastUpdateFrom', params.lastUpdateFrom.toString());
+  }
+
+  if (params.lastUpdateTo !== undefined) {
+    queryParams.append('lastUpdateTo', params.lastUpdateTo.toString());
+  }
+
+  const url = `https://api.cassaincloud.it/v2/customers?${queryParams.toString()}`;
+  console.log('URL per getCustomers:', url);
+
+  try {
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
       }
+    });
 
-      const queryParams = new URLSearchParams();
-      queryParams.append('datetimeFrom', params.datetimeFrom);
-      queryParams.append('datetimeTo', params.datetimeTo);
-      queryParams.append('limit', params.limit.toString());
-      queryParams.append('start', params.start.toString());
-      
-      if (params.ids && Array.isArray(params.ids)) {
-        params.ids.forEach(id => queryParams.append('ids', id));
-      }
-
-      const response = await this.makeRequest(`/Receipts?${queryParams.toString()}`);
-      
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-
-      const responseData = await response.json();
-      
-      // Ensure the response includes the start property
-      const data: GetReceiptsApiResponse = {
-        ...responseData,
-        start: start
-      };
-      
-      console.log('CassaInCloudService: Got receipts response', data);
-      
-      return data;
-    } catch (error) {
-      console.error('CassaInCloudService: Error getting receipts:', error);
-      throw error;
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error(`Errore HTTP ${response.status} durante getCustomers:`, errorText);
+      throw new Error(`Errore HTTP ${response.status}: ${errorText}`);
     }
+
+    const data: GetCustomersApiResponse = await response.json();
+    return data.customers || [];
+  } catch (error) {
+    console.error('Errore durante getCustomers:', error);
+    throw error;
+  }
+}
+
+/**
+ * Recupera le ricevute da CassaInCloud
+ */
+export async function getReceipts(
+  params: GetReceiptsParams,
+  apiKeyOverride?: string
+): Promise<GetReceiptsApiResponse> {
+  const token = await getValidAccessToken(apiKeyOverride);
+  if (!token) {
+    throw new Error('Token di accesso non disponibile');
+  }
+
+  console.log('Parametri ricevuti per getReceipts:', params);
+
+  // Costruisci i parametri della query
+  const queryParams = new URLSearchParams();
+  
+  // Parametri obbligatori
+  queryParams.append('start', params.start.toString());
+  queryParams.append('limit', params.limit.toString());
+
+  // Parametri opzionali per date
+  if (params.datetimeFrom) {
+    queryParams.append('datetimeFrom', typeof params.datetimeFrom === 'string' ? params.datetimeFrom : params.datetimeFrom.toString());
+  }
+  if (params.datetimeTo) {
+    queryParams.append('datetimeTo', typeof params.datetimeTo === 'string' ? params.datetimeTo : params.datetimeTo.toString());
+  }
+
+  // Parametri opzionali per filtri
+  if (params.idsSalesPoint && params.idsSalesPoint.length > 0) {
+    params.idsSalesPoint.forEach(id => queryParams.append('idsSalesPoint', id));
+  }
+
+  if (params.sorts && params.sorts.length > 0) {
+    params.sorts.forEach(sort => queryParams.append('sorts', JSON.stringify(sort)));
+  }
+
+  if (params.idCustomers && params.idCustomers.length > 0) {
+    params.idCustomers.forEach(id => queryParams.append('idCustomers', id));
+  }
+
+  if (params.numbers && params.numbers.length > 0) {
+    params.numbers.forEach(num => queryParams.append('numbers', num));
+  }
+
+  if (params.idOrganizations && params.idOrganizations.length > 0) {
+    params.idOrganizations.forEach(id => queryParams.append('idOrganizations', id));
+  }
+
+  if (params.calculatedAmount !== undefined) {
+    queryParams.append('calculatedAmount', params.calculatedAmount.toString());
+  }
+
+  if (params.idDocumentNumbering) {
+    queryParams.append('idDocumentNumbering', params.idDocumentNumbering);
+  }
+
+  if (params.numberFrom !== undefined) {
+    queryParams.append('numberFrom', params.numberFrom.toString());
+  }
+
+  if (params.numberTo !== undefined) {
+    queryParams.append('numberTo', params.numberTo.toString());
+  }
+
+  if (params.zNumber) {
+    queryParams.append('zNumber', params.zNumber);
+  }
+
+  if (params.idUserFO) {
+    queryParams.append('idUserFO', params.idUserFO);
+  }
+
+  if (params.idDevice) {
+    queryParams.append('idDevice', params.idDevice);
+  }
+
+  if (params.idCustomer) {
+    queryParams.append('idCustomer', params.idCustomer);
+  }
+
+  if (params.idFidelityCard) {
+    queryParams.append('idFidelityCard', params.idFidelityCard);
+  }
+
+  if (params.lotteryCode) {
+    queryParams.append('lotteryCode', params.lotteryCode);
+  }
+
+  const url = `https://api.cassaincloud.it/v2/receipts?${queryParams.toString()}`;
+  console.log('URL per getReceipts:', url);
+
+  try {
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      }
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error(`Errore HTTP ${response.status} durante getReceipts:`, errorText);
+      throw new Error(`Errore HTTP ${response.status}: ${errorText}`);
+    }
+
+    const data = await response.json();
+    console.log('Risposta ricevuta da getReceipts:', data);
+
+    return {
+      receipts: data.receipts || [],
+      totalCount: data.totalCount || 0
+    };
+
+  } catch (error) {
+    console.error('Errore durante getReceipts:', error);
+    throw error;
+  }
+}
+
+/**
+ * Recupera le sale da CassaInCloud
+ */
+export async function getRooms(
+  params: GetRoomsParams,
+  apiKeyOverride?: string
+): Promise<GetRoomsApiResponse> {
+  const token = await getValidAccessToken(apiKeyOverride);
+  if (!token) {
+    throw new Error('Token di accesso non disponibile');
+  }
+
+  console.log('Parametri ricevuti per getRooms:', params);
+
+  // Costruisci i parametri della query
+  const queryParams = new URLSearchParams();
+  
+  // Parametri obbligatori
+  queryParams.append('start', params.start.toString());
+  queryParams.append('limit', params.limit.toString());
+
+  // idsSalesPoint obbligatorio per le sale
+  if (params.idsSalesPoint && params.idsSalesPoint.length > 0) {
+    params.idsSalesPoint.forEach(id => queryParams.append('idsSalesPoint', id.toString()));
+  }
+
+  // Parametri opzionali
+  if (params.sorts && params.sorts.length > 0) {
+    params.sorts.forEach(sort => queryParams.append('sorts', JSON.stringify(sort)));
+  }
+
+  if (params.ids && params.ids.length > 0) {
+    params.ids.forEach(id => queryParams.append('ids', id));
+  }
+
+  if (params.name) {
+    queryParams.append('name', params.name);
+  }
+
+  if (params.lastUpdateFrom !== undefined) {
+    queryParams.append('lastUpdateFrom', params.lastUpdateFrom.toString());
+  }
+
+  if (params.lastUpdateTo !== undefined) {
+    queryParams.append('lastUpdateTo', params.lastUpdateTo.toString());
+  }
+
+  const url = `https://api.cassaincloud.it/v2/rooms?${queryParams.toString()}`;
+  console.log('URL per getRooms:', url);
+
+  try {
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      }
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error(`Errore HTTP ${response.status} durante getRooms:`, errorText);
+      throw new Error(`Errore HTTP ${response.status}: ${errorText}`);
+    }
+
+    const data = await response.json();
+    console.log('Risposta ricevuta da getRooms:', data);
+
+    return {
+      rooms: data.rooms || [],
+      totalCount: data.totalCount || 0
+    };
+
+  } catch (error) {
+    console.error('Errore durante getRooms:', error);
+    throw error;
+  }
+}
+
+/**
+ * Recupera i tavoli da CassaInCloud
+ */
+export async function getTables(
+  params: GetTablesParams,
+  apiKeyOverride?: string
+): Promise<GetTablesApiResponse> {
+  const token = await getValidAccessToken(apiKeyOverride);
+  if (!token) {
+    throw new Error('Token di accesso non disponibile');
+  }
+
+  console.log('Parametri ricevuti per getTables:', params);
+
+  // Costruisci i parametri della query
+  const queryParams = new URLSearchParams();
+  
+  // Parametri obbligatori
+  queryParams.append('start', params.start.toString());
+  queryParams.append('limit', params.limit.toString());
+
+  // idsSalesPoint obbligatorio per i tavoli
+  if (params.idsSalesPoint && params.idsSalesPoint.length > 0) {
+    params.idsSalesPoint.forEach(id => queryParams.append('idsSalesPoint', id.toString()));
+  }
+
+  // Parametri opzionali
+  if (params.sorts && params.sorts.length > 0) {
+    params.sorts.forEach(sort => queryParams.append('sorts', JSON.stringify(sort)));
+  }
+
+  if (params.ids && params.ids.length > 0) {
+    params.ids.forEach(id => queryParams.append('ids', id));
+  }
+
+  if (params.name) {
+    queryParams.append('name', params.name);
+  }
+
+  if (params.idsRoom && params.idsRoom.length > 0) {
+    params.idsRoom.forEach(id => queryParams.append('idsRoom', id));
+  }
+
+  if (params.externalId && params.externalId.length > 0) {
+    params.externalId.forEach(id => queryParams.append('externalId', id));
+  }
+
+  if (params.lastUpdateFrom !== undefined) {
+    queryParams.append('lastUpdateFrom', params.lastUpdateFrom.toString());
+  }
+
+  if (params.lastUpdateTo !== undefined) {
+    queryParams.append('lastUpdateTo', params.lastUpdateTo.toString());
+  }
+
+  const url = `https://api.cassaincloud.it/v2/tables?${queryParams.toString()}`;
+  console.log('URL per getTables:', url);
+
+  try {
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      }
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error(`Errore HTTP ${response.status} durante getTables:`, errorText);
+      throw new Error(`Errore HTTP ${response.status}: ${errorText}`);
+    }
+
+    const data = await response.json();
+    console.log('Risposta ricevuta da getTables:', data);
+
+    return {
+      tables: data.tables || [],
+      totalCount: data.totalCount || 0
+    };
+
+  } catch (error) {
+    console.error('Errore durante getTables:', error);
+    throw error;
+  }
+}
+
+/**
+ * Recupera lo stock prodotti da CassaInCloud
+ */
+export async function getStock(apiKeyOverride?: string): Promise<CassaInCloudStock[]> {
+  const token = await getValidAccessToken(apiKeyOverride);
+  if (!token) {
+    throw new Error('Token di accesso non disponibile');
+  }
+
+  try {
+    const response = await fetch('https://api.cassaincloud.it/v2/stock', {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      }
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error(`Errore HTTP ${response.status} durante getStock:`, errorText);
+      throw new Error(`Errore HTTP ${response.status}: ${errorText}`);
+    }
+
+    const data: GetStockApiResponse = await response.json();
+    return data.data || [];
+  } catch (error) {
+    console.error('Errore durante getStock:', error);
+    throw error;
   }
 }

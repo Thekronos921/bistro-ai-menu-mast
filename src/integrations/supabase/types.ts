@@ -30,6 +30,515 @@ export type Database = {
         }
         Relationships: []
       }
+      cassa_in_cloud_document_reasons: {
+        Row: {
+          cic_reason_id: string
+          code: string | null
+          created_at: string | null
+          description: string | null
+          id: string
+          is_active: boolean | null
+          raw_data: Json | null
+          restaurant_id: string
+          type: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          cic_reason_id: string
+          code?: string | null
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          is_active?: boolean | null
+          raw_data?: Json | null
+          restaurant_id: string
+          type?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          cic_reason_id?: string
+          code?: string | null
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          is_active?: boolean | null
+          raw_data?: Json | null
+          restaurant_id?: string
+          type?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cassa_in_cloud_document_reasons_restaurant_id_fkey"
+            columns: ["restaurant_id"]
+            isOneToOne: false
+            referencedRelation: "restaurants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      cassa_in_cloud_operators: {
+        Row: {
+          created_at: string | null
+          first_name: string | null
+          id: string
+          id_sales_point_cic: number | null
+          is_active_cic: boolean | null
+          last_name: string | null
+          last_synced_at: string
+          operator_id: string | null
+          operator_id_external: string
+          operator_name: string | null
+          raw_data: Json | null
+          restaurant_id: string
+          role_cic: string | null
+          updated_at: string | null
+          username: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          first_name?: string | null
+          id?: string
+          id_sales_point_cic?: number | null
+          is_active_cic?: boolean | null
+          last_name?: string | null
+          last_synced_at: string
+          operator_id?: string | null
+          operator_id_external: string
+          operator_name?: string | null
+          raw_data?: Json | null
+          restaurant_id: string
+          role_cic?: string | null
+          updated_at?: string | null
+          username?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          first_name?: string | null
+          id?: string
+          id_sales_point_cic?: number | null
+          is_active_cic?: boolean | null
+          last_name?: string | null
+          last_synced_at?: string
+          operator_id?: string | null
+          operator_id_external?: string
+          operator_name?: string | null
+          raw_data?: Json | null
+          restaurant_id?: string
+          role_cic?: string | null
+          updated_at?: string | null
+          username?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cassa_in_cloud_operators_restaurant_id_fkey"
+            columns: ["restaurant_id"]
+            isOneToOne: false
+            referencedRelation: "restaurants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      cassa_in_cloud_receipt_payments: {
+        Row: {
+          amount: number | null
+          cic_payment_id: string | null
+          cic_payment_method_id: string | null
+          created_at: string | null
+          id: string
+          payment_date: string | null
+          payment_method_description: string | null
+          raw_data: Json | null
+          receipt_id: string
+          restaurant_id: string
+          transaction_id: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          amount?: number | null
+          cic_payment_id?: string | null
+          cic_payment_method_id?: string | null
+          created_at?: string | null
+          id?: string
+          payment_date?: string | null
+          payment_method_description?: string | null
+          raw_data?: Json | null
+          receipt_id: string
+          restaurant_id: string
+          transaction_id?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          amount?: number | null
+          cic_payment_id?: string | null
+          cic_payment_method_id?: string | null
+          created_at?: string | null
+          id?: string
+          payment_date?: string | null
+          payment_method_description?: string | null
+          raw_data?: Json | null
+          receipt_id?: string
+          restaurant_id?: string
+          transaction_id?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cassa_in_cloud_receipt_payments_receipt_id_fkey"
+            columns: ["receipt_id"]
+            isOneToOne: false
+            referencedRelation: "cassa_in_cloud_receipts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cassa_in_cloud_receipt_payments_restaurant_id_fkey"
+            columns: ["restaurant_id"]
+            isOneToOne: false
+            referencedRelation: "restaurants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      cassa_in_cloud_receipt_rows: {
+        Row: {
+          cic_department_id: string | null
+          cic_product_id: string | null
+          cic_row_id: string | null
+          cic_tax_id: string | null
+          created_at: string | null
+          department_description: string | null
+          description: string | null
+          discount_amount: number | null
+          discount_percentage: number | null
+          external_id: string | null
+          id: string
+          last_synced_at: string | null
+          notes: string | null
+          position: number | null
+          price: number | null
+          product_description: string | null
+          product_sku: string | null
+          quantity: number | null
+          raw_data: Json | null
+          receipt_id: string
+          restaurant_id: string
+          tax_description: string | null
+          tax_percentage: number | null
+          total: number | null
+          total_price_gross: number | null
+          total_price_net: number | null
+          unit_price_gross: number | null
+          unit_price_net: number | null
+          updated_at: string | null
+          vat: number | null
+        }
+        Insert: {
+          cic_department_id?: string | null
+          cic_product_id?: string | null
+          cic_row_id?: string | null
+          cic_tax_id?: string | null
+          created_at?: string | null
+          department_description?: string | null
+          description?: string | null
+          discount_amount?: number | null
+          discount_percentage?: number | null
+          external_id?: string | null
+          id?: string
+          last_synced_at?: string | null
+          notes?: string | null
+          position?: number | null
+          price?: number | null
+          product_description?: string | null
+          product_sku?: string | null
+          quantity?: number | null
+          raw_data?: Json | null
+          receipt_id: string
+          restaurant_id: string
+          tax_description?: string | null
+          tax_percentage?: number | null
+          total?: number | null
+          total_price_gross?: number | null
+          total_price_net?: number | null
+          unit_price_gross?: number | null
+          unit_price_net?: number | null
+          updated_at?: string | null
+          vat?: number | null
+        }
+        Update: {
+          cic_department_id?: string | null
+          cic_product_id?: string | null
+          cic_row_id?: string | null
+          cic_tax_id?: string | null
+          created_at?: string | null
+          department_description?: string | null
+          description?: string | null
+          discount_amount?: number | null
+          discount_percentage?: number | null
+          external_id?: string | null
+          id?: string
+          last_synced_at?: string | null
+          notes?: string | null
+          position?: number | null
+          price?: number | null
+          product_description?: string | null
+          product_sku?: string | null
+          quantity?: number | null
+          raw_data?: Json | null
+          receipt_id?: string
+          restaurant_id?: string
+          tax_description?: string | null
+          tax_percentage?: number | null
+          total?: number | null
+          total_price_gross?: number | null
+          total_price_net?: number | null
+          unit_price_gross?: number | null
+          unit_price_net?: number | null
+          updated_at?: string | null
+          vat?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cassa_in_cloud_receipt_rows_receipt_id_fkey"
+            columns: ["receipt_id"]
+            isOneToOne: false
+            referencedRelation: "cassa_in_cloud_receipts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cassa_in_cloud_receipt_rows_restaurant_id_fkey"
+            columns: ["restaurant_id"]
+            isOneToOne: false
+            referencedRelation: "restaurants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      cassa_in_cloud_receipts: {
+        Row: {
+          amount_change: number | null
+          amount_discount: number | null
+          amount_due: number | null
+          amount_gross: number | null
+          amount_net: number | null
+          amount_rounding: number | null
+          amount_tax: number | null
+          cic_customer_id: string | null
+          cic_document_reason_id: string | null
+          cic_id: string | null
+          cic_user_id: string | null
+          connections: Json | null
+          created_at: string | null
+          customer_denominazione: string | null
+          customer_details: Json | null
+          date: string | null
+          datetime: string | null
+          document_external_id: string | null
+          document_reason_description: string | null
+          external_id: string | null
+          id: string
+          id_sales_point: number | null
+          internal_id: string | null
+          last_synced_at: string | null
+          lottery_code: string | null
+          notes: string | null
+          number: string | null
+          operator_id_external: string | null
+          order_summary: Json | null
+          raw_data: Json | null
+          receipt_date: string | null
+          receipt_number: string | null
+          restaurant_id: string
+          status: string | null
+          total: number | null
+          updated_at: string | null
+          user_denominazione: string | null
+          user_external_id: string | null
+          z_number: string | null
+        }
+        Insert: {
+          amount_change?: number | null
+          amount_discount?: number | null
+          amount_due?: number | null
+          amount_gross?: number | null
+          amount_net?: number | null
+          amount_rounding?: number | null
+          amount_tax?: number | null
+          cic_customer_id?: string | null
+          cic_document_reason_id?: string | null
+          cic_id?: string | null
+          cic_user_id?: string | null
+          connections?: Json | null
+          created_at?: string | null
+          customer_denominazione?: string | null
+          customer_details?: Json | null
+          date?: string | null
+          datetime?: string | null
+          document_external_id?: string | null
+          document_reason_description?: string | null
+          external_id?: string | null
+          id?: string
+          id_sales_point?: number | null
+          internal_id?: string | null
+          last_synced_at?: string | null
+          lottery_code?: string | null
+          notes?: string | null
+          number?: string | null
+          operator_id_external?: string | null
+          order_summary?: Json | null
+          raw_data?: Json | null
+          receipt_date?: string | null
+          receipt_number?: string | null
+          restaurant_id: string
+          status?: string | null
+          total?: number | null
+          updated_at?: string | null
+          user_denominazione?: string | null
+          user_external_id?: string | null
+          z_number?: string | null
+        }
+        Update: {
+          amount_change?: number | null
+          amount_discount?: number | null
+          amount_due?: number | null
+          amount_gross?: number | null
+          amount_net?: number | null
+          amount_rounding?: number | null
+          amount_tax?: number | null
+          cic_customer_id?: string | null
+          cic_document_reason_id?: string | null
+          cic_id?: string | null
+          cic_user_id?: string | null
+          connections?: Json | null
+          created_at?: string | null
+          customer_denominazione?: string | null
+          customer_details?: Json | null
+          date?: string | null
+          datetime?: string | null
+          document_external_id?: string | null
+          document_reason_description?: string | null
+          external_id?: string | null
+          id?: string
+          id_sales_point?: number | null
+          internal_id?: string | null
+          last_synced_at?: string | null
+          lottery_code?: string | null
+          notes?: string | null
+          number?: string | null
+          operator_id_external?: string | null
+          order_summary?: Json | null
+          raw_data?: Json | null
+          receipt_date?: string | null
+          receipt_number?: string | null
+          restaurant_id?: string
+          status?: string | null
+          total?: number | null
+          updated_at?: string | null
+          user_denominazione?: string | null
+          user_external_id?: string | null
+          z_number?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cassa_in_cloud_receipts_restaurant_id_fkey"
+            columns: ["restaurant_id"]
+            isOneToOne: false
+            referencedRelation: "restaurants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      customers: {
+        Row: {
+          address: string | null
+          average_spend_per_visit: number | null
+          cic_last_update: number | null
+          city: string | null
+          country: string | null
+          created_at: string
+          customer_uuid: string
+          email: string | null
+          external_id: string
+          first_name: string | null
+          fiscal_code: string | null
+          id_organization: string | null
+          is_premium_buyer: boolean | null
+          last_name: string | null
+          last_visit_date: string | null
+          name: string | null
+          phone_number: string | null
+          referral_of: string | null
+          restaurant_id: string
+          score: number | null
+          total_lifetime_spend: number | null
+          updated_at: string
+          vat_number: string | null
+          visit_frequency: number | null
+          zip_code: string | null
+        }
+        Insert: {
+          address?: string | null
+          average_spend_per_visit?: number | null
+          cic_last_update?: number | null
+          city?: string | null
+          country?: string | null
+          created_at?: string
+          customer_uuid?: string
+          email?: string | null
+          external_id: string
+          first_name?: string | null
+          fiscal_code?: string | null
+          id_organization?: string | null
+          is_premium_buyer?: boolean | null
+          last_name?: string | null
+          last_visit_date?: string | null
+          name?: string | null
+          phone_number?: string | null
+          referral_of?: string | null
+          restaurant_id: string
+          score?: number | null
+          total_lifetime_spend?: number | null
+          updated_at?: string
+          vat_number?: string | null
+          visit_frequency?: number | null
+          zip_code?: string | null
+        }
+        Update: {
+          address?: string | null
+          average_spend_per_visit?: number | null
+          cic_last_update?: number | null
+          city?: string | null
+          country?: string | null
+          created_at?: string
+          customer_uuid?: string
+          email?: string | null
+          external_id?: string
+          first_name?: string | null
+          fiscal_code?: string | null
+          id_organization?: string | null
+          is_premium_buyer?: boolean | null
+          last_name?: string | null
+          last_visit_date?: string | null
+          name?: string | null
+          phone_number?: string | null
+          referral_of?: string | null
+          restaurant_id?: string
+          score?: number | null
+          total_lifetime_spend?: number | null
+          updated_at?: string
+          vat_number?: string | null
+          visit_frequency?: number | null
+          zip_code?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "customers_restaurant_id_fkey"
+            columns: ["restaurant_id"]
+            isOneToOne: false
+            referencedRelation: "restaurants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       demand_forecasts: {
         Row: {
           confidence_percentage: number
@@ -1043,6 +1552,7 @@ export type Database = {
       }
       reservations: {
         Row: {
+          arrival_time: string | null
           booking_type: string | null
           calculated_score: number | null
           created_at: string
@@ -1050,10 +1560,13 @@ export type Database = {
           customer_name: string
           customer_notes: string | null
           customer_phone: string | null
+          customer_score_at_request: number | null
           dish_id: string | null
+          estimated_departure_time: string | null
           final_score: number | null
           id: string
           internal_notes: string | null
+          is_golden_circle_at_request: boolean | null
           number_of_guests: number
           reservation_time: string
           restaurant_id: string
@@ -1062,6 +1575,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          arrival_time?: string | null
           booking_type?: string | null
           calculated_score?: number | null
           created_at?: string
@@ -1069,10 +1583,13 @@ export type Database = {
           customer_name: string
           customer_notes?: string | null
           customer_phone?: string | null
+          customer_score_at_request?: number | null
           dish_id?: string | null
+          estimated_departure_time?: string | null
           final_score?: number | null
           id?: string
           internal_notes?: string | null
+          is_golden_circle_at_request?: boolean | null
           number_of_guests: number
           reservation_time: string
           restaurant_id: string
@@ -1081,6 +1598,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          arrival_time?: string | null
           booking_type?: string | null
           calculated_score?: number | null
           created_at?: string
@@ -1088,10 +1606,13 @@ export type Database = {
           customer_name?: string
           customer_notes?: string | null
           customer_phone?: string | null
+          customer_score_at_request?: number | null
           dish_id?: string | null
+          estimated_departure_time?: string | null
           final_score?: number | null
           id?: string
           internal_notes?: string | null
+          is_golden_circle_at_request?: boolean | null
           number_of_guests?: number
           reservation_time?: string
           restaurant_id?: string
@@ -1150,6 +1671,237 @@ export type Database = {
             columns: ["restaurant_id"]
             isOneToOne: false
             referencedRelation: "restaurants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      restaurant_daily_availability: {
+        Row: {
+          available_seats: number
+          date: string
+          id: string
+          last_updated: string | null
+          restaurant_id: string
+          total_seats: number
+        }
+        Insert: {
+          available_seats: number
+          date: string
+          id?: string
+          last_updated?: string | null
+          restaurant_id: string
+          total_seats: number
+        }
+        Update: {
+          available_seats?: number
+          date?: string
+          id?: string
+          last_updated?: string | null
+          restaurant_id?: string
+          total_seats?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "restaurant_daily_availability_restaurant_id_fkey"
+            columns: ["restaurant_id"]
+            isOneToOne: false
+            referencedRelation: "restaurants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      restaurant_rooms: {
+        Row: {
+          created_at: string | null
+          description: string | null
+          external_id: string
+          id: string
+          id_sales_point: string | null
+          last_synced_at: string | null
+          name: string
+          raw_data: Json | null
+          restaurant_id: string
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          description?: string | null
+          external_id: string
+          id?: string
+          id_sales_point?: string | null
+          last_synced_at?: string | null
+          name: string
+          raw_data?: Json | null
+          restaurant_id: string
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          description?: string | null
+          external_id?: string
+          id?: string
+          id_sales_point?: string | null
+          last_synced_at?: string | null
+          name?: string
+          raw_data?: Json | null
+          restaurant_id?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "restaurant_rooms_restaurant_id_fkey"
+            columns: ["restaurant_id"]
+            isOneToOne: false
+            referencedRelation: "restaurants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      restaurant_shift_availability: {
+        Row: {
+          availability_date: string
+          available_seats: number
+          id: string
+          last_updated: string | null
+          restaurant_id: string
+          shift_id: string
+          total_seats: number
+        }
+        Insert: {
+          availability_date: string
+          available_seats: number
+          id?: string
+          last_updated?: string | null
+          restaurant_id: string
+          shift_id: string
+          total_seats: number
+        }
+        Update: {
+          availability_date?: string
+          available_seats?: number
+          id?: string
+          last_updated?: string | null
+          restaurant_id?: string
+          shift_id?: string
+          total_seats?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "restaurant_shift_availability_restaurant_id_fkey"
+            columns: ["restaurant_id"]
+            isOneToOne: false
+            referencedRelation: "restaurants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "restaurant_shift_availability_shift_id_fkey"
+            columns: ["shift_id"]
+            isOneToOne: false
+            referencedRelation: "restaurant_shifts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      restaurant_shifts: {
+        Row: {
+          created_at: string | null
+          days_active: number[] | null
+          end_time: string
+          id: string
+          restaurant_id: string
+          shift_name: string
+          start_time: string
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          days_active?: number[] | null
+          end_time: string
+          id?: string
+          restaurant_id: string
+          shift_name: string
+          start_time: string
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          days_active?: number[] | null
+          end_time?: string
+          id?: string
+          restaurant_id?: string
+          shift_name?: string
+          start_time?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "restaurant_shifts_restaurant_id_fkey"
+            columns: ["restaurant_id"]
+            isOneToOne: false
+            referencedRelation: "restaurants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      restaurant_tables: {
+        Row: {
+          created_at: string | null
+          description: string | null
+          external_id: string
+          external_room_id: string | null
+          id: string
+          id_sales_point: string | null
+          last_synced_at: string | null
+          name: string
+          raw_data: Json | null
+          restaurant_id: string
+          room_id: string | null
+          seats: number | null
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          description?: string | null
+          external_id: string
+          external_room_id?: string | null
+          id?: string
+          id_sales_point?: string | null
+          last_synced_at?: string | null
+          name: string
+          raw_data?: Json | null
+          restaurant_id: string
+          room_id?: string | null
+          seats?: number | null
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          description?: string | null
+          external_id?: string
+          external_room_id?: string | null
+          id?: string
+          id_sales_point?: string | null
+          last_synced_at?: string | null
+          name?: string
+          raw_data?: Json | null
+          restaurant_id?: string
+          room_id?: string | null
+          seats?: number | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "restaurant_tables_restaurant_id_fkey"
+            columns: ["restaurant_id"]
+            isOneToOne: false
+            referencedRelation: "restaurants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "restaurant_tables_room_id_fkey"
+            columns: ["room_id"]
+            isOneToOne: false
+            referencedRelation: "restaurant_rooms"
             referencedColumns: ["id"]
           },
         ]
@@ -1221,11 +1973,14 @@ export type Database = {
           covers_lunch: number | null
           covers_total: number
           created_at: string
-          date: string
+          data: string
           day_of_week: number
           id: string
           is_holiday: boolean | null
           notes: string | null
+          period_from: string | null
+          period_to: string | null
+          report_date: string | null
           restaurant_id: string
           revenue_dinner: number | null
           revenue_lunch: number | null
@@ -1241,11 +1996,14 @@ export type Database = {
           covers_lunch?: number | null
           covers_total?: number
           created_at?: string
-          date: string
+          data: string
           day_of_week: number
           id?: string
           is_holiday?: boolean | null
           notes?: string | null
+          period_from?: string | null
+          period_to?: string | null
+          report_date?: string | null
           restaurant_id: string
           revenue_dinner?: number | null
           revenue_lunch?: number | null
@@ -1261,11 +2019,14 @@ export type Database = {
           covers_lunch?: number | null
           covers_total?: number
           created_at?: string
-          date?: string
+          data?: string
           day_of_week?: number
           id?: string
           is_holiday?: boolean | null
           notes?: string | null
+          period_from?: string | null
+          period_to?: string | null
+          report_date?: string | null
           restaurant_id?: string
           revenue_dinner?: number | null
           revenue_lunch?: number | null
@@ -1398,9 +2159,12 @@ export type Database = {
           created_at: string
           email: string
           email_verified_at: string | null
-          full_name: string
+          external_id: string | null
+          full_name: string | null
           id: string
           last_login_at: string | null
+          last_synced_at: string | null
+          name: string | null
           reset_password_expires_at: string | null
           reset_password_token: string | null
           restaurant_id: string | null
@@ -1411,9 +2175,12 @@ export type Database = {
           created_at?: string
           email: string
           email_verified_at?: string | null
-          full_name: string
+          external_id?: string | null
+          full_name?: string | null
           id?: string
           last_login_at?: string | null
+          last_synced_at?: string | null
+          name?: string | null
           reset_password_expires_at?: string | null
           reset_password_token?: string | null
           restaurant_id?: string | null
@@ -1424,9 +2191,12 @@ export type Database = {
           created_at?: string
           email?: string
           email_verified_at?: string | null
-          full_name?: string
+          external_id?: string | null
+          full_name?: string | null
           id?: string
           last_login_at?: string | null
+          last_synced_at?: string | null
+          name?: string | null
           reset_password_expires_at?: string | null
           reset_password_token?: string | null
           restaurant_id?: string | null
@@ -1647,6 +2417,15 @@ export type Database = {
         Args: { recipe_id_param: string }
         Returns: undefined
       }
+      update_seats: {
+        Args: {
+          p_restaurant_id: string
+          p_reservation_time: string
+          p_guests: number
+          p_operation: string
+        }
+        Returns: undefined
+      }
     }
     Enums: {
       reservation_status:
@@ -1657,6 +2436,14 @@ export type Database = {
         | "completata"
         | "annullata_cliente"
         | "annullata_ristorante"
+        | "nuova_richiesta"
+        | "in_attesa_golden_circle"
+        | "in_attesa_standard"
+        | "approvata_automaticamente"
+        | "approvata_manualmente"
+        | "rifiutata_capacita"
+        | "rifiutata_no_show_precedente"
+        | "cancellata_utente"
       restaurant_type:
         | "ristorante"
         | "bar"
@@ -1791,6 +2578,14 @@ export const Constants = {
         "completata",
         "annullata_cliente",
         "annullata_ristorante",
+        "nuova_richiesta",
+        "in_attesa_golden_circle",
+        "in_attesa_standard",
+        "approvata_automaticamente",
+        "approvata_manualmente",
+        "rifiutata_capacita",
+        "rifiutata_no_show_precedente",
+        "cancellata_utente",
       ],
       restaurant_type: [
         "ristorante",

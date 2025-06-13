@@ -1,8 +1,27 @@
-
-import { ArrowLeft, Users, Target, TrendingUp, Heart } from "lucide-react";
+import { ArrowLeft, Users, Target, TrendingUp, Heart, Plus, Download, Upload } from "lucide-react";
 import { Link } from "react-router-dom";
+import { useState } from "react";
+import { Button } from "@/components/ui/button";
+import { useCustomers, Customer, CustomerFilters } from "@/hooks/useCustomers";
+import CustomerTable from "@/components/customers/CustomerTable";
+import CustomerFilters from "@/components/customers/CustomerFilters";
+import AddCustomerDialog from "@/components/customers/AddCustomerDialog";
 
 const CustomerAnalysis = () => {
+  const [filters, setFilters] = useState<CustomerFilters>({});
+  const [showAddDialog, setShowAddDialog] = useState(false);
+  const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null);
+  
+  const {
+    customers,
+    loading,
+    totalCount,
+    fetchCustomers,
+    createCustomer,
+    updateCustomer,
+    deleteCustomer,
+  } = useCustomers();
+
   const customerSegments = [
     {
       id: 1,
@@ -81,6 +100,52 @@ const CustomerAnalysis = () => {
     return colors[color as keyof typeof colors] || colors.emerald;
   };
 
+  const handleFiltersChange = (newFilters: CustomerFilters) => {
+    setFilters(newFilters);
+    fetchCustomers(1, 20, newFilters);
+  };
+
+  const handleCreateCustomer = async (customerData: any) => {
+    await createCustomer(customerData);
+  };
+
+  const handleEditCustomer = (customer: Customer) => {
+    setEditingCustomer(customer);
+    setShowAddDialog(true);
+  };
+
+  const handleUpdateCustomer = async (customerData: any) => {
+    if (editingCustomer) {
+      await updateCustomer(editingCustomer.id, customerData);
+      setEditingCustomer(null);
+    }
+  };
+
+  const handleDeleteCustomer = async (customer: Customer) => {
+    if (window.confirm(`Sei sicuro di voler eliminare il cliente ${customer.name || customer.email}?`)) {
+      await deleteCustomer(customer.id);
+    }
+  };
+
+  const handleViewDetail = (customer: Customer) => {
+    // Implement customer detail view
+    console.log('View customer detail:', customer);
+  };
+
+  const handleCloseDialog = () => {
+    setShowAddDialog(false);
+    setEditingCustomer(null);
+  };
+
+  // Calculate total customers and stats from real data
+  const totalCustomers = totalCount;
+  const averageSpend = customers.length > 0 
+    ? customers.reduce((sum, c) => sum + c.average_spend_per_visit, 0) / customers.length 
+    : 51.20;
+  const returnRate = customers.length > 0
+    ? Math.round((customers.filter(c => c.total_visits > 1).length / customers.length) * 100)
+    : 82;
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-stone-50">
       {/* Header */}
@@ -111,8 +176,8 @@ const CustomerAnalysis = () => {
               <h3 className="text-sm font-medium text-slate-500">Clienti Totali</h3>
               <Users className="w-5 h-5 text-slate-400" />
             </div>
-            <p className="text-3xl font-bold text-slate-800">470</p>
-            <p className="text-sm text-emerald-600 mt-1">+12% questo mese</p>
+            <p className="text-3xl font-bold text-slate-800">{totalCustomers}</p>
+            <p className="text-sm text-emerald-600 mt-1">Database clienti</p>
           </div>
           
           <div className="bg-white rounded-2xl p-6 border border-stone-200">
@@ -120,8 +185,8 @@ const CustomerAnalysis = () => {
               <h3 className="text-sm font-medium text-slate-500">Spesa Media</h3>
               <TrendingUp className="w-5 h-5 text-emerald-500" />
             </div>
-            <p className="text-3xl font-bold text-slate-800">€51.20</p>
-            <p className="text-sm text-emerald-600 mt-1">+8.5% vs mese scorso</p>
+            <p className="text-3xl font-bold text-slate-800">€{averageSpend.toFixed(2)}</p>
+            <p className="text-sm text-emerald-600 mt-1">Per visita</p>
           </div>
           
           <div className="bg-white rounded-2xl p-6 border border-stone-200">
@@ -129,7 +194,7 @@ const CustomerAnalysis = () => {
               <h3 className="text-sm font-medium text-slate-500">Tasso di Ritorno</h3>
               <Heart className="w-5 h-5 text-rose-500" />
             </div>
-            <p className="text-3xl font-bold text-slate-800">82%</p>
+            <p className="text-3xl font-bold text-slate-800">{returnRate}%</p>
             <p className="text-sm text-rose-600 mt-1">Clienti che ritornano</p>
           </div>
           
@@ -140,6 +205,42 @@ const CustomerAnalysis = () => {
             </div>
             <p className="text-3xl font-bold text-slate-800">8.7</p>
             <p className="text-sm text-blue-600 mt-1">Eccellente</p>
+          </div>
+        </div>
+
+        {/* Customer Database Table */}
+        <div className="bg-white rounded-2xl border border-stone-200 p-6 mb-8">
+          <div className="flex items-center justify-between mb-6">
+            <div>
+              <h2 className="text-xl font-bold text-slate-800">Database Clienti</h2>
+              <p className="text-sm text-slate-500">Gestisci e analizza i tuoi clienti</p>
+            </div>
+            <div className="flex items-center gap-3">
+              <Button variant="outline" className="flex items-center gap-2">
+                <Download className="w-4 h-4" />
+                Esporta
+              </Button>
+              <Button variant="outline" className="flex items-center gap-2">
+                <Upload className="w-4 h-4" />
+                Importa
+              </Button>
+              <Button onClick={() => setShowAddDialog(true)} className="flex items-center gap-2">
+                <Plus className="w-4 h-4" />
+                Nuovo Cliente
+              </Button>
+            </div>
+          </div>
+
+          <div className="space-y-6">
+            <CustomerFilters filters={filters} onFiltersChange={handleFiltersChange} />
+            
+            <CustomerTable
+              customers={customers}
+              loading={loading}
+              onEdit={handleEditCustomer}
+              onDelete={handleDeleteCustomer}
+              onViewDetail={handleViewDetail}
+            />
           </div>
         </div>
 
@@ -227,6 +328,14 @@ const CustomerAnalysis = () => {
           </div>
         </div>
       </main>
+
+      {/* Add/Edit Customer Dialog */}
+      <AddCustomerDialog
+        open={showAddDialog}
+        onClose={handleCloseDialog}
+        onSubmit={editingCustomer ? handleUpdateCustomer : handleCreateCustomer}
+        customer={editingCustomer}
+      />
     </div>
   );
 };

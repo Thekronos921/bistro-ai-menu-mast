@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useCallback } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -17,7 +16,7 @@ import { useRestaurant } from '@/hooks/useRestaurant';
 import { useToast } from '@/hooks/use-toast';
 import { useRestaurantShifts, RestaurantShift } from '@/hooks/useRestaurantShifts';
 import { useShiftAvailability, ShiftAvailability } from '@/hooks/useShiftAvailability';
-import { getDay } from 'date-fns'; // Removed 'parse' and 'isValid' as they are not used in the new logic
+import { getDay } from 'date-fns';
 
 interface AddReservationDialogProps {
   onReservationAdded: () => void;
@@ -313,15 +312,13 @@ const AddReservationDialog: React.FC<AddReservationDialogProps> = ({ onReservati
                     selected={selectedDate}
                     onSelect={(date) => {
                         setSelectedDate(date);
-                        // Quando la data cambia, resetta il turno selezionato e l'orario
-                        // perché i turni disponibili potrebbero cambiare.
                         setSelectedShiftInternal(null);
                         setFormData(prev => ({...prev, time: ''}));
                         setCurrentShiftAvailability(null);
                         setAvailabilityError(null);
                     }}
                     initialFocus
-                    disabled={(date) => date < new Date(new Date().setHours(0,0,0,0))} // Disabilita date passate
+                    disabled={(date) => date < new Date(new Date().setHours(0,0,0,0))}
                   />
                 </PopoverContent>
               </Popover>
@@ -344,7 +341,7 @@ const AddReservationDialog: React.FC<AddReservationDialogProps> = ({ onReservati
                   ) : (
                     activeShiftsForSelectedDate().map(shift => (
                       <SelectItem key={shift.id} value={shift.id!}>
-                        {shift.name} ({shift.start_time} - {shift.end_time})
+                        {shift.shift_name} ({shift.start_time} - {shift.end_time})
                       </SelectItem>
                     ))
                   )}

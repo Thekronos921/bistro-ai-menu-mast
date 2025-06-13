@@ -1,11 +1,19 @@
+
 /**
  * Definizioni dei tipi per l'integrazione con CassaInCloud
  * @version 1.0.0
  */
-// Importiamo Receipt da cassa-in-cloud.models.ts
-// Il file cassa-in-cloud.models.ts si trova nella root del progetto.
-import { Receipt } from '../../../cassa-in-cloud.models';
-export type { Receipt as CassaInCloudReceipt };
+
+/**
+ * Receipt type for CassaInCloud integration
+ */
+export interface CassaInCloudReceipt {
+  id: string;
+  number: string;
+  date: string;
+  total: number;
+  // Add other receipt properties as needed
+}
 
 /**
  * Risposta dell'API per la richiesta di un token di accesso
@@ -81,6 +89,26 @@ export interface GetSoldByProductParams {
   idDepartments?: string[];
   idCategories?: string[];
   sorts?: any[]; // Definire meglio se necessario
+}
+
+/**
+ * Parametri per la funzione getReceipts
+ */
+export interface GetReceiptsParams {
+  start: number;
+  limit: number;
+  datetimeFrom?: string | number;
+  datetimeTo?: string | number;
+  idsSalesPoint?: string[];
+  sorts?: any[];
+}
+
+/**
+ * Risposta API per getReceipts
+ */
+export interface GetReceiptsApiResponse {
+  receipts: CassaInCloudReceipt[];
+  totalCount: number;
 }
 
 /**

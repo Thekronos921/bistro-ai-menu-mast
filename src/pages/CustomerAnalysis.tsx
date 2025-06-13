@@ -4,7 +4,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { useCustomers, Customer, CustomerFilters } from "@/hooks/useCustomers";
 import CustomerTable from "@/components/customers/CustomerTable";
-import CustomerFilters from "@/components/customers/CustomerFilters";
+import CustomerFiltersComponent from "@/components/customers/CustomerFilters";
 import AddCustomerDialog from "@/components/customers/AddCustomerDialog";
 
 const CustomerAnalysis = () => {
@@ -232,7 +232,7 @@ const CustomerAnalysis = () => {
           </div>
 
           <div className="space-y-6">
-            <CustomerFilters filters={filters} onFiltersChange={handleFiltersChange} />
+            <CustomerFiltersComponent filters={filters} onFiltersChange={handleFiltersChange} />
             
             <CustomerTable
               customers={customers}

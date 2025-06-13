@@ -24,7 +24,12 @@ import {
   GetCategoriesApiResponse,
   GetProductsApiResponse,
   GetStockApiResponse,
-  GetSalesPointsApiResponse
+  GetSalesPointsApiResponse,
+  GetCustomersParams, // Aggiunto
+  GetCustomersApiResponse, // Aggiunto
+  CassaInCloudCustomer, // Aggiunto
+  GetReceiptsParams, // Aggiunto per ricevute
+  GetReceiptsApiResponse, // Aggiunto per ricevute
 } from './cassaInCloudTypes';
 
 // Recuperiamo la chiave API e l'URL dell'API dalle variabili d'ambiente
@@ -387,10 +392,10 @@ export const getSoldByProductReport = async (params: GetSoldByProductParams, api
   // Non aggiungere virgolette extra nell'URL, poiché l'API gestisce già la formattazione
   reportUrl.searchParams.append('datetimeFrom', typeof params.datetimeFrom === 'number' 
     ? params.datetimeFrom.toString() 
-    : params.datetimeFrom);
+    : `"${params.datetimeFrom}"`);
   reportUrl.searchParams.append('datetimeTo', typeof params.datetimeTo === 'number' 
     ? params.datetimeTo.toString() 
-    : params.datetimeTo);
+    : `"${params.datetimeTo}"`);
 
   // TEMPORANEAMENTE COMMENTATI PER DEBUG
   /*
@@ -458,6 +463,98 @@ export const getSoldByProductReport = async (params: GetSoldByProductParams, api
 // Le interfacce per i report di vendita e lo stock sono ora importate da cassaInCloudTypes.ts
 
 // Le interfacce per i punti vendita sono ora importate da cassaInCloudTypes.ts
+
+/**
+ * Recupera i clienti da CassaInCloud.
+ * @param params Parametri per la richiesta API.
+ * @param apiKeyOverride API key opzionale per sovrascrivere quella di default.
+ * @returns Una Promise che risolve con la lista dei clienti.
+ */
+export async function getCustomers(
+  params: GetCustomersParams,
+  apiKeyOverride?: string
+): Promise<CassaInCloudCustomer[]> {
+  const accessToken = await getAccessToken(apiKeyOverride);
+  if (!accessToken) {
+    console.error('Cannot get customers without an access token.');
+    return [];
+  }
+
+  let allCustomers: CassaInCloudCustomer[] = [];
+  let start = params.start;
+  const limit = params.limit;
+  let totalCount = 0;
+  let fetchedCount = 0;
+
+  console.log('Starting to fetch all customers from Cassa In Cloud...');
+
+  try {
+    do {
+      const urlParams = new URLSearchParams();
+      urlParams.append('start', start.toString());
+      urlParams.append('limit', limit.toString());
+
+      // Aggiungi altri parametri opzionali dalla funzione
+      if (params.sorts) urlParams.append('sorts', JSON.stringify(params.sorts));
+      if (params.ids) urlParams.append('ids', JSON.stringify(params.ids));
+      if (params.vatNumber) urlParams.append('vatNumber', params.vatNumber);
+      if (params.fiscalCode) urlParams.append('fiscalCode', params.fiscalCode);
+      if (params.name) urlParams.append('name', params.name);
+      if (params.email) urlParams.append('email', params.email);
+      if (params.idsOrganization) urlParams.append('idsOrganization', JSON.stringify(params.idsOrganization));
+      if (params.lastUpdateFrom) urlParams.append('lastUpdateFrom', params.lastUpdateFrom.toString());
+      if (params.lastUpdateTo) urlParams.append('lastUpdateTo', params.lastUpdateTo.toString());
+
+      const customersUrl = `${apiUrl}/customers?${urlParams.toString()}`;
+      console.log(`Fetching customers from ${customersUrl}...`);
+
+      const response = await fetch(customersUrl, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          'Content-Type': 'application/json',
+          'X-Version': '1.0.0',
+        },
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error(`Error fetching customers at start=${start}: ${response.status} - ${response.statusText}. Response body:`, errorText);
+        break;
+      }
+
+      const responseData = await response.json() as GetCustomersApiResponse;
+
+      if (responseData && Array.isArray(responseData.customers)) {
+        allCustomers = allCustomers.concat(responseData.customers);
+        fetchedCount += responseData.customers.length;
+
+        if (start === params.start && responseData.totalCount !== undefined) {
+          totalCount = responseData.totalCount;
+          console.log(`Total customers available: ${totalCount}`);
+        }
+
+        console.log(`Fetched ${responseData.customers.length} customers in this batch. Total fetched so far: ${fetchedCount}`);
+
+        if (responseData.customers.length < limit || (totalCount > 0 && fetchedCount >= totalCount)) {
+          break;
+        }
+        start += limit;
+      } else {
+        console.error('Unexpected response structure or no customers array at start=', start, responseData);
+        break;
+      }
+    } while ((totalCount === 0 && fetchedCount > 0 && (fetchedCount % limit === 0)) || (totalCount > 0 && fetchedCount < totalCount));
+
+    console.log(`Finished fetching CassaInCloud customers. Total customers fetched: ${allCustomers.length}`);
+    return allCustomers;
+
+  } catch (error) {
+    console.error('Exception while fetching customers:', error);
+    return [];
+  }
+}
+
 
 /**
  * Recupera le informazioni di stock per un prodotto specifico in un dato punto vendita.
@@ -600,3 +697,264 @@ export const getSalesPoints = async (apiKeyOverride?: string): Promise<CassaInCl
 };
 
 // Le funzioni sono già esportate individualmente sopra
+
+/**
+ * Recupera l'elenco delle sale da Cassa In Cloud.
+ * @param params Parametri per la richiesta delle sale.
+ * @param apiKeyOverride Opzionale: una chiave API da usare per ottenere il token.
+ */
+export const getRooms = async (params: GetRoomsParams, apiKeyOverride?: string): Promise<GetRoomsApiResponse | null> => {
+  const accessToken = await getAccessToken(apiKeyOverride);
+  if (!accessToken) {
+    console.error('Cannot get rooms without an access token.');
+    return null;
+  }
+
+  const roomsUrl = new URL(`${apiUrl}/risto/rooms`);
+  roomsUrl.searchParams.append('start', params.start.toString());
+  roomsUrl.searchParams.append('limit', params.limit.toString());
+  // idsSalesPoint è obbligatorio per l'API delle sale
+  const salesPointIds = params.idsSalesPoint && params.idsSalesPoint.length > 0 
+    ? params.idsSalesPoint.map(id => Number(id))
+    : [1]; // Valore di default se non specificato
+  roomsUrl.searchParams.append('idsSalesPoint', JSON.stringify(salesPointIds));
+  if (params.sorts && params.sorts.length > 0) {
+    roomsUrl.searchParams.append('sorts', JSON.stringify(params.sorts));
+  }
+
+  console.log(`Fetching rooms from ${roomsUrl.toString()}...`);
+
+  try {
+    const response = await fetch(roomsUrl.toString(), {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${accessToken}`,
+        'Content-Type': 'application/json',
+        'X-Version': '1.0.0',
+      },
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error(`Error fetching rooms: ${response.status} - ${response.statusText}. Response body:`, errorText);
+      try {
+        const errorJson = JSON.parse(errorText);
+        console.error('Error details (JSON):', errorJson);
+      } catch (e) { /* Non era JSON */ }
+      return null;
+    }
+
+    const responseData = await response.json() as GetRoomsApiResponse;
+    console.log('Successfully fetched rooms:', responseData);
+    return responseData;
+
+  } catch (error) {
+    console.error('Exception while fetching rooms:', error);
+    return null;
+  }
+};
+
+/**
+ * Recupera l'elenco dei tavoli da Cassa In Cloud.
+ * @param params Parametri per la richiesta dei tavoli.
+ * @param apiKeyOverride Opzionale: una chiave API da usare per ottenere il token.
+ */
+export const getTables = async (params: GetTablesParams, apiKeyOverride?: string): Promise<GetTablesApiResponse | null> => {
+  const accessToken = await getAccessToken(apiKeyOverride);
+  if (!accessToken) {
+    console.error('Cannot get tables without an access token.');
+    return null;
+  }
+
+  const tablesUrl = new URL(`${apiUrl}/risto/tables`);
+  tablesUrl.searchParams.append('start', params.start.toString());
+  tablesUrl.searchParams.append('limit', params.limit.toString());
+  // idsSalesPoint è obbligatorio per l'API dei tavoli
+  const salesPointIds = params.idsSalesPoint && params.idsSalesPoint.length > 0 
+    ? params.idsSalesPoint.map(id => Number(id))
+    : [1]; // Valore di default se non specificato
+  tablesUrl.searchParams.append('idsSalesPoint', JSON.stringify(salesPointIds));
+  if (params.idsRoom && params.idsRoom.length > 0) {
+    tablesUrl.searchParams.append('idsRoom', JSON.stringify(params.idsRoom.map(id => Number(id))));
+  }
+  if (params.sorts && params.sorts.length > 0) {
+    tablesUrl.searchParams.append('sorts', JSON.stringify(params.sorts));
+  }
+
+  console.log(`Fetching tables from ${tablesUrl.toString()}...`);
+
+  try {
+    const response = await fetch(tablesUrl.toString(), {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${accessToken}`,
+        'Content-Type': 'application/json',
+        'X-Version': '1.0.0',
+      },
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error(`Error fetching tables: ${response.status} - ${response.statusText}. Response body:`, errorText);
+      try {
+        const errorJson = JSON.parse(errorText);
+        console.error('Error details (JSON):', errorJson);
+      } catch (e) { /* Non era JSON */ }
+      return null;
+    }
+
+    const responseData = await response.json() as GetTablesApiResponse;
+    console.log('Successfully fetched tables:', responseData);
+    return responseData;
+
+  } catch (error) {
+    console.error('Exception while fetching tables:', error);
+    return null;
+  }
+};
+
+/**
+ * Recupera l'elenco delle ricevute da Cassa In Cloud, gestendo la paginazione.
+ * @param params Parametri per la richiesta delle ricevute.
+ * @param apiKeyOverride Opzionale: una chiave API da usare per ottenere il token.
+ */
+export const getReceipts = async (params: GetReceiptsParams, apiKeyOverride?: string): Promise<GetReceiptsApiResponse | null> => {
+  const accessToken = await getAccessToken(apiKeyOverride);
+  if (!accessToken) {
+    console.error('Cannot get receipts without an access token.');
+    return null;
+  }
+
+  let allReceipts: any[] = []; // Utilizzeremo CassaInCloudReceipt[] ma l'API potrebbe restituire una struttura diversa
+  let start = params.start || 0;
+  const limit = params.limit || 50;
+  let totalCount = 0;
+  let fetchedCount = 0;
+
+  console.log('Starting to fetch receipts from Cassa In Cloud...');
+
+  try {
+    do {
+      const receiptsUrl = new URL(`${apiUrl}/documents/receipts`);
+      // Aggiungi parametri obbligatori
+      receiptsUrl.searchParams.append('start', start.toString());
+      receiptsUrl.searchParams.append('limit', limit.toString());
+      const dtFrom = new Date(params.datetimeFrom);
+      const dtTo = new Date(params.datetimeTo);
+      const formatDateString = (date: string | number) => {
+        if (typeof date === "string") {
+          if (date.startsWith('"') && date.endsWith('"')) return date;
+          return '"' + date.slice(0, 10) + '"';
+        }
+        const d = new Date(date);
+        return '"' + d.toISOString().slice(0, 10) + '"';
+      };
+      receiptsUrl.searchParams.append('datetimeFrom', formatDateString(params.datetimeFrom));
+      receiptsUrl.searchParams.append('datetimeTo', formatDateString(params.datetimeTo));
+      if (params.idsSalesPoint && params.idsSalesPoint.length > 0) {
+        receiptsUrl.searchParams.append('idsSalesPoint', JSON.stringify(params.idsSalesPoint.map(id => Number(id))));
+      }
+      if (params.idCustomers && params.idCustomers.length > 0) {
+        receiptsUrl.searchParams.append('idCustomers', JSON.stringify(params.idCustomers));
+      }
+      if (params.numbers && params.numbers.length > 0) {
+        receiptsUrl.searchParams.append('numbers', JSON.stringify(params.numbers));
+      }
+      if (params.idOrganizations && params.idOrganizations.length > 0) {
+        receiptsUrl.searchParams.append('idOrganizations', JSON.stringify(params.idOrganizations));
+      }
+      if (params.sorts && params.sorts.length > 0) {
+        receiptsUrl.searchParams.append('sorts', JSON.stringify(params.sorts));
+      }
+      if (params.calculatedAmount !== undefined) {
+        receiptsUrl.searchParams.append('calculatedAmount', params.calculatedAmount ? 'true' : 'false');
+      }
+      if (params.idDocumentNumbering && params.idDocumentNumbering.length > 0) {
+        receiptsUrl.searchParams.append('idDocumentNumbering', JSON.stringify(params.idDocumentNumbering.map(id => Number(id))));
+      }
+      if (params.numberFrom !== undefined) {
+        receiptsUrl.searchParams.append('numberFrom', params.numberFrom.toString());
+      }
+      if (params.numberTo !== undefined) {
+        receiptsUrl.searchParams.append('numberTo', params.numberTo.toString());
+      }
+      if (params.zNumber !== undefined) {
+        receiptsUrl.searchParams.append('zNumber', params.zNumber.toString());
+      }
+      if (params.idUserFO !== undefined) {
+        receiptsUrl.searchParams.append('idUserFO', params.idUserFO.toString());
+      }
+      if (params.idDevice !== undefined) {
+        receiptsUrl.searchParams.append('idDevice', params.idDevice.toString());
+      }
+      if (params.idCustomer) {
+        receiptsUrl.searchParams.append('idCustomer', params.idCustomer);
+      }
+      if (params.idFidelityCard) {
+        receiptsUrl.searchParams.append('idFidelityCard', params.idFidelityCard);
+      }
+      if (params.lotteryCode) {
+        receiptsUrl.searchParams.append('lotteryCode', params.lotteryCode);
+      }
+      if (params.sorts && params.sorts.length > 0) {
+        receiptsUrl.searchParams.append('sorts', JSON.stringify(params.sorts));
+      }
+
+      console.log(`Fetching receipts from ${receiptsUrl.toString()}...`);
+
+      const response = await fetch(receiptsUrl.toString(), {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          'Content-Type': 'application/json',
+          'X-Version': '1.0.0', // O la versione API appropriata
+        },
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error(`Error fetching receipts at start=${start}: ${response.status} - ${response.statusText}. Response body:`, errorText);
+        try {
+          const errorJson = JSON.parse(errorText);
+          console.error('Error details (JSON):', errorJson);
+        } catch (e) { /* Non era JSON */ }
+        return null; // Interrompi in caso di errore
+      }
+
+      const responseData = await response.json() as GetReceiptsApiResponse;
+
+      if (responseData && Array.isArray(responseData.receipts)) {
+        allReceipts = allReceipts.concat(responseData.receipts);
+        fetchedCount += responseData.receipts.length;
+
+        if (start === 0 && responseData.totalCount !== undefined) {
+          totalCount = responseData.totalCount;
+          console.log(`Total receipts available: ${totalCount}`);
+        }
+
+        console.log(`Fetched ${responseData.receipts.length} receipts in this batch. Total fetched so far: ${fetchedCount}`);
+
+        if (responseData.receipts.length < limit || (totalCount > 0 && fetchedCount >= totalCount)) {
+          break;
+        }
+        start += limit;
+      } else {
+        console.error('Unexpected response structure or no receipts array at start=', start, responseData);
+        break;
+      }
+    } while ((totalCount === 0 && fetchedCount > 0 && (fetchedCount % limit === 0)) || (totalCount > 0 && fetchedCount < totalCount));
+
+    console.log(`Finished fetching CassaInCloud receipts. Total receipts fetched: ${allReceipts.length}`);
+    return {
+      currency: allReceipts.length > 0 ? (allReceipts[0] as any).document?.currency || { code: 'EUR', name: 'Euro', numberOfDecimals: 2, id: 0 } : { code: 'EUR', name: 'Euro', numberOfDecimals: 2, id: 0 }, // Estrai la valuta se disponibile o usa un default
+      totalCount: totalCount || allReceipts.length,
+      receipts: allReceipts, // Qui dovrebbero essere CassaInCloudReceipt[]
+      start: params.start || 0,
+      limit: limit
+    };
+
+  } catch (error) {
+    console.error('Exception while fetching Cassa In Cloud receipts:', error);
+    return null;
+  }
+};

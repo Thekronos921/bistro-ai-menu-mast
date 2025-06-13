@@ -2,6 +2,10 @@
  * Definizioni dei tipi per l'integrazione con CassaInCloud
  * @version 1.0.0
  */
+// Importiamo Receipt da cassa-in-cloud.models.ts
+// Il file cassa-in-cloud.models.ts si trova nella root del progetto.
+import { Receipt } from '../../../cassa-in-cloud.models';
+export type { Receipt as CassaInCloudReceipt };
 
 /**
  * Risposta dell'API per la richiesta di un token di accesso
@@ -197,6 +201,52 @@ export interface CassaInCloudDepartment {
 }
 
 /**
+ * Rappresenta un cliente nel sistema CassaInCloud
+ */
+export interface CassaInCloudCustomer {
+  id: string;
+  name?: string;
+  firstName?: string;
+  lastName?: string;
+  vatNumber?: string;
+  fiscalCode?: string;
+  email?: string;
+  phoneNumber?: string;
+  address?: string;
+  zipCode?: string;
+  city?: string;
+  country?: string;
+  idOrganization?: string;
+  lastUpdate?: number; // Timestamp
+  // Aggiungere altri campi rilevanti dalla documentazione se necessario
+}
+
+/**
+ * Parametri per la funzione getCustomers
+ */
+export interface GetCustomersParams {
+  start: number;
+  limit: number;
+  sorts?: any[]; // Definire meglio Sort se necessario
+  ids?: string[];
+  vatNumber?: string;
+  fiscalCode?: string;
+  name?: string;
+  email?: string;
+  idsOrganization?: string[];
+  lastUpdateFrom?: number; // Timestamp
+  lastUpdateTo?: number; // Timestamp
+}
+
+/**
+ * Risposta API per getCustomers
+ */
+export interface GetCustomersApiResponse {
+  customers: CassaInCloudCustomer[];
+  totalCount: number;
+}
+
+/**
  * Prezzo CassaInCloud
  */
 export interface CassaInCloudPrice {
@@ -257,5 +307,79 @@ export interface GetStockApiResponse {
  */
 export interface GetSalesPointsApiResponse {
   salesPoint: CassaInCloudSalesPoint[];
+  totalCount: number;
+}
+
+/**
+ * Rappresenta una sala nel sistema CassaInCloud
+ */
+export interface CassaInCloudRoom {
+  id: string; // ID univoco della sala
+  name: string; // Nome della sala
+  idSalesPoint: number; // ID del punto vendita a cui appartiene la sala
+  externalId?: string; // Eventuale ID esterno
+  lastUpdate?: number; // Timestamp dell'ultimo aggiornamento
+  // Aggiungere altri campi rilevanti dalla documentazione se necessario
+}
+
+/**
+ * Parametri per la funzione getRooms
+ */
+export interface GetRoomsParams {
+  start: number;
+  limit: number;
+  idsSalesPoint: number[]; 
+  sorts?: any[]; // Definire meglio Sort se necessario
+  ids?: string[];
+  name?: string;
+  lastUpdateFrom?: number; // Timestamp
+  lastUpdateTo?: number; // Timestamp
+}
+
+/**
+ * Risposta API per getRooms
+ */
+export interface GetRoomsApiResponse {
+  rooms: CassaInCloudRoom[];
+  totalCount: number;
+}
+
+/**
+ * Rappresenta un tavolo nel sistema CassaInCloud
+ */
+export interface CassaInCloudTable {
+  id: string; // ID univoco del tavolo
+  name: string; // Nome del tavolo
+  idSalesPoint: number; // ID del punto vendita a cui appartiene il tavolo
+  idRoom: string; // ID della sala a cui appartiene il tavolo
+  room?: CassaInCloudRoom; // Oggetto Room associato (opzionale, dipende dalla risposta API)
+  externalId?: string; // Eventuale ID esterno
+  seats?: number; // Numero di posti (se disponibile)
+  seatsAvailable?: number; // Numero di posti disponibili (campo effettivo dall'API)
+  lastUpdate?: number; // Timestamp dell'ultimo aggiornamento
+  // Aggiungere altri campi rilevanti dalla documentazione se necessario
+}
+
+/**
+ * Parametri per la funzione getTables
+ */
+export interface GetTablesParams {
+  start: number;
+  limit: number;
+  idsSalesPoint: number[];
+  sorts?: any[]; // Definire meglio Sort se necessario
+  ids?: string[];
+  name?: string;
+  idsRoom?: string[];
+  externalId?: string[];
+  lastUpdateFrom?: number; // Timestamp
+  lastUpdateTo?: number; // Timestamp
+}
+
+/**
+ * Risposta API per getTables
+ */
+export interface GetTablesApiResponse {
+  tables: CassaInCloudTable[];
   totalCount: number;
 }

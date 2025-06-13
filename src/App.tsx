@@ -24,6 +24,7 @@ import EventCalendar from "./pages/EventCalendar";
 import StaffDashboard from "./pages/StaffDashboard";
 import LabelView from "./pages/LabelView";
 import Reservations from "./pages/Reservations";
+import ShiftManagementPage from "./components/shifts/ShiftManagementPage"; // Importa la nuova pagina
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -117,6 +118,13 @@ const App = () => (
               <ProtectedRoute>
                 <PostRegistrationSetup />
                 <Reservations />
+              </ProtectedRoute>
+            } />
+            {/* Nuova rotta per la gestione dei turni */}
+            <Route path="/gestione-turni" element={
+              <ProtectedRoute>
+                <PostRegistrationSetup />
+                <ShiftManagementPage />
               </ProtectedRoute>
             } />
             <Route path="*" element={<NotFound />} />

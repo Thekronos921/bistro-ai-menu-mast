@@ -14,7 +14,11 @@ import { getSalesPoints } from '@/integrations/cassaInCloud/cassaInCloudService'
 import { 
   importRestaurantCategoriesFromCassaInCloud,
   importRestaurantProductsFromCassaInCloud,
-  importSalesFromCassaInCloud // Aggiungiamo l'import della nuova funzione
+  importSalesFromCassaInCloud, // Aggiungiamo l'import della nuova funzione
+  importCustomersFromCassaInCloud, // Aggiunto per importazione clienti
+  importReceiptsFromCassaInCloud, // Aggiunto per importazione ricevute
+  importRoomsFromCassaInCloud, // Aggiunto per importazione sale
+  importTablesFromCassaInCloud // Aggiunto per importazione tavoli
 } from '@/integrations/cassaInCloud/cassaInCloudImportService';
 import { supabase } from '@/integrations/supabase/client';
 import { useRestaurant } from "@/hooks/useRestaurant";
@@ -70,6 +74,9 @@ const CassaInCloudIntegration = () => {
   const [salesPointId, setSalesPointId] = useState<string>(""); // Stato per il punto vendita
   const [dateFrom, setDateFrom] = useState<string>(""); // Stato per la data di inizio
   const [dateTo, setDateTo] = useState<string>(""); // Stato per la data di fine
+  const [receiptsDateFrom, setReceiptsDateFrom] = useState<string>("");
+  const [receiptsDateTo, setReceiptsDateTo] = useState<string>("");
+  const [manualSalesPointId, setManualSalesPointId] = useState<string>(""); // Stato per idsSalesPoint manuale per sale e tavoli
 
   const syncTypes = [
     { value: "categories", label: "Categorie" },
@@ -77,6 +84,8 @@ const CassaInCloudIntegration = () => {
     { value: "stock", label: "Giacenze" },
     { value: "customers", label: "Clienti" },
     { value: "sales", label: "Vendite" },
+    { value: "receipts", label: "Ricevute" }, // Aggiunta opzione Ricevute
+    { value: "rooms-tables", label: "Sale e Tavoli" }, // Aggiunta opzione Sale e Tavoli
     { value: "all", label: "Tutti i Dati" }
   ];
 
@@ -265,7 +274,7 @@ const CassaInCloudIntegration = () => {
       return (
         <div className="space-y-4 mt-4">
           <div className="space-y-2">
-            <Label>Punto Vendita</Label>
+            <Label>Punto Vendita (Opzionale)</Label>
             <Input 
               type="text" 
               placeholder="ID del punto vendita" 
@@ -290,6 +299,49 @@ const CassaInCloudIntegration = () => {
                 onChange={(e) => setDateTo(e.target.value)}
               />
             </div>
+          </div>
+        </div>
+      );
+    } else if (selectedSyncType === 'receipts') {
+      return (
+        <div className="space-y-4 mt-4">
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label>Data Inizio Ricevute</Label>
+              <Input 
+                type="date" 
+                value={receiptsDateFrom}
+                onChange={(e) => setReceiptsDateFrom(e.target.value)}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Data Fine Ricevute</Label>
+              <Input 
+                type="date" 
+                value={receiptsDateTo}
+                onChange={(e) => setReceiptsDateTo(e.target.value)}
+              />
+            </div>
+          </div>
+           <p className="text-xs text-muted-foreground">
+            L'importazione verrà suddivisa in blocchi di massimo 3 giorni alla volta a causa dei limiti API.
+          </p>
+        </div>
+      );
+    } else if (selectedSyncType === 'rooms-tables') {
+      return (
+        <div className="space-y-4 mt-4">
+          <div className="space-y-2">
+            <Label>ID Punto Vendita (Obbligatorio)</Label>
+            <Input 
+              type="text" 
+              placeholder="Inserisci l'ID del punto vendita" 
+              value={manualSalesPointId}
+              onChange={(e) => setManualSalesPointId(e.target.value)}
+            />
+            <p className="text-xs text-muted-foreground">
+              L'ID del punto vendita è obbligatorio per sincronizzare sale e tavoli. Se non specificato, verrà utilizzato il valore di default "1".
+            </p>
           </div>
         </div>
       );
@@ -385,6 +437,31 @@ const CassaInCloudIntegration = () => {
           setSyncStatus({ isLoading: false, error: 'Errore imprevisto durante la sincronizzazione dei prodotti.', lastSync: syncStatus.lastSync });
           console.error('Errore imprevisto in startSync per prodotti:', err);
         });
+    } else if (selectedSyncType === 'customers') {
+      if (!restaurantId) {
+        toast({ title: 'Errore', description: 'ID Ristorante non trovato.', variant: 'destructive' });
+        if (isMounted) setSyncStatus({ isLoading: false, error: 'ID Ristorante non trovato.' });
+        return;
+      }
+
+      importCustomersFromCassaInCloud(restaurantId, undefined, keyForSync)
+        .then(({ count, error, message }) => {
+          if (!isMounted) return;
+          if (error) {
+            toast({ title: 'Errore Sincronizzazione Clienti', description: error.message, variant: 'destructive' });
+            setSyncStatus({ isLoading: false, error: `Errore sincronizzazione clienti: ${error.message}`, lastSync: syncStatus.lastSync });
+          } else {
+            const successMessage = message || `${count} clienti importati/aggiornati.`;
+            toast({ title: 'Sincronizzazione Clienti Completata', description: successMessage });
+            setSyncStatus({ isLoading: false, lastSync: new Date(), recordsImported: count, error: undefined, message: successMessage });
+          }
+        })
+        .catch(err => {
+          if (!isMounted) return;
+          toast({ title: 'Errore Inatteso Clienti', description: 'Si è verificato un errore imprevisto durante la sincronizzazione dei clienti.', variant: 'destructive' });
+          setSyncStatus({ isLoading: false, error: 'Errore imprevisto durante la sincronizzazione dei clienti.', lastSync: syncStatus.lastSync });
+          console.error('Errore imprevisto in startSync per clienti:', err);
+        });
     } else if (selectedSyncType === 'sales') { // <-- NUOVA LOGICA PER VENDITE
       if (!restaurantId) {
         toast({ title: 'Errore', description: 'ID Ristorante non trovato.', variant: 'destructive' });
@@ -426,6 +503,136 @@ const CassaInCloudIntegration = () => {
           setSyncStatus({ isLoading: false, error: 'Errore imprevisto durante la sincronizzazione delle vendite.', lastSync: syncStatus.lastSync });
           console.error('Errore imprevisto in startSync per vendite:', err);
         });
+    } else if (selectedSyncType === 'receipts') {
+      if (!restaurantId) {
+        toast({ title: 'Errore', description: 'ID Ristorante non trovato.', variant: 'destructive' });
+        if (isMounted) setSyncStatus({ isLoading: false, error: 'ID Ristorante non trovato.' });
+        return;
+      }
+
+      if (!receiptsDateFrom || !receiptsDateTo) {
+        toast({ title: 'Errore', description: 'Seleziona un intervallo di date per la sincronizzazione delle ricevute.', variant: 'destructive' });
+        if (isMounted) setSyncStatus({ isLoading: false, error: 'Date non specificate per le ricevute.' });
+        return;
+      }
+
+      const startDate = new Date(receiptsDateFrom);
+      const endDate = new Date(receiptsDateTo);
+      let currentStartDate = new Date(startDate);
+      let totalImportedCount = 0;
+      let hasErrors = false;
+
+      const importNextChunk = async () => {
+        if (currentStartDate > endDate || hasErrors) {
+          if (isMounted) {
+            if (hasErrors) {
+              setSyncStatus({ isLoading: false, error: 'Errore durante importazione di un blocco di ricevute. Controllare i log.', lastSync: syncStatus.lastSync });
+            } else {
+              toast({ title: 'Sincronizzazione Ricevute Completata', description: `${totalImportedCount} ricevute importate in totale.` });
+              setSyncStatus({ isLoading: false, lastSync: new Date(), recordsImported: totalImportedCount, error: undefined });
+            }
+          }
+          return;
+        }
+
+        let currentEndDate = new Date(currentStartDate);
+        currentEndDate.setDate(currentEndDate.getDate() + 2); // Blocchi di 3 giorni (0, 1, 2)
+        if (currentEndDate > endDate) {
+          currentEndDate = new Date(endDate);
+        }
+
+        const params = {
+          datetimeFrom: currentStartDate.toISOString().split('T')[0] + 'T00:00:00',
+          datetimeTo: currentEndDate.toISOString().split('T')[0] + 'T23:59:59',
+          // Altri parametri come start, limit possono essere gestiti internamente da importReceiptsFromCassaInCloud se necessario
+        };
+
+        toast({ title: 'Importazione Ricevute', description: `Importazione blocco dal ${params.datetimeFrom.split('T')[0]} al ${params.datetimeTo.split('T')[0]}...` });
+
+        try {
+          const { count, error, message } = await importReceiptsFromCassaInCloud(restaurantId, params, keyForSync);
+          if (!isMounted) return;
+
+          if (error) {
+            toast({ title: 'Errore Sincronizzazione Blocco Ricevute', description: error.message, variant: 'destructive' });
+            console.error('Errore importazione blocco ricevute:', error, message);
+            hasErrors = true;
+            // Non continuiamo con altri blocchi se uno fallisce
+            if (isMounted) setSyncStatus({ isLoading: false, error: `Errore importazione blocco: ${error.message}`, lastSync: syncStatus.lastSync });
+            return; // Interrompi l'importazione a blocchi
+          }
+          
+          totalImportedCount += count;
+          const successMessage = message || `${count} ricevute importate in questo blocco.`;
+          console.log(successMessage); // Log per tracciare i blocchi
+
+          // Prepara per il prossimo blocco
+          currentStartDate.setDate(currentEndDate.getDate() + 1);
+          importNextChunk(); // Chiama ricorsivamente per il prossimo blocco
+
+        } catch (err: any) {
+          if (!isMounted) return;
+          toast({ title: 'Errore Inatteso Blocco Ricevute', description: 'Si è verificato un errore imprevisto durante la sincronizzazione di un blocco di ricevute.', variant: 'destructive' });
+          console.error('Errore imprevisto in importNextChunk per ricevute:', err);
+          hasErrors = true;
+          if (isMounted) setSyncStatus({ isLoading: false, error: `Errore imprevisto blocco: ${err.message || 'Errore sconosciuto'}`, lastSync: syncStatus.lastSync });
+        }
+      };
+
+      importNextChunk(); // Avvia l'importazione del primo blocco
+
+    } else if (selectedSyncType === 'rooms-tables') {
+      if (!restaurantId) {
+        toast({ title: 'Errore', description: 'ID Ristorante non trovato.', variant: 'destructive' });
+        if (isMounted) setSyncStatus({ isLoading: false, error: 'ID Ristorante non trovato.' });
+        return;
+      }
+
+      try {
+        // Prima importa le sale
+        const effectiveSalesPointId = manualSalesPointId || salesPointId;
+        const roomsParams = {
+          start: 0,
+          limit: 100,
+          idsSalesPoint: effectiveSalesPointId ? [parseInt(effectiveSalesPointId)] : []
+        };
+
+        const roomsResult = await importRoomsFromCassaInCloud(restaurantId, roomsParams, keyForSync);
+        if (!isMounted) return;
+
+        if (roomsResult.error) {
+          toast({ title: 'Errore Sincronizzazione Sale', description: roomsResult.error.message, variant: 'destructive' });
+          setSyncStatus({ isLoading: false, error: `Errore sincronizzazione sale: ${roomsResult.error.message}`, lastSync: syncStatus.lastSync });
+          return;
+        }
+
+        // Poi importa i tavoli
+        const tablesParams = {
+          start: 0,
+          limit: 100,
+          idsSalesPoint: effectiveSalesPointId ? [parseInt(effectiveSalesPointId)] : []
+        };
+
+        const tablesResult = await importTablesFromCassaInCloud(restaurantId, tablesParams, keyForSync);
+        if (!isMounted) return;
+
+        if (tablesResult.error) {
+          toast({ title: 'Errore Sincronizzazione Tavoli', description: tablesResult.error.message, variant: 'destructive' });
+          setSyncStatus({ isLoading: false, error: `Errore sincronizzazione tavoli: ${tablesResult.error.message}`, lastSync: syncStatus.lastSync });
+          return;
+        }
+
+        const totalCount = roomsResult.count + tablesResult.count;
+        const successMessage = `${roomsResult.count} sale e ${tablesResult.count} tavoli importati/aggiornati.`;
+        toast({ title: 'Sincronizzazione Sale e Tavoli Completata', description: successMessage });
+        setSyncStatus({ isLoading: false, lastSync: new Date(), recordsImported: totalCount, error: undefined, message: successMessage });
+
+      } catch (err: any) {
+        if (!isMounted) return;
+        toast({ title: 'Errore Inatteso Sale e Tavoli', description: 'Si è verificato un errore imprevisto durante la sincronizzazione di sale e tavoli.', variant: 'destructive' });
+        setSyncStatus({ isLoading: false, error: 'Errore imprevisto durante la sincronizzazione di sale e tavoli.', lastSync: syncStatus.lastSync });
+        console.error('Errore imprevisto in startSync per sale e tavoli:', err);
+      }
     } else {
       // Simula un ritardo per la sincronizzazione per altri tipi
       setTimeout(() => {

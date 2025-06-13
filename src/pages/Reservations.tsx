@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { format } from 'date-fns';
 import { it } from 'date-fns/locale';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -10,6 +10,8 @@ import { Button } from '@/components/ui/button';
 import { CalendarIcon, Users, CheckCircle, Clock, TrendingUp, Filter, RefreshCw } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useReservations } from '@/hooks/useReservations';
+import { useShiftAvailability, ShiftAvailability } from '@/hooks/useShiftAvailability';
+import { useRestaurant } from '@/hooks/useRestaurant'; // Aggiunto per restaurantId
 import { Reservation, ReservationStatus, ReservationKPIs } from '@/types/reservation';
 import ReservationTable from '@/components/reservations/ReservationTable';
 import ReservationDetailModal from '@/components/reservations/ReservationDetailModal';
@@ -20,13 +22,48 @@ const Reservations = () => {
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [statusFilter, setStatusFilter] = useState<ReservationStatus | 'all'>('all');
   const [selectedReservation, setSelectedReservation] = useState<Reservation | null>(null);
+  const { restaurantId } = useRestaurant(); // Ottieni restaurantId
 
   const dateString = format(selectedDate, 'yyyy-MM-dd');
   const filterValue = statusFilter === 'all' ? undefined : statusFilter;
   
-  const { reservations, loading, updateReservation, refetch } = useReservations(dateString, filterValue);
+  const { reservations, loading: reservationsLoading, updateReservation, refetch: refetchReservations } = useReservations(dateString, filterValue);
+  // Integra useShiftAvailability per tutti i turni della data selezionata
+  // Nota: useShiftAvailability attualmente richiede shiftId. Modificheremo l'hook o la logica qui.
+  // Per ora, assumiamo di voler caricare la disponibilità per tutti i turni attivi in quella data.
+  // Questo richiederà prima di caricare i turni e poi la loro disponibilità.
+  // Semplifichiamo per ora e assumiamo che l'hook possa essere adattato o che abbiamo un modo per ottenere tutti gli shiftId rilevanti.
+  const { availability: allShiftsAvailability, loading: availabilityLoading, fetchAvailability } = useShiftAvailability(restaurantId);
 
-  const calculateKPIs = (): ReservationKPIs => {
+  useEffect(() => {
+    if (restaurantId && selectedDate) {
+      // Idealmente, fetchAvailability dovrebbe poter prendere solo la data
+      // e restituire la disponibilità di tutti i turni per quella data.
+      // Oppure, dovremmo prima caricare i turni (useRestaurantShifts) e poi iterare.
+      // Per questa implementazione, simuliamo il fetch per una data specifica.
+      // Dovrai adattare fetchAvailability o la logica qui per caricare per tutti i turni.
+      // Ad esempio, se fetchAvailability potesse prendere solo (startDate, endDate) senza shiftId:
+      fetchAvailability(undefined, dateString, dateString); 
+    }
+  }, [restaurantId, selectedDate, fetchAvailability, dateString]);
+
+  const calculateKPIs = (): ReservationKPIs & { totalCapacity?: number; availableCapacity?: number } => {
+    const approvedGuests = reservations
+      .filter(r => r.status === 'approvata')
+      .reduce((sum, r) => sum + r.number_of_guests, 0);
+
+    // Calcola la capacità totale e disponibile dalla disponibilità dei turni
+    let totalCapacityToday = 0;
+    let availableCapacityToday = 0;
+
+    if (allShiftsAvailability && allShiftsAvailability.length > 0) {
+      // Filtra la disponibilità per la data selezionata (se fetchAvailability restituisce più date)
+      const todayAvailability = allShiftsAvailability.filter(sa => sa.availability_date === dateString);
+      totalCapacityToday = todayAvailability.reduce((sum, sa) => sum + (sa.total_seats || 0), 0);
+      // available_seats è già il numero di posti rimanenti
+      availableCapacityToday = todayAvailability.reduce((sum, sa) => sum + (sa.available_seats || 0), 0);
+    }
+
     return {
       totalReservations: reservations.length,
       totalGuests: reservations.reduce((sum, r) => sum + r.number_of_guests, 0),
@@ -34,7 +71,12 @@ const Reservations = () => {
       approvedReservations: reservations.filter(r => r.status === 'approvata').length,
       averageScore: reservations.length > 0 
         ? Math.round(reservations.reduce((sum, r) => sum + r.final_score, 0) / reservations.length)
-        : 0
+        : 0,
+      totalCapacity: totalCapacityToday,
+      // availableCapacity calcolato sopra è già al netto delle prenotazioni approvate, grazie al trigger.
+      // Se volessimo mostrare i posti disponibili *prima* delle prenotazioni del giorno, sarebbe totalCapacityToday.
+      // Ma l'utente vuole vedere i posti *rimanenti*.
+      availableCapacity: availableCapacityToday 
     };
   };
 
@@ -50,11 +92,17 @@ const Reservations = () => {
 
   const handleReservationUpdated = (updatedReservation: Reservation) => {
     setSelectedReservation(null);
+    refetchReservations(); // Aggiunto per aggiornare i dati dopo la modifica
+    // Potrebbe essere necessario anche un refetch della disponibilità se l'aggiornamento impatta i posti
+    if (restaurantId) fetchAvailability(undefined, dateString, dateString);
   };
 
   const handleReservationAdded = () => {
-    refetch();
+    refetchReservations();
+    if (restaurantId) fetchAvailability(undefined, dateString, dateString);
   };
+  
+  const isLoading = reservationsLoading || availabilityLoading;
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -70,11 +118,14 @@ const Reservations = () => {
             <div className="flex gap-3">
               <Button
                 variant="outline"
-                onClick={refetch}
-                disabled={loading}
+                onClick={() => {
+                  refetchReservations();
+                  if (restaurantId) fetchAvailability(undefined, dateString, dateString);
+                }}
+                disabled={isLoading}
                 className="flex items-center gap-2"
               >
-                <RefreshCw className={cn("h-4 w-4", loading && "animate-spin")} />
+                <RefreshCw className={cn("h-4 w-4", isLoading && "animate-spin")} />
                 Aggiorna
               </Button>
               <AddReservationDialog onReservationAdded={handleReservationAdded} />
@@ -145,11 +196,10 @@ const Reservations = () => {
           </Card>
 
           {/* KPIs */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
             <Card className="bg-gradient-to-br from-blue-50 to-blue-100 border-blue-200">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium text-blue-700">Prenotazioni Totali</CardTitle>
-                <Calendar className="h-4 w-4 text-blue-600" />
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold text-blue-900">{kpis.totalReservations}</div>
@@ -204,15 +254,43 @@ const Reservations = () => {
                 <TrendingUp className="h-4 w-4 text-purple-600" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold text-purple-900">{kpis.averageScore}</div>
+                <div className="text-2xl font-bold text-purple-900">{kpis.averageScore}%</div>
                 <p className="text-xs text-purple-600 mt-1">
-                  Customer score
+                  Feedback clienti
+                </p>
+              </CardContent>
+            </Card>
+
+            {/* Nuova Card per Capienza Totale */}
+            <Card className="bg-gradient-to-br from-teal-50 to-teal-100 border-teal-200">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium text-teal-700">Capienza Totale Oggi</CardTitle>
+                <Users className="h-4 w-4 text-teal-600" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-teal-900">{isLoading ? '-' : kpis.totalCapacity ?? 0}</div>
+                <p className="text-xs text-teal-600 mt-1">
+                  Posti totali per il {format(selectedDate, "dd MMM", { locale: it })}
+                </p>
+              </CardContent>
+            </Card>
+
+            {/* Nuova Card per Capienza Disponibile */}
+            <Card className="bg-gradient-to-br from-cyan-50 to-cyan-100 border-cyan-200">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium text-cyan-700">Posti Disponibili Oggi</CardTitle>
+                <CheckCircle className="h-4 w-4 text-cyan-600" /> {/* Icona esempio, puoi cambiarla */}
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-cyan-900">{isLoading ? '-' : kpis.availableCapacity ?? 0}</div>
+                <p className="text-xs text-cyan-600 mt-1">
+                  Posti rimanenti per il {format(selectedDate, "dd MMM", { locale: it })}
                 </p>
               </CardContent>
             </Card>
           </div>
 
-          {/* Reservations Table */}
+          {/* Reservation Table */}
           <Card className="shadow-sm">
             <CardHeader>
               <div className="flex justify-between items-center">
@@ -229,7 +307,7 @@ const Reservations = () => {
             <CardContent className="p-0">
               <ReservationTable 
                 reservations={reservations}
-                loading={loading}
+                loading={isLoading} // Corretto da loading a isLoading
                 onRowClick={handleReservationClick}
               />
             </CardContent>

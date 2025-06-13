@@ -20,7 +20,7 @@ const ReservationTable: React.FC<ReservationTableProps> = ({
   loading, 
   onRowClick 
 }) => {
-  const getStatusBadge = (status: ReservationStatus) => {
+  const getStatusBadge = (status: ReservationStatus | null | undefined) => {
     const statusConfig = {
       nuova: { label: 'Nuova', variant: 'default' as const },
       approvata: { label: 'Approvata', variant: 'default' as const },
@@ -31,11 +31,16 @@ const ReservationTable: React.FC<ReservationTableProps> = ({
       annullata_ristorante: { label: 'Annullata Ristorante', variant: 'outline' as const }
     };
 
+    // Handle null/undefined status
+    if (!status) {
+      return <Badge variant="outline">Sconosciuto</Badge>;
+    }
+
     const config = statusConfig[status];
 
+    // Handle unexpected status values
     if (!config) {
-      // Gestisce stati non previsti o null/undefined
-      return <Badge variant="outline">{status || 'Sconosciuto'}</Badge>;
+      return <Badge variant="outline">{status}</Badge>;
     }
 
     return (

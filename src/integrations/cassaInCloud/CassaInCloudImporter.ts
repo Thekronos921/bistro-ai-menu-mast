@@ -1,6 +1,7 @@
+
 import { supabase } from '@/integrations/supabase/client';
 import * as Types from './cassaInCloudTypes';
-import * as Service from './cassaInCloudService';
+import { getCategories } from './cassaInCloudService';
 import { mapCassaInCloudProductToInternalProduct } from './cassaInCloudDataMapper';
 
 export class CassaInCloudImporter {
@@ -28,9 +29,8 @@ export class CassaInCloudImporter {
         params.idsSalesPoint = salesPointIds;
       }
       
-      const categories = await Service.getCategories(params, this.apiKeyOverride);
-      
-      // Resto dell'implementazione...
+      const categoriesResponse = await getCategories(params, this.apiKeyOverride);
+      const categories = categoriesResponse.categories || [];
       
       return { count: categories.length };
     } catch (error) {
@@ -47,9 +47,6 @@ export class CassaInCloudImporter {
     filterParams?: Types.GetProductsParams
   ): Promise<{ count: number; error?: Error; message?: string; warnings?: string[] }> {
     // Implementazione simile a importCategories ma per i prodotti
-    // ...
-    
-    // Aggiungi un valore di ritorno temporaneo
-    return { count: 0 }; // Valore di ritorno minimo richiesto
+    return { count: 0 };
   }
 }

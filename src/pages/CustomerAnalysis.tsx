@@ -106,15 +106,18 @@ const CustomerAnalysis = () => {
   };
 
   const handleCreateCustomer = async (customerData: any) => {
+    console.log('Creating customer with data:', customerData);
     await createCustomer(customerData);
   };
 
   const handleEditCustomer = (customer: Customer) => {
+    console.log('Editing customer:', customer);
     setEditingCustomer(customer);
     setShowAddDialog(true);
   };
 
   const handleUpdateCustomer = async (customerData: any) => {
+    console.log('Updating customer with data:', customerData);
     if (editingCustomer) {
       await updateCustomer(editingCustomer.id, customerData);
       setEditingCustomer(null);

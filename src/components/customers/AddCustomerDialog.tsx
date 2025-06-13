@@ -56,25 +56,26 @@ const AddCustomerDialog: React.FC<AddCustomerDialogProps> = ({
   const form = useForm<CustomerFormData>({
     resolver: zodResolver(customerSchema),
     defaultValues: {
-      name: customer?.name || '',
-      first_name: customer?.first_name || '',
-      last_name: customer?.last_name || '',
-      email: customer?.email || '',
-      phone_number: customer?.phone_number || '',
-      address: customer?.address || '',
-      city: customer?.city || '',
-      country: customer?.country || '',
-      zip_code: customer?.zip_code || '',
-      fiscal_code: customer?.fiscal_code || '',
-      vat_number: customer?.vat_number || '',
-      preferred_dish_category: customer?.preferred_dish_category || '',
-      notes: customer?.notes || '',
-      tags: customer?.tags || [],
+      name: '',
+      first_name: '',
+      last_name: '',
+      email: '',
+      phone_number: '',
+      address: '',
+      city: '',
+      country: '',
+      zip_code: '',
+      fiscal_code: '',
+      vat_number: '',
+      preferred_dish_category: '',
+      notes: '',
+      tags: [],
     },
   });
 
   React.useEffect(() => {
     if (customer) {
+      console.log('Setting form values for customer:', customer);
       form.reset({
         name: customer.name || '',
         first_name: customer.first_name || '',
@@ -100,7 +101,7 @@ const AddCustomerDialog: React.FC<AddCustomerDialogProps> = ({
         phone_number: '',
         address: '',
         city: '',
-        country: '',
+        country: 'Italia',
         zip_code: '',
         fiscal_code: '',
         vat_number: '',
@@ -112,9 +113,12 @@ const AddCustomerDialog: React.FC<AddCustomerDialogProps> = ({
   }, [customer, form]);
 
   const handleSubmit = (data: CustomerFormData) => {
+    console.log('Form submitted with data:', data);
     onSubmit(data);
     onClose();
-    form.reset();
+    if (!customer) {
+      form.reset();
+    }
   };
 
   const addTag = () => {

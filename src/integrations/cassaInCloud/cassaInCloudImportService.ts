@@ -58,7 +58,8 @@ export async function importRestaurantCategoriesFromCassaInCloud(
       ...(cassaInCloudSalesPointIds ? { idsSalesPoint: cassaInCloudSalesPointIds } : {})
     };
 
-    const categoriesFromCassa: CassaInCloudCategory[] = await getCategories(params, apiKeyOverride);
+    const categoriesResponse = await getCategories(params, apiKeyOverride);
+    const categoriesFromCassa = categoriesResponse.categories || [];
 
     if (!categoriesFromCassa || categoriesFromCassa.length === 0) {
       console.log('Nessuna categoria trovata su CassaInCloud con i parametri forniti.');
@@ -70,25 +71,23 @@ export async function importRestaurantCategoriesFromCassaInCloud(
     // 2. Mappare i dati per Supabase
     const categoriesToUpsert = categoriesFromCassa.map((category) => ({
       restaurant_id: restaurantIdSupabase,
-      name: category.description, // Utilizziamo 'description' come 'name'
-      external_id: String(category.id), // Assicura che l'ID sia sempre una stringa
-      description: category.description, // Puoi decidere se usare la stessa descrizione o un altro campo
-      // Aggiungi altri campi se necessario, es. se CassaInCloudCategory avesse più dettagli
+      name: category.description,
+      external_id: String(category.id),
+      description: category.description,
     }));
 
     // 3. Eseguire l'upsert su Supabase
-    // Dato che external_id è globalmente univoco, lo usiamo come unico vincolo per onConflict.
     const { data, error } = await supabase
       .from('restaurant_categories')
       .upsert(categoriesToUpsert, {
-        onConflict: 'external_id', // Modificato per riflettere l'unicità globale di external_id
+        onConflict: 'external_id',
         ignoreDuplicates: false,
       })
-      .select(); // Aggiungiamo select() per avere i dati inseriti/aggiornati e il count
+      .select();
 
     if (error) {
       console.error("Errore durante l'upsert delle categorie su Supabase:", error);
-      throw error; // Rilancia l'errore per gestirlo nel chiamante
+      throw error;
     }
 
     const upsertedCount = data?.length || 0;
@@ -124,19 +123,14 @@ export async function importCustomersFromCassaInCloud(
       console.log(`Utilizzando parametri di filtro aggiuntivi:`, filterParams);
     }
 
-    // 1. Recuperare i clienti da CassaInCloud
-    // Assicurati che i parametri obbligatori 'start' e 'limit' siano forniti, 
-    // o impostali a valori di default se non presenti in filterParams.
     const effectiveFilterParams: GetCustomersParams = {
       start: filterParams?.start ?? 0,
       limit: filterParams?.limit ?? 50, 
       ...filterParams,
     };
 
-    const customersFromCassa: CassaInCloudCustomer[] = await getCustomers(
-      effectiveFilterParams,
-      apiKeyOverride
-    );
+    const customersResponse = await getCustomers(effectiveFilterParams, apiKeyOverride);
+    const customersFromCassa = customersResponse.customers || [];
 
     if (!customersFromCassa || customersFromCassa.length === 0) {
       const message = 'Nessun cliente trovato su CassaInCloud con i parametri forniti.';
@@ -146,10 +140,9 @@ export async function importCustomersFromCassaInCloud(
 
     console.log(`Recuperati ${customersFromCassa.length} clienti da CassaInCloud.`);
 
-    // 2. Mappare i dati per Supabase
     const customersToUpsert = customersFromCassa.map((customer) => ({
       restaurant_id: restaurantIdSupabase,
-      external_id: customer.id, // L'ID di CassaInCloud diventa external_id
+      external_id: customer.id,
       name: customer.name || `${customer.firstName || ''} ${customer.lastName || ''}`.trim(),
       first_name: customer.firstName || null,
       last_name: customer.lastName || null,
@@ -161,15 +154,12 @@ export async function importCustomersFromCassaInCloud(
       zip_code: customer.zipCode || null,
       city: customer.city || null,
       country: customer.country || null,
-      // Aggiungere altri campi mappati se la tabella 'customers' li supporta
-      // last_synced_at: new Date().toISOString(), // Potresti voler tracciare l'ultimo aggiornamento
     }));    
 
-    // 3. Eseguire l'upsert su Supabase
     const { data, error } = await supabase
       .from('customers')
       .upsert(customersToUpsert, {
-        onConflict: 'restaurant_id, external_id', // Conflitto su external_id per uno specifico ristorante
+        onConflict: 'restaurant_id, external_id',
         ignoreDuplicates: false,
       })
       .select();
@@ -209,18 +199,22 @@ export async function importRestaurantProductsFromCassaInCloud(
     }
 
     // 1. Recuperare i prodotti da CassaInCloud
-    // Passiamo idSalesPointForPricing a getProducts, che a sua volta lo passerà al mapper.
-    // filterParams viene passato per filtrare la chiamata API.
-    const internalProductsFromCassa: InternalProduct[] = await getProducts(idSalesPointForPricing, filterParams, apiKeyOverride); 
+    const productsResponse = await getProducts(idSalesPointForPricing, filterParams, apiKeyOverride);
+    const productsFromCassa = productsResponse.products || [];
 
-    if (!internalProductsFromCassa || internalProductsFromCassa.length === 0) {
-      console.log('Nessun prodotto trovato e mappato da CassaInCloud con i parametri forniti.');
-      return { count: 0, message: 'Nessun prodotto trovato e mappato da CassaInCloud.' };
+    if (!productsFromCassa || productsFromCassa.length === 0) {
+      console.log('Nessun prodotto trovato da CassaInCloud con i parametri forniti.');
+      return { count: 0, message: 'Nessun prodotto trovato da CassaInCloud.' };
     }
 
-    console.log(`Recuperati e mappati ${internalProductsFromCassa.length} prodotti da CassaInCloud.`);
+    console.log(`Recuperati ${productsFromCassa.length} prodotti da CassaInCloud.`);
 
-    // 2. Preparare i dati per Supabase dalla lista di InternalProduct
+    // 2. Mappare i prodotti usando il data mapper
+    const internalProductsFromCassa: InternalProduct[] = productsFromCassa.map(product => 
+      mapCassaInCloudProductToInternalProduct(product, idSalesPointForPricing)
+    );
+
+    // 3. Preparare i dati per Supabase dalla lista di InternalProduct
     // e arricchire con restaurant_category_id
     const productsToUpsert = await Promise.all(internalProductsFromCassa.map(async (internalProduct) => {
       let restaurantCategoryId: string | null = null;
@@ -270,7 +264,7 @@ export async function importRestaurantProductsFromCassaInCloud(
       };
     }));
 
-    // 3. Eseguire l'upsert su Supabase
+    // 4. Eseguire l'upsert su Supabase
     const { data: upsertedData, error: upsertError } = await supabase
       .from('dishes')
       .upsert(productsToUpsert, {
@@ -287,7 +281,7 @@ export async function importRestaurantProductsFromCassaInCloud(
     const upsertedCount = upsertedData?.length || 0;
     console.log(`Completata importazione: ${upsertedCount} prodotti processati per il ristorante ${restaurantIdSupabase}.`);
 
-    // 4. Gestire i prodotti non più esistenti in CassaInCloud (marcare come "to be verified")
+    // 5. Gestire i prodotti non più esistenti in CassaInCloud (marcare come "to be verified")
     if (upsertedData && upsertedData.length > 0) {
       const cicProductExternalIds = new Set(internalProductsFromCassa.map(p => p.cassaInCloudId)); // Usa cassaInCloudId da InternalProduct
       
@@ -347,7 +341,6 @@ export async function importRestaurantProductsFromCassaInCloud(
     }; 
   }
 }
-
 
 /**
  * Importa i dati delle vendite da CassaInCloud
@@ -414,9 +407,9 @@ export async function importSalesFromCassaInCloud(
         // Associa questo dettaglio al record sales_data principale se necessario, ad es. tramite un ID restituito dall'insert precedente o report_date + period
         report_date: salesRecord.report_date, // Usiamo la stessa report_date del record aggregato
         product_id: item.idProduct,
-        product_name: item.product?.description || 'Prodotto sconosciuto', // Changed from name to description
+        product_name: item.product?.description || 'Prodotto sconosciuto',
         id_menu_product: item.idMenuProduct, // Aggiunto dalla documentazione
-        menu_product_name: item.menuProduct?.description || undefined, // Changed from name to description
+        menu_product_name: item.menuProduct?.description, // Aggiunto dalla documentazione
         quantity: item.quantity,
         profit: item.profit,
         percent_total: item.percentTotal,
@@ -473,7 +466,7 @@ export async function importReceiptsFromCassaInCloud(
   params: GetReceiptsParams,
   apiKeyOverride?: string
 ): Promise<{ count: number; error?: Error; message?: string; warnings?: string[] }> {
-  const warnings: string[] = []; // Array per collezionare avvisi
+  const warnings: string[] = [];
   try {
     console.log(
       `Inizio importazione ricevute da CassaInCloud per ristorante Supabase: ${restaurantIdSupabase}`
@@ -636,13 +629,13 @@ export async function importRoomsFromCassaInCloud(
     );
 
     const roomsResponse = await getRooms(params, apiKeyOverride);
+    const roomsFromCassa = roomsResponse.rooms || [];
 
-    if (!roomsResponse || !roomsResponse.rooms || roomsResponse.rooms.length === 0) {
+    if (!roomsFromCassa || roomsFromCassa.length === 0) {
       console.log('Nessuna sala trovata su CassaInCloud con i parametri forniti.');
       return { count: 0, message: 'Nessuna sala trovata.', warnings };
     }
 
-    const roomsFromCassa = roomsResponse.rooms as CassaInCloudRoom[];
     console.log(`Recuperate ${roomsFromCassa.length} sale da CassaInCloud.`);
 
     const roomsToUpsert = roomsFromCassa.map((room) => ({
@@ -650,7 +643,7 @@ export async function importRoomsFromCassaInCloud(
       external_id: room.id,
       name: room.name,
       description: room.name,
-      id_sales_point: room.idSalesPoint, // Assicurati che la colonna esista in Supabase
+      id_sales_point: room.id_sales_point,
       raw_data: room,
       last_synced_at: new Date().toISOString(),
     }));
@@ -698,17 +691,17 @@ export async function importTablesFromCassaInCloud(
     );
 
     const tablesResponse = await getTables(params, apiKeyOverride);
+    const tablesFromCassa = tablesResponse.tables || [];
 
-    if (!tablesResponse || !tablesResponse.tables || tablesResponse.tables.length === 0) {
+    if (!tablesFromCassa || tablesFromCassa.length === 0) {
       console.log('Nessun tavolo trovato su CassaInCloud con i parametri forniti.');
       return { count: 0, message: 'Nessun tavolo trovato.', warnings };
     }
 
-    const tablesFromCassa = tablesResponse.tables as CassaInCloudTable[];
     console.log(`Recuperati ${tablesFromCassa.length} tavoli da CassaInCloud.`);
 
     // Recupera gli ID interni delle sale per il mapping
-    const roomExternalIds = tablesFromCassa.map(table => table.idRoom).filter(id => id !== undefined);
+    const roomExternalIds = tablesFromCassa.map(table => table.external_room_id).filter(id => id !== undefined);
     let roomMap: { [externalId: string]: string } = {};
     if (roomExternalIds.length > 0) {
       const { data: roomsData, error: roomsError } = await supabase
@@ -728,19 +721,19 @@ export async function importTablesFromCassaInCloud(
     }
 
     const tablesToUpsert = tablesFromCassa.map((table) => {
-      const internalRoomId = table.idRoom ? roomMap[table.idRoom] : null;
-      if (table.idRoom && !internalRoomId) {
-        warnings.push(`Tavolo '${table.name}' (ExtID: ${table.id}) fa riferimento a una sala esterna (ExtRoomID: ${table.idRoom}) non trovata o non mappata nel DB.`);
+      const internalRoomId = table.external_room_id ? roomMap[table.external_room_id] : null;
+      if (table.external_room_id && !internalRoomId) {
+        warnings.push(`Tavolo '${table.name}' (ExtID: ${table.id}) fa riferimento a una sala esterna (ExtRoomID: ${table.external_room_id}) non trovata o non mappata nel DB.`);
       }
       return {
         restaurant_id: restaurantIdSupabase,
         external_id: table.id,
         name: table.name,
         description: table.name,
-        seats: table.seatsAvailable || table.seats,
-        id_sales_point: table.idSalesPoint,
+        seats: table.seats,
+        id_sales_point: table.id_sales_point,
         room_id: internalRoomId,
-        external_room_id: table.idRoom,
+        external_room_id: table.external_room_id,
         raw_data: table,
         last_synced_at: new Date().toISOString(),
       };
@@ -767,5 +760,33 @@ export async function importTablesFromCassaInCloud(
     console.error("Errore imprevisto durante l'importazione dei tavoli:", error);
     warnings.push(`Errore generale: ${error instanceof Error ? error.message : String(error)}`);
     return { count: 0, error: error instanceof Error ? error : new Error(String(error)), warnings };
+  }
+}
+
+export class CassaInCloudImportService {
+  constructor() {
+    // Constructor logic
+  }
+
+  private mapProductToLocalDish(product: CassaInCloudProduct, categoryId?: string): any {
+    return {
+      name: product.description || 'Prodotto senza nome',
+      external_id: product.id,
+      selling_price: product.prices?.[0]?.value || 0,
+      restaurant_category_id: categoryId || null,
+      restaurant_category_name: product.description || 'Categoria non specificata',
+      external_category_id: product.department?.id,
+      is_visible_on_pos: product.enableForSale !== false,
+      is_visible_on_ecommerce: product.enableForECommerce !== false,
+      is_enabled_for_restaurant: product.enableForRisto !== false,
+      cic_department_id: product.department?.id,
+      cic_department_name: product.department?.description,
+      cic_notes: product.descriptionLabel,
+      cic_has_variants: product.multivariant,
+      cic_variants_count: product.variants?.length || 0,
+      availability_status: product.enableForSale ? 'available' : 'unavailable',
+      last_synced_at: new Date().toISOString(),
+      sync_status: 'synced'
+    };
   }
 }

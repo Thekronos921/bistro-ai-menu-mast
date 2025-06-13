@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useRef } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -21,12 +22,11 @@ import {
 } from '@/integrations/cassaInCloud/cassaInCloudImportService';
 import { supabase } from '@/integrations/supabase/client';
 import { useRestaurant } from "@/hooks/useRestaurant";
-import { getSalesPoints as fetchSalesPoints } from "@/integrations/cassaInCloud/cassaInCloudService";
 
 const useCassaInCloudApi = () => {
   return {
     getSalesPoints: async (apiKeyOverride?: string) => {
-      return fetchSalesPoints(apiKeyOverride);
+      return getSalesPoints(apiKeyOverride);
     },
   };
 };
@@ -477,8 +477,8 @@ const CassaInCloudIntegration = () => {
       
       // Preparazione dei parametri per la richiesta del report vendite
       const params = {
-        start: 0, // Add required start parameter
-        limit: 1000, // Add required limit parameter  
+        start: 0,
+        limit: 100, // Limite ragionevole per il numero di prodotti venduti da recuperare
         datetimeFrom: dateFrom,
         datetimeTo: dateTo,
         idsSalesPoint: salesPointId ? [salesPointId] : undefined
@@ -541,9 +541,10 @@ const CassaInCloudIntegration = () => {
         }
 
         const params = {
+          start: 0,
+          limit: 1000,
           datetimeFrom: currentStartDate.toISOString().split('T')[0] + 'T00:00:00',
           datetimeTo: currentEndDate.toISOString().split('T')[0] + 'T23:59:59',
-          // Altri parametri come start, limit possono essere gestiti internamente da importReceiptsFromCassaInCloud se necessario
         };
 
         toast({ title: 'Importazione Ricevute', description: `Importazione blocco dal ${params.datetimeFrom.split('T')[0]} al ${params.datetimeTo.split('T')[0]}...` });
@@ -593,7 +594,6 @@ const CassaInCloudIntegration = () => {
         const roomsParams = {
           start: 0,
           limit: 100,
-          idsSalesPoint: effectiveSalesPointId ? [parseInt(effectiveSalesPointId)] : []
         };
 
         const roomsResult = await importRoomsFromCassaInCloud(restaurantId, roomsParams, keyForSync);
@@ -609,7 +609,6 @@ const CassaInCloudIntegration = () => {
         const tablesParams = {
           start: 0,
           limit: 100,
-          idsSalesPoint: effectiveSalesPointId ? [parseInt(effectiveSalesPointId)] : []
         };
 
         const tablesResult = await importTablesFromCassaInCloud(restaurantId, tablesParams, keyForSync);

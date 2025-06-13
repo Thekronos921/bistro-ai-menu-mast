@@ -125,14 +125,39 @@ export const useCustomers = () => {
   const createCustomer = async (customerData: Partial<Customer>) => {
     if (!restaurantId) return null;
 
+    console.log('Creating customer with data:', customerData);
+
     try {
+      // Generate unique external_id if not provided
+      const external_id = customerData.external_id || `customer_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+      
+      const dataToInsert = {
+        ...customerData,
+        restaurant_id: restaurantId,
+        external_id,
+        total_visits: customerData.total_visits || 0,
+        total_lifetime_spend: customerData.total_lifetime_spend || 0,
+        average_spend_per_visit: customerData.average_spend_per_visit || 0,
+        visit_frequency: customerData.visit_frequency || 0,
+        loyalty_points: customerData.loyalty_points || 0,
+        tags: customerData.tags || [],
+        last_ordered_items: customerData.last_ordered_items || [],
+        is_premium_buyer: customerData.is_premium_buyer || false,
+        score: customerData.score || 0,
+      };
+
       const { data, error } = await supabase
         .from('customers')
-        .insert([{ ...customerData, restaurant_id: restaurantId }])
+        .insert([dataToInsert])
         .select()
         .single();
 
-      if (error) throw error;
+      if (error) {
+        console.error('Supabase error creating customer:', error);
+        throw error;
+      }
+
+      console.log('Customer created successfully:', data);
 
       toast({
         title: 'Successo',
@@ -154,15 +179,25 @@ export const useCustomers = () => {
   };
 
   const updateCustomer = async (id: string, customerData: Partial<Customer>) => {
+    console.log('Updating customer:', id, 'with data:', customerData);
+    
     try {
+      // Remove fields that shouldn't be updated
+      const { created_at, updated_at, restaurant_id, id: customerId, external_id, ...updateData } = customerData;
+      
       const { data, error } = await supabase
         .from('customers')
-        .update(customerData)
+        .update(updateData)
         .eq('id', id)
         .select()
         .single();
 
-      if (error) throw error;
+      if (error) {
+        console.error('Supabase error updating customer:', error);
+        throw error;
+      }
+
+      console.log('Customer updated successfully:', data);
 
       toast({
         title: 'Successo',

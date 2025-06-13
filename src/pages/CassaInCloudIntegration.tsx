@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useRef } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -650,6 +649,45 @@ const CassaInCloudIntegration = () => {
       return <Badge variant="destructive"><XCircle className="w-3 h-3 mr-1" />Errore</Badge>;
     }
     return <Badge variant="secondary"><AlertCircle className="w-3 h-3 mr-1" />Non Connesso</Badge>;
+  };
+
+  const handleImportReceipts = async () => {
+    if (!dateRange.from || !dateRange.to) {
+      toast({
+        title: "Errore",
+        description: "Seleziona un periodo valido per l'importazione",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsImporting(true);
+    try {
+      const datetimeFrom = dateRange.from.toISOString();
+      const datetimeTo = dateRange.to.toISOString();
+      
+      // Include required start and limit parameters
+      await cassaInCloudImporter.importReceipts({
+        datetimeFrom,
+        datetimeTo,
+        start: 0,
+        limit: 1000
+      });
+      
+      toast({
+        title: "Successo",
+        description: "Importazione scontrini completata",
+      });
+    } catch (error) {
+      console.error('Error importing receipts:', error);
+      toast({
+        title: "Errore",
+        description: "Errore durante l'importazione degli scontrini",
+        variant: "destructive",
+      });
+    } finally {
+      setIsImporting(false);
+    }
   };
 
   return (

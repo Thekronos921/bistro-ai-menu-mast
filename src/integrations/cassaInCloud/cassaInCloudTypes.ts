@@ -147,9 +147,13 @@ export interface GetReceiptsParams {
  * Risposta API per getReceipts
  */
 export interface GetReceiptsApiResponse {
-  receipts: CassaInCloudReceipt[];
-  totalCount: number;
-  currency?: CassaInCloudCurrency;
+  data: CassaInCloudReceipt[];
+  start: number;
+  pagination?: {
+    total: number;
+    start: number;
+    limit: number;
+  };
 }
 
 /**
@@ -385,32 +389,29 @@ export interface GetSalesPointsApiResponse {
 export interface CassaInCloudRoom {
   id: string; // ID univoco della sala
   name: string; // Nome della sala
-  idSalesPoint: number; // ID del punto vendita a cui appartiene la sala
-  externalId?: string; // Eventuale ID esterno
-  lastUpdate?: number; // Timestamp dell'ultimo aggiornamento
-  // Aggiungere altri campi rilevanti dalla documentazione se necessario
+  description?: string;
+  external_id: string;
+  id_sales_point: string;
 }
 
 /**
  * Parametri per la funzione getRooms
  */
 export interface GetRoomsParams {
-  start: number;
-  limit: number;
-  idsSalesPoint: number[]; 
-  sorts?: any[]; // Definire meglio Sort se necessario
-  ids?: string[];
-  name?: string;
-  lastUpdateFrom?: number; // Timestamp
-  lastUpdateTo?: number; // Timestamp
+  start?: number;
+  limit?: number;
 }
 
 /**
  * Risposta API per getRooms
  */
 export interface GetRoomsApiResponse {
-  rooms: CassaInCloudRoom[];
-  totalCount: number;
+  data: CassaInCloudRoom[];
+  pagination?: {
+    total: number;
+    start: number;
+    limit: number;
+  };
 }
 
 /**
@@ -419,36 +420,30 @@ export interface GetRoomsApiResponse {
 export interface CassaInCloudTable {
   id: string; // ID univoco del tavolo
   name: string; // Nome del tavolo
-  idSalesPoint: number; // ID del punto vendita a cui appartiene il tavolo
-  idRoom: string; // ID della sala a cui appartiene il tavolo
-  room?: CassaInCloudRoom; // Oggetto Room associato (opzionale, dipende dalla risposta API)
-  externalId?: string; // Eventuale ID esterno
-  seats?: number; // Numero di posti (se disponibile)
-  seatsAvailable?: number; // Numero di posti disponibili (campo effettivo dall'API)
-  lastUpdate?: number; // Timestamp dell'ultimo aggiornamento
-  // Aggiungere altri campi rilevanti dalla documentazione se necessario
+  description?: string;
+  external_id: string;
+  external_room_id?: string;
+  seats?: number;
+  id_sales_point: string;
 }
 
 /**
  * Parametri per la funzione getTables
  */
 export interface GetTablesParams {
-  start: number;
-  limit: number;
-  idsSalesPoint: number[];
-  sorts?: any[]; // Definire meglio Sort se necessario
-  ids?: string[];
-  name?: string;
-  idsRoom?: string[];
-  externalId?: string[];
-  lastUpdateFrom?: number; // Timestamp
-  lastUpdateTo?: number; // Timestamp
+  start?: number;
+  limit?: number;
+  roomId?: string;
 }
 
 /**
  * Risposta API per getTables
  */
 export interface GetTablesApiResponse {
-  tables: CassaInCloudTable[];
-  totalCount: number;
+  data: CassaInCloudTable[];
+  pagination?: {
+    total: number;
+    start: number;
+    limit: number;
+  };
 }

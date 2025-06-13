@@ -769,3 +769,33 @@ export async function importTablesFromCassaInCloud(
     return { count: 0, error: error instanceof Error ? error : new Error(String(error)), warnings };
   }
 }
+
+export class CassaInCloudImportService {
+  constructor() {
+    // Constructor logic
+  }
+
+  private mapProductToLocalDish(product: CassaInCloudProduct, categoryId?: string): any {
+    return {
+      name: product.description || 'Prodotto senza nome', // Use description instead of name
+      external_id: product.id,
+      selling_price: product.price || 0,
+      restaurant_category_id: categoryId || null,
+      restaurant_category_name: product.description || 'Categoria non specificata', // Use description instead of name
+      external_category_id: product.department_id,
+      is_visible_on_pos: product.is_active !== false,
+      is_visible_on_ecommerce: product.is_active !== false,
+      is_enabled_for_restaurant: product.is_active !== false,
+      cic_department_id: product.department_id,
+      cic_department_name: product.department_name,
+      cic_price_includes_vat: product.price_includes_vat,
+      cic_vat_percentage: product.vat_percentage,
+      cic_notes: product.notes,
+      cic_has_variants: product.has_variants,
+      cic_variants_count: product.variants_count,
+      availability_status: product.is_active ? 'available' : 'unavailable',
+      last_synced_at: new Date().toISOString(),
+      sync_status: 'synced'
+    };
+  }
+}

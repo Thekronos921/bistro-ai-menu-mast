@@ -183,12 +183,12 @@ export const useCustomers = () => {
     
     try {
       // Remove fields that shouldn't be updated
-      const { created_at, updated_at, restaurant_id, customer_uuid, external_id, ...updateData } = customerData;
+      const { created_at, updated_at, restaurant_id, id: customerId, external_id, ...updateData } = customerData;
       
       const { data, error } = await supabase
         .from('customers')
         .update(updateData)
-        .eq('customer_uuid', id)
+        .eq('id', id)
         .select()
         .single();
 
@@ -223,7 +223,7 @@ export const useCustomers = () => {
       const { error } = await supabase
         .from('customers')
         .delete()
-        .eq('customer_uuid', id);
+        .eq('id', id);
 
       if (error) throw error;
 

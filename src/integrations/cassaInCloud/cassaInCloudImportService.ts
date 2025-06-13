@@ -199,18 +199,22 @@ export async function importRestaurantProductsFromCassaInCloud(
     }
 
     // 1. Recuperare i prodotti da CassaInCloud
-    // Passiamo idSalesPointForPricing a getProducts, che a sua volta lo passerà al mapper.
-    // filterParams viene passato per filtrare la chiamata API.
-    const internalProductsFromCassa: InternalProduct[] = await getProducts(idSalesPointForPricing, filterParams, apiKeyOverride); 
+    const productsResponse = await getProducts(idSalesPointForPricing, filterParams, apiKeyOverride);
+    const productsFromCassa = productsResponse.products || [];
 
-    if (!internalProductsFromCassa || internalProductsFromCassa.length === 0) {
-      console.log('Nessun prodotto trovato e mappato da CassaInCloud con i parametri forniti.');
-      return { count: 0, message: 'Nessun prodotto trovato e mappato da CassaInCloud.' };
+    if (!productsFromCassa || productsFromCassa.length === 0) {
+      console.log('Nessun prodotto trovato da CassaInCloud con i parametri forniti.');
+      return { count: 0, message: 'Nessun prodotto trovato da CassaInCloud.' };
     }
 
-    console.log(`Recuperati e mappati ${internalProductsFromCassa.length} prodotti da CassaInCloud.`);
+    console.log(`Recuperati ${productsFromCassa.length} prodotti da CassaInCloud.`);
 
-    // 2. Preparare i dati per Supabase dalla lista di InternalProduct
+    // 2. Mappare i prodotti usando il data mapper
+    const internalProductsFromCassa: InternalProduct[] = productsFromCassa.map(product => 
+      mapCassaInCloudProductToInternalProduct(product, idSalesPointForPricing)
+    );
+
+    // 3. Preparare i dati per Supabase dalla lista di InternalProduct
     // e arricchire con restaurant_category_id
     const productsToUpsert = await Promise.all(internalProductsFromCassa.map(async (internalProduct) => {
       let restaurantCategoryId: string | null = null;
@@ -260,7 +264,7 @@ export async function importRestaurantProductsFromCassaInCloud(
       };
     }));
 
-    // 3. Eseguire l'upsert su Supabase
+    // 4. Eseguire l'upsert su Supabase
     const { data: upsertedData, error: upsertError } = await supabase
       .from('dishes')
       .upsert(productsToUpsert, {
@@ -277,7 +281,7 @@ export async function importRestaurantProductsFromCassaInCloud(
     const upsertedCount = upsertedData?.length || 0;
     console.log(`Completata importazione: ${upsertedCount} prodotti processati per il ristorante ${restaurantIdSupabase}.`);
 
-    // 4. Gestire i prodotti non più esistenti in CassaInCloud (marcare come "to be verified")
+    // 5. Gestire i prodotti non più esistenti in CassaInCloud (marcare come "to be verified")
     if (upsertedData && upsertedData.length > 0) {
       const cicProductExternalIds = new Set(internalProductsFromCassa.map(p => p.cassaInCloudId)); // Usa cassaInCloudId da InternalProduct
       
@@ -337,7 +341,6 @@ export async function importRestaurantProductsFromCassaInCloud(
     }; 
   }
 }
-
 
 /**
  * Importa i dati delle vendite da CassaInCloud
@@ -404,9 +407,9 @@ export async function importSalesFromCassaInCloud(
         // Associa questo dettaglio al record sales_data principale se necessario, ad es. tramite un ID restituito dall'insert precedente o report_date + period
         report_date: salesRecord.report_date, // Usiamo la stessa report_date del record aggregato
         product_id: item.idProduct,
-        product_name: item.product?.description || item.product?.name || 'Prodotto sconosciuto',
+        product_name: item.product?.description || 'Prodotto sconosciuto',
         id_menu_product: item.idMenuProduct, // Aggiunto dalla documentazione
-        menu_product_name: item.menuProduct?.description || item.menuProduct?.name, // Aggiunto dalla documentazione
+        menu_product_name: item.menuProduct?.description, // Aggiunto dalla documentazione
         quantity: item.quantity,
         profit: item.profit,
         percent_total: item.percentTotal,

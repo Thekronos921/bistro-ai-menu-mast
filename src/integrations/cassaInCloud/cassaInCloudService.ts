@@ -1,5 +1,5 @@
 
-// Simple service functions for CassaInCloud API integration
+import axios from 'axios';
 import type {
   GetProductsParams,
   GetProductsApiResponse,
@@ -15,7 +15,8 @@ import type {
   GetCustomersParams,
   GetCustomersApiResponse,
   GetSoldByProductParams,
-  GetSoldByProductApiResponse
+  GetSoldByProductApiResponse,
+  CassaInCloudSalesPoint
 } from './cassaInCloudTypes';
 
 // Mock API base URL - this would be configured elsewhere
@@ -37,6 +38,13 @@ async function makeApiRequest(endpoint: string, method: 'GET' | 'POST' = 'GET', 
   }
 
   return response.json();
+}
+
+export async function getSalesPoints(apiKeyOverride?: string): Promise<CassaInCloudSalesPoint[]> {
+  console.log('Getting sales points');
+  
+  const data = await makeApiRequest('/salespoints');
+  return data.salesPoints || [];
 }
 
 export async function getCategories(params: GetCategoriesParams = {}, apiKeyOverride?: string): Promise<GetCategoriesApiResponse> {

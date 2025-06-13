@@ -414,9 +414,9 @@ export async function importSalesFromCassaInCloud(
         // Associa questo dettaglio al record sales_data principale se necessario, ad es. tramite un ID restituito dall'insert precedente o report_date + period
         report_date: salesRecord.report_date, // Usiamo la stessa report_date del record aggregato
         product_id: item.idProduct,
-        product_name: item.product?.description || item.product?.name || 'Prodotto sconosciuto',
+        product_name: item.product?.description || 'Prodotto sconosciuto', // Changed from name to description
         id_menu_product: item.idMenuProduct, // Aggiunto dalla documentazione
-        menu_product_name: item.menuProduct?.description || item.menuProduct?.name, // Aggiunto dalla documentazione
+        menu_product_name: item.menuProduct?.description || undefined, // Changed from name to description
         quantity: item.quantity,
         profit: item.profit,
         percent_total: item.percentTotal,
@@ -473,7 +473,7 @@ export async function importReceiptsFromCassaInCloud(
   params: GetReceiptsParams,
   apiKeyOverride?: string
 ): Promise<{ count: number; error?: Error; message?: string; warnings?: string[] }> {
-  const warnings: string[] = [];
+  const warnings: string[] = []; // Array per collezionare avvisi
   try {
     console.log(
       `Inizio importazione ricevute da CassaInCloud per ristorante Supabase: ${restaurantIdSupabase}`

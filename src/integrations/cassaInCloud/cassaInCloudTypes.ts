@@ -4,15 +4,6 @@
  */
 
 /**
- * Settings for CassaInCloud integration
- */
-export interface CassaInCloudSettings {
-  apiKey: string;
-  companyId: string;
-  salesPointId: string;
-}
-
-/**
  * Receipt type for CassaInCloud integration
  */
 export interface CassaInCloudReceipt {
@@ -157,12 +148,8 @@ export interface GetReceiptsParams {
  */
 export interface GetReceiptsApiResponse {
   receipts: CassaInCloudReceipt[];
-  start: number;
-  pagination?: {
-    total: number;
-    start: number;
-    limit: number;
-  };
+  totalCount: number;
+  currency?: CassaInCloudCurrency;
 }
 
 /**
@@ -300,6 +287,7 @@ export interface CassaInCloudCustomer {
   country?: string;
   idOrganization?: string;
   lastUpdate?: number; // Timestamp
+  // Aggiungere altri campi rilevanti dalla documentazione se necessario
 }
 
 /**
@@ -397,17 +385,24 @@ export interface GetSalesPointsApiResponse {
 export interface CassaInCloudRoom {
   id: string; // ID univoco della sala
   name: string; // Nome della sala
-  description?: string;
-  external_id: string;
-  id_sales_point: string;
+  idSalesPoint: number; // ID del punto vendita a cui appartiene la sala
+  externalId?: string; // Eventuale ID esterno
+  lastUpdate?: number; // Timestamp dell'ultimo aggiornamento
+  // Aggiungere altri campi rilevanti dalla documentazione se necessario
 }
 
 /**
  * Parametri per la funzione getRooms
  */
 export interface GetRoomsParams {
-  start?: number;
-  limit?: number;
+  start: number;
+  limit: number;
+  idsSalesPoint: number[]; 
+  sorts?: any[]; // Definire meglio Sort se necessario
+  ids?: string[];
+  name?: string;
+  lastUpdateFrom?: number; // Timestamp
+  lastUpdateTo?: number; // Timestamp
 }
 
 /**
@@ -415,11 +410,7 @@ export interface GetRoomsParams {
  */
 export interface GetRoomsApiResponse {
   rooms: CassaInCloudRoom[];
-  pagination?: {
-    total: number;
-    start: number;
-    limit: number;
-  };
+  totalCount: number;
 }
 
 /**
@@ -428,20 +419,30 @@ export interface GetRoomsApiResponse {
 export interface CassaInCloudTable {
   id: string; // ID univoco del tavolo
   name: string; // Nome del tavolo
-  description?: string;
-  external_id: string;
-  external_room_id?: string;
-  seats?: number;
-  id_sales_point: string;
+  idSalesPoint: number; // ID del punto vendita a cui appartiene il tavolo
+  idRoom: string; // ID della sala a cui appartiene il tavolo
+  room?: CassaInCloudRoom; // Oggetto Room associato (opzionale, dipende dalla risposta API)
+  externalId?: string; // Eventuale ID esterno
+  seats?: number; // Numero di posti (se disponibile)
+  seatsAvailable?: number; // Numero di posti disponibili (campo effettivo dall'API)
+  lastUpdate?: number; // Timestamp dell'ultimo aggiornamento
+  // Aggiungere altri campi rilevanti dalla documentazione se necessario
 }
 
 /**
  * Parametri per la funzione getTables
  */
 export interface GetTablesParams {
-  start?: number;
-  limit?: number;
-  roomId?: string;
+  start: number;
+  limit: number;
+  idsSalesPoint: number[];
+  sorts?: any[]; // Definire meglio Sort se necessario
+  ids?: string[];
+  name?: string;
+  idsRoom?: string[];
+  externalId?: string[];
+  lastUpdateFrom?: number; // Timestamp
+  lastUpdateTo?: number; // Timestamp
 }
 
 /**
@@ -449,9 +450,5 @@ export interface GetTablesParams {
  */
 export interface GetTablesApiResponse {
   tables: CassaInCloudTable[];
-  pagination?: {
-    total: number;
-    start: number;
-    limit: number;
-  };
+  totalCount: number;
 }

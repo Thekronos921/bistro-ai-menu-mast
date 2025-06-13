@@ -32,6 +32,12 @@ const ReservationTable: React.FC<ReservationTableProps> = ({
     };
 
     const config = statusConfig[status];
+
+    if (!config) {
+      // Gestisce stati non previsti o null/undefined
+      return <Badge variant="outline">{status || 'Sconosciuto'}</Badge>;
+    }
+
     return (
       <Badge 
         variant={config.variant}

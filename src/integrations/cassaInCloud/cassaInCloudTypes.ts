@@ -1,4 +1,3 @@
-
 /**
  * Definizioni dei tipi per l'integrazione con CassaInCloud
  * @version 1.0.0
@@ -11,8 +10,36 @@ export interface CassaInCloudReceipt {
   id: string;
   number: string;
   date: string;
+  datetime?: string;
   total: number;
-  // Add other receipt properties as needed
+  zNumber?: string;
+  lotteryCode?: string;
+  user?: {
+    id: string;
+    name?: string;
+    fullName?: string;
+    username?: string;
+  };
+  idUserFO?: string;
+  userFOName?: string;
+  document?: {
+    id: string;
+    amount: number;
+    rows?: Array<{
+      id?: string;
+      description: string;
+      quantity: number;
+      price: number;
+      vat: number;
+      total: number;
+    }>;
+    user?: {
+      id: string;
+      name?: string;
+      fullName?: string;
+      username?: string;
+    };
+  };
 }
 
 /**
@@ -101,6 +128,19 @@ export interface GetReceiptsParams {
   datetimeTo?: string | number;
   idsSalesPoint?: string[];
   sorts?: any[];
+  idCustomers?: string[];
+  numbers?: string[];
+  idOrganizations?: string[];
+  calculatedAmount?: number;
+  idDocumentNumbering?: string;
+  numberFrom?: number;
+  numberTo?: number;
+  zNumber?: string;
+  idUserFO?: string;
+  idDevice?: string;
+  idCustomer?: string;
+  idFidelityCard?: string;
+  lotteryCode?: string;
 }
 
 /**
@@ -109,6 +149,7 @@ export interface GetReceiptsParams {
 export interface GetReceiptsApiResponse {
   receipts: CassaInCloudReceipt[];
   totalCount: number;
+  currency?: CassaInCloudCurrency;
 }
 
 /**

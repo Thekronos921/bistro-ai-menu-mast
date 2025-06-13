@@ -192,8 +192,6 @@ export async function importCustomersFromCassaInCloud(
   }
 }
 
-
-
 export async function importRestaurantProductsFromCassaInCloud(
   restaurantIdSupabase: string,
   idSalesPointForPricing: string, // ID del punto vendita specifico per la determinazione del prezzo
@@ -494,7 +492,6 @@ export async function importReceiptsFromCassaInCloud(
     console.log(`Recuperate ${receiptsFromCassa.length} ricevute da CassaInCloud.`);
 
     // 2. Mappare i dati per Supabase
-    // Assicurati che la tabella 'receipts' esista in Supabase con le colonne corrette.
     const receiptsToUpsert = receiptsFromCassa.map((receipt) => {
       const document = receipt.document;
       return {
@@ -504,23 +501,9 @@ export async function importReceiptsFromCassaInCloud(
         receipt_date: receipt.datetime ? new Date(receipt.datetime).toISOString() : (receipt.date ? new Date(receipt.date).toISOString() : null),
         z_number: receipt.zNumber,
         lottery_code: receipt.lotteryCode,
-        // Campi dal documento associato
         document_external_id: document?.id,
-        // document_number: document?.number, // La proprietà 'number' non esiste in 'Document'. Potrebbe essere receipt.number se si riferisce al numero della ricevuta.
-        // document_date: document?.datetime ? new Date(document.datetime).toISOString() : (document?.date ? new Date(document.date).toISOString() : null), // Le proprietà 'datetime' e 'date' non esistono in 'Document'. Usare receipt.datetime o receipt.date.
-        // document_date: receipt.datetime ? new Date(receipt.datetime).toISOString() : (receipt.date ? new Date(receipt.date).toISOString() : null), // Campo rimosso perché non presente nello schema
-        // document_type: document?.type, // La proprietà 'type' non esiste in 'Document'.
-        // document_status: document?.status, // La proprietà 'status' non esiste in 'Document'.
-        // subtotal: document?.subtotal, // La proprietà 'subtotal' non esiste in 'Document'. Potrebbe essere calcolata da document.rows.
-        total: document?.amount, // Utilizza 'amount' da 'Document' come 'total'.
-        // total_tax: document?.totalTax, // La proprietà 'totalTax' non esiste in 'Document'. Potrebbe essere calcolata da document.rows.
-        // total_discount: document?.totalDiscount, // La proprietà 'totalDiscount' non esiste in 'Document'. Potrebbe essere calcolata da document.rows o document.payments.
-        // total_to_pay: document?.totalToPay, // La proprietà 'totalToPay' non esiste in 'Document'. Potrebbe essere document.amount o calcolata.
-        // total_payed: document?.totalPayed, // La proprietà 'totalPayed' non esiste in 'Document'. Potrebbe essere derivata da document.payments.
-        // Aggiungi qui altri campi mappati dalla ricevuta o dal documento se necessario
-        // Ad esempio, i dettagli delle righe e dei pagamenti potrebbero essere salvati in tabelle separate
-        // e collegati a questa ricevuta.
-        raw_data: receipt, // Opzionale: salva l'intero oggetto JSON per riferimenti futuri o debug
+        total: document?.amount,
+        raw_data: receipt,
         last_synced_at: new Date().toISOString(),
       };
     });
@@ -634,9 +617,6 @@ export async function importReceiptsFromCassaInCloud(
   }
 }
 
-
-
-
 /**
  * Importa le sale da CassaInCloud e le salva in Supabase.
  * @param restaurantIdSupabase ID del ristorante su Supabase.
@@ -699,7 +679,6 @@ export async function importRoomsFromCassaInCloud(
   }
 }
 
-
 /**
  * Importa i tavoli da CassaInCloud e li salva in Supabase.
  * @param restaurantIdSupabase ID del ristorante su Supabase.
@@ -729,8 +708,8 @@ export async function importTablesFromCassaInCloud(
     console.log(`Recuperati ${tablesFromCassa.length} tavoli da CassaInCloud.`);
 
     // Recupera gli ID interni delle sale per il mapping
-    const roomExternalIds = tablesFromCassa.map(table => table.idRoom).filter(id => id !== undefined) as number[];
-    let roomMap: { [externalId: number]: string } = {};
+    const roomExternalIds = tablesFromCassa.map(table => table.idRoom).filter(id => id !== undefined);
+    let roomMap: { [externalId: string]: string } = {};
     if (roomExternalIds.length > 0) {
       const { data: roomsData, error: roomsError } = await supabase
         .from('restaurant_rooms')
@@ -759,9 +738,9 @@ export async function importTablesFromCassaInCloud(
         name: table.name,
         description: table.name,
         seats: table.seatsAvailable || table.seats,
-        id_sales_point: table.idSalesPoint, // Assicurati che la colonna esista
-        room_id: internalRoomId, // ID interno della sala
-        external_room_id: table.idRoom, // ID esterno della sala per riferimento
+        id_sales_point: table.idSalesPoint,
+        room_id: internalRoomId,
+        external_room_id: table.idRoom,
         raw_data: table,
         last_synced_at: new Date().toISOString(),
       };

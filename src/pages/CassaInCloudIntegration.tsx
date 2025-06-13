@@ -541,9 +541,10 @@ const CassaInCloudIntegration = () => {
         }
 
         const params = {
+          start: 0,
+          limit: 100,
           datetimeFrom: currentStartDate.toISOString().split('T')[0] + 'T00:00:00',
-          datetimeTo: currentEndDate.toISOString().split('T')[0] + 'T23:59:59',
-          // Altri parametri come start, limit possono essere gestiti internamente da importReceiptsFromCassaInCloud se necessario
+          datetimeTo: currentEndDate.toISOString().split('T')[0] + 'T23:59:59'
         };
 
         toast({ title: 'Importazione Ricevute', description: `Importazione blocco dal ${params.datetimeFrom.split('T')[0]} al ${params.datetimeTo.split('T')[0]}...` });

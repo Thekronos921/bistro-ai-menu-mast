@@ -98,6 +98,7 @@ const CustomerTable: React.FC<CustomerTableProps> = ({
         <TableBody>
           {customers.map((customer) => {
             const loyaltyLevel = getLoyaltyLevel(customer.score);
+            const customerTags = customer.tags || [];
             
             return (
               <TableRow key={customer.id} className="hover:bg-gray-50">
@@ -164,14 +165,14 @@ const CustomerTable: React.FC<CustomerTableProps> = ({
                 </TableCell>
                 <TableCell>
                   <div className="flex flex-wrap gap-1">
-                    {customer.tags.slice(0, 2).map((tag, index) => (
+                    {customerTags.slice(0, 2).map((tag, index) => (
                       <Badge key={index} variant="outline" className="text-xs">
                         {tag}
                       </Badge>
                     ))}
-                    {customer.tags.length > 2 && (
+                    {customerTags.length > 2 && (
                       <Badge variant="outline" className="text-xs">
-                        +{customer.tags.length - 2}
+                        +{customerTags.length - 2}
                       </Badge>
                     )}
                   </div>

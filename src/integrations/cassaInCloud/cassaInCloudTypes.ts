@@ -4,6 +4,15 @@
  */
 
 /**
+ * Settings for CassaInCloud integration
+ */
+export interface CassaInCloudSettings {
+  apiKey: string;
+  companyId: string;
+  salesPointId: string;
+}
+
+/**
  * Receipt type for CassaInCloud integration
  */
 export interface CassaInCloudReceipt {
@@ -147,7 +156,7 @@ export interface GetReceiptsParams {
  * Risposta API per getReceipts
  */
 export interface GetReceiptsApiResponse {
-  data: CassaInCloudReceipt[];
+  receipts: CassaInCloudReceipt[];
   start: number;
   pagination?: {
     total: number;
@@ -291,7 +300,6 @@ export interface CassaInCloudCustomer {
   country?: string;
   idOrganization?: string;
   lastUpdate?: number; // Timestamp
-  // Aggiungere altri campi rilevanti dalla documentazione se necessario
 }
 
 /**
@@ -406,7 +414,7 @@ export interface GetRoomsParams {
  * Risposta API per getRooms
  */
 export interface GetRoomsApiResponse {
-  data: CassaInCloudRoom[];
+  rooms: CassaInCloudRoom[];
   pagination?: {
     total: number;
     start: number;
@@ -440,7 +448,7 @@ export interface GetTablesParams {
  * Risposta API per getTables
  */
 export interface GetTablesApiResponse {
-  data: CassaInCloudTable[];
+  tables: CassaInCloudTable[];
   pagination?: {
     total: number;
     start: number;

@@ -297,7 +297,7 @@ export async function getProducts(
 
     // Mappa i prodotti CassaInCloud in InternalProduct
     const internalProducts: InternalProduct[] = data.products.map(product =>
-      mapCassaInCloudProductToInternalProduct(product)
+      mapCassaInCloudProductToInternalProduct(product, idSalesPointForPricing)
     );
 
     return internalProducts;
@@ -566,7 +566,8 @@ export async function getReceipts(
 
     return {
       receipts: data.receipts || [],
-      totalCount: data.totalCount || 0
+      totalCount: data.totalCount || 0,
+      currency: data.currency
     };
 
   } catch (error) {

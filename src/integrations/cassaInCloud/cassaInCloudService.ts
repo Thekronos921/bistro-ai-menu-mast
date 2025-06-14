@@ -30,6 +30,10 @@ import {
   CassaInCloudCustomer, // Aggiunto
   GetReceiptsParams, // Aggiunto per ricevute
   GetReceiptsApiResponse, // Aggiunto per ricevute
+  GetRoomsParams, // Aggiunto per importazione sale
+  GetRoomsApiResponse, // Aggiunto per importazione sale
+  GetTablesParams, // Aggiunto per importazione tavoli
+  GetTablesApiResponse // Aggiunto per importazione tavoli
 } from './cassaInCloudTypes';
 
 // Recuperiamo la chiave API e l'URL dell'API dalle variabili d'ambiente
@@ -841,14 +845,23 @@ export const getReceipts = async (params: GetReceiptsParams, apiKeyOverride?: st
       receiptsUrl.searchParams.append('limit', limit.toString());
       const dtFrom = new Date(params.datetimeFrom);
       const dtTo = new Date(params.datetimeTo);
-      const formatDateString = (date: string | number) => {
-        if (typeof date === "string") {
-          if (date.startsWith('"') && date.endsWith('"')) return date;
-          return '"' + date.slice(0, 10) + '"';
+      const formatDateString = (date: string | number | Date): string => {
+        let dateObj: Date;
+        if (date instanceof Date) {
+          dateObj = date;
+        } else if (typeof date === 'string') {
+          if (date.startsWith('"') && date.endsWith('"')) return date; // Già formattata
+          dateObj = new Date(date.replace(/"/g, '')); // Rimuovi eventuali virgolette prima di parsare
+        } else { // number (timestamp)
+          dateObj = new Date(date);
         }
-        const d = new Date(date);
-        return '"' + d.toISOString().slice(0, 10) + '"';
+        // Formatta come YYYY-MM-DD e poi aggiungi le virgolette come richiesto dall'API
+        const year = dateObj.getFullYear();
+        const month = (dateObj.getMonth() + 1).toString().padStart(2, '0');
+        const day = dateObj.getDate().toString().padStart(2, '0');
+        return `"${year}-${month}-${day}"`;
       };
+
       receiptsUrl.searchParams.append('datetimeFrom', formatDateString(params.datetimeFrom));
       receiptsUrl.searchParams.append('datetimeTo', formatDateString(params.datetimeTo));
       if (params.idsSalesPoint && params.idsSalesPoint.length > 0) {
@@ -869,7 +882,7 @@ export const getReceipts = async (params: GetReceiptsParams, apiKeyOverride?: st
       if (params.calculatedAmount !== undefined) {
         receiptsUrl.searchParams.append('calculatedAmount', params.calculatedAmount ? 'true' : 'false');
       }
-      if (params.idDocumentNumbering && params.idDocumentNumbering.length > 0) {
+      if (params.idDocumentNumbering && Array.isArray(params.idDocumentNumbering) && params.idDocumentNumbering.length > 0) {
         receiptsUrl.searchParams.append('idDocumentNumbering', JSON.stringify(params.idDocumentNumbering.map(id => Number(id))));
       }
       if (params.numberFrom !== undefined) {
@@ -948,9 +961,9 @@ export const getReceipts = async (params: GetReceiptsParams, apiKeyOverride?: st
     return {
       currency: allReceipts.length > 0 ? (allReceipts[0] as any).document?.currency || { code: 'EUR', name: 'Euro', numberOfDecimals: 2, id: 0 } : { code: 'EUR', name: 'Euro', numberOfDecimals: 2, id: 0 }, // Estrai la valuta se disponibile o usa un default
       totalCount: totalCount || allReceipts.length,
-      receipts: allReceipts, // Qui dovrebbero essere CassaInCloudReceipt[]
-      start: params.start || 0,
-      limit: limit
+      receipts: allReceipts // Qui dovrebbero essere CassaInCloudReceipt[]
+      // start: params.start || 0, // Rimosso perché non presente in GetReceiptsApiResponse
+      // limit: limit // Rimosso perché non presente in GetReceiptsApiResponse
     };
 
   } catch (error) {

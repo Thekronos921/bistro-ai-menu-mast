@@ -1,9 +1,11 @@
 
-import { ArrowLeft, DollarSign } from "lucide-react";
-import { Link } from "react-router-dom";
-import AddDishDialog from "@/components/AddDishDialog";
-import SettingsDialog from "@/components/SettingsDialog";
+import { useState, useRef } from "react";
+import { Plus, Settings } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import PeriodSelector, { TimePeriod } from "@/components/PeriodSelector";
+import SettingsDialog from "@/components/SettingsDialog";
+import AddDishDialog from "@/components/AddDishDialog";
+import Header from "@/components/Header";
 
 interface SettingsConfig {
   criticalThreshold: number;
@@ -18,6 +20,7 @@ interface FoodCostHeaderProps {
   onSaveSettings: (settings: SettingsConfig) => void;
   onAddDish: () => void;
   onEditRecipe: (recipe: any) => void;
+  onTriggerDateRangeOpen?: () => void;
 }
 
 const FoodCostHeader = ({
@@ -26,34 +29,72 @@ const FoodCostHeader = ({
   settings,
   onSaveSettings,
   onAddDish,
-  onEditRecipe
+  onEditRecipe,
+  onTriggerDateRangeOpen
 }: FoodCostHeaderProps) => {
+  const [showSettings, setShowSettings] = useState(false);
+  const [showAddDish, setShowAddDish] = useState(false);
+
+  const handleCustomPeriodSelect = () => {
+    if (onTriggerDateRangeOpen) {
+      onTriggerDateRangeOpen();
+    }
+  };
+
   return (
-    <header className="bg-white/80 backdrop-blur-sm border-b border-stone-200 sticky top-0 z-50">
-      <div className="max-w-7xl mx-auto px-6 py-4">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-4">
-            <Link to="/" className="p-2 hover:bg-stone-100 rounded-lg transition-colors">
-              <ArrowLeft className="w-5 h-5 text-slate-600" />
-            </Link>
-            <div className="flex items-center space-x-3">
-              <div className="w-10 h-10 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-xl flex items-center justify-center">
-                <DollarSign className="w-6 h-6 text-white" />
-              </div>
-              <div>
-                <h1 className="text-2xl font-bold text-slate-800">Food Cost & Menu Engineering</h1>
-                <p className="text-sm text-slate-500">Analisi completa di costi e performance</p>
-              </div>
-            </div>
+    <>
+      <Header />
+      
+      <div className="bg-white border-b border-stone-200 px-6 py-4">
+        <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+          <div>
+            <h1 className="text-2xl font-bold text-slate-800">Analisi Food Cost</h1>
+            <p className="text-slate-600">Monitora costi, margini e performance dei tuoi piatti</p>
           </div>
-          <div className="flex items-center space-x-3">
-            <PeriodSelector selectedPeriod={selectedPeriod} onPeriodChange={onPeriodChange} />
-            <SettingsDialog settings={settings} onSaveSettings={onSaveSettings} />
-            <AddDishDialog onAddDish={onAddDish} onEditRecipe={onEditRecipe} />
+          
+          <div className="flex flex-wrap items-center gap-3">
+            <PeriodSelector
+              selectedPeriod={selectedPeriod}
+              onPeriodChange={onPeriodChange}
+              onCustomPeriodSelect={handleCustomPeriodSelect}
+            />
+            
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setShowSettings(true)}
+              className="flex items-center"
+            >
+              <Settings className="w-4 h-4 mr-2" />
+              Impostazioni
+            </Button>
+            
+            <Button
+              size="sm"
+              onClick={() => setShowAddDish(true)}
+              className="flex items-center bg-emerald-600 hover:bg-emerald-700"
+            >
+              <Plus className="w-4 h-4 mr-2" />
+              Aggiungi Piatto
+            </Button>
           </div>
         </div>
       </div>
-    </header>
+
+      <SettingsDialog
+        isOpen={showSettings}
+        onClose={() => setShowSettings(false)}
+        settings={settings}
+        onSave={onSaveSettings}
+      />
+
+      <AddDishDialog
+        isOpen={showAddDish}
+        onClose={() => setShowAddDish(false)}
+        onDishAdded={onAddDish}
+        onEditRecipe={onEditRecipe}
+      />
+    </>
   );
 };
 

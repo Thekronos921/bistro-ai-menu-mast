@@ -1,5 +1,4 @@
-
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import EditRecipeDialog from "@/components/EditRecipeDialog";
 import EditDishDialog from "@/components/EditDishDialog";
 import AssociateRecipeDialog from "@/components/AssociateRecipeDialog";
@@ -67,6 +66,9 @@ const FoodCost = () => {
   const [associatingDish, setAssociatingDish] = useState<Dish | null>(null);
   const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
   const [advancedFilters, setAdvancedFilters] = useState<FilterConfig>({});
+  const [triggerDateRangeOpen, setTriggerDateRangeOpen] = useState(false);
+  
+  const dateRangeRef = useRef<HTMLButtonElement>(null);
 
   // Configurazioni utente (persistenti nel localStorage)
   const [settings, setSettings] = useState<SettingsConfig>(() => {
@@ -186,6 +188,16 @@ const FoodCost = () => {
     calculateFoodCostForPeriod(selectedPeriod, dateRange, true);
   };
 
+  const handleTriggerDateRangeOpen = () => {
+    setTriggerDateRangeOpen(true);
+  };
+
+  const handleDateRangeOpenChange = (open: boolean) => {
+    if (!open) {
+      setTriggerDateRangeOpen(false);
+    }
+  };
+
   // Combina piatti e ricette per il filtro
   const allItems = [
     ...dishes.map(dish => {
@@ -293,6 +305,7 @@ const FoodCost = () => {
         onSaveSettings={saveSettings}
         onAddDish={fetchData}
         onEditRecipe={handleEditRecipeFromDialog}
+        onTriggerDateRangeOpen={handleTriggerDateRangeOpen}
       />
 
       <main className="max-w-7xl mx-auto px-6 py-8">
@@ -346,6 +359,7 @@ const FoodCost = () => {
         />
 
         <FoodCostFilters
+          ref={dateRangeRef}
           searchTerm={searchTerm}
           onSearchChange={setSearchTerm}
           selectedCategory={selectedCategory}
@@ -360,6 +374,8 @@ const FoodCost = () => {
           onRefresh={fetchData}
           dateRange={dateRange}
           onDateRangeChange={setDateRange}
+          triggerDateRangeOpen={triggerDateRangeOpen}
+          onDateRangeOpenChange={handleDateRangeOpenChange}
         />
 
         <FoodCostTable

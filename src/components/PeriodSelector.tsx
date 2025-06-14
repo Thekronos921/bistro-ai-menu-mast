@@ -14,9 +14,10 @@ export type TimePeriod = "today" | "yesterday" | "last7days" | "last30days" | "l
 interface PeriodSelectorProps {
   selectedPeriod: TimePeriod;
   onPeriodChange: (period: TimePeriod) => void;
+  onCustomPeriodSelect?: () => void;
 }
 
-const PeriodSelector = ({ selectedPeriod, onPeriodChange }: PeriodSelectorProps) => {
+const PeriodSelector = ({ selectedPeriod, onPeriodChange, onCustomPeriodSelect }: PeriodSelectorProps) => {
   const periods = [
     { value: "today" as const, label: "Oggi" },
     { value: "yesterday" as const, label: "Ieri" },
@@ -33,6 +34,16 @@ const PeriodSelector = ({ selectedPeriod, onPeriodChange }: PeriodSelectorProps)
     return periods.find(p => p.value === selectedPeriod)?.label || "Seleziona periodo";
   };
 
+  const handlePeriodSelect = (period: TimePeriod) => {
+    onPeriodChange(period);
+    if (period === "custom" && onCustomPeriodSelect) {
+      // Notifica che è stato selezionato il periodo personalizzato
+      setTimeout(() => {
+        onCustomPeriodSelect();
+      }, 100);
+    }
+  };
+
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
@@ -46,7 +57,7 @@ const PeriodSelector = ({ selectedPeriod, onPeriodChange }: PeriodSelectorProps)
         {periods.map((period) => (
           <DropdownMenuItem
             key={period.value}
-            onClick={() => onPeriodChange(period.value)}
+            onClick={() => handlePeriodSelect(period.value)}
             className={selectedPeriod === period.value ? "bg-emerald-50 text-emerald-700" : ""}
           >
             {period.label}

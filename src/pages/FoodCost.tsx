@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useRef } from "react";
 import EditRecipeDialog from "@/components/EditRecipeDialog";
 import EditDishDialog from "@/components/EditDishDialog";
@@ -188,12 +189,6 @@ const FoodCost = () => {
   const handleTriggerDateRangeOpen = () => {
     // Questa funzione ora attiva il date range nel header quando si seleziona periodo personalizzato
     // Il date range è gestito solo dal PeriodSelector in alto
-  };
-
-  const handleDateRangeOpenChange = (open: boolean) => {
-    if (!open) {
-      setTriggerDateRangeOpen(false);
-    }
   };
 
   // Combina piatti e ricette per il filtro

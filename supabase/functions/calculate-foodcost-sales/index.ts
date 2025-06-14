@@ -112,22 +112,35 @@ Deno.serve(async (req) => {
     }
 
     const receiptIds = receipts.map(r => r.id);
+    console.log(`Processing ${receiptIds.length} receipt IDs`);
 
-    // 2. Recupera le righe delle ricevute con i prodotti
-    const { data: receiptRows, error: rowsError } = await supabase
-      .from('cassa_in_cloud_receipt_rows')
-      .select('id_product, quantity, total, price, product_description')
-      .in('receipt_id', receiptIds)
-      .not('id_product', 'is', null);
+    // 2. Recupera le righe delle ricevute con i prodotti - gestisci lotti per evitare errori con troppe ricevute
+    let allReceiptRows: any[] = [];
+    const batchSize = 100; // Processa 100 ricevute per volta
+    
+    for (let i = 0; i < receiptIds.length; i += batchSize) {
+      const batchIds = receiptIds.slice(i, i + batchSize);
+      console.log(`Processing batch ${Math.floor(i/batchSize) + 1}/${Math.ceil(receiptIds.length/batchSize)} with ${batchIds.length} receipts`);
+      
+      const { data: batchRows, error: batchError } = await supabase
+        .from('cassa_in_cloud_receipt_rows')
+        .select('id_product, quantity, total, price, product_description')
+        .in('receipt_id', batchIds)
+        .not('id_product', 'is', null);
 
-    if (rowsError) {
-      console.error('Error fetching receipt rows:', rowsError);
-      throw rowsError;
+      if (batchError) {
+        console.error('Error fetching receipt rows batch:', batchError);
+        throw batchError;
+      }
+
+      if (batchRows) {
+        allReceiptRows = allReceiptRows.concat(batchRows);
+      }
     }
 
-    console.log(`Found ${receiptRows?.length || 0} receipt rows with products`);
+    console.log(`Found ${allReceiptRows.length} receipt rows with products across all batches`);
 
-    if (!receiptRows || receiptRows.length === 0) {
+    if (allReceiptRows.length === 0) {
       return new Response(
         JSON.stringify({ 
           success: true, 
@@ -141,7 +154,7 @@ Deno.serve(async (req) => {
     // 3. Aggrega i dati per prodotto
     const salesMap = new Map<string, { quantity: number; revenue: number; productName: string }>();
 
-    for (const row of receiptRows) {
+    for (const row of allReceiptRows) {
       if (!row.id_product) continue;
 
       const quantity = Number(row.quantity) || 0;
@@ -160,6 +173,8 @@ Deno.serve(async (req) => {
       
       salesMap.set(row.id_product, existing);
     }
+
+    console.log(`Aggregated data for ${salesMap.size} unique products`);
 
     // 4. Recupera i nomi dei piatti dalla tabella dishes
     const productIds = Array.from(salesMap.keys());

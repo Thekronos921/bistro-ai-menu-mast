@@ -1,5 +1,5 @@
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { useRestaurant } from "@/hooks/useRestaurant";
 import { fetchDishes, fetchRecipes } from "./food-cost/dataFetchers";
@@ -25,7 +25,7 @@ export const useFoodCostData = () => {
   const { toast } = useToast();
   const { restaurantId } = useRestaurant();
 
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     try {
       if (!restaurantId) {
         console.log("No restaurant ID available");
@@ -55,9 +55,9 @@ export const useFoodCostData = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [restaurantId, toast]);
 
-  const calculateFoodCostForPeriod = async (
+  const calculateFoodCostForPeriod = useCallback(async (
     period: TimePeriod,
     customDateRange?: DateRange,
     forceRecalculate: boolean = false
@@ -112,9 +112,9 @@ export const useFoodCostData = () => {
     } finally {
       setCalculatingFoodCost(false);
     }
-  };
+  }, [restaurantId, toast]);
 
-  const loadFoodCostSalesData = async (
+  const loadFoodCostSalesData = useCallback(async (
     period?: TimePeriod,
     customDateRange?: DateRange
   ) => {
@@ -147,9 +147,9 @@ export const useFoodCostData = () => {
         variant: "destructive"
       });
     }
-  };
+  }, [restaurantId, toast]);
 
-  const handleCreateDishFromRecipe = async (recipe: Recipe) => {
+  const handleCreateDishFromRecipe = useCallback(async (recipe: Recipe) => {
     try {
       if (!restaurantId) {
         toast({
@@ -183,9 +183,9 @@ export const useFoodCostData = () => {
         variant: "destructive"
       });
     }
-  };
+  }, [restaurantId, toast, fetchData]);
 
-  const handleSalesImport = (importedSales: FoodCostSalesData[]) => {
+  const handleSalesImport = useCallback((importedSales: FoodCostSalesData[]) => {
     setSalesData(prev => mergeSalesData(prev, importedSales));
     
     console.log('Sales data imported:', importedSales);
@@ -193,13 +193,13 @@ export const useFoodCostData = () => {
       title: "Successo",
       description: `Importati ${importedSales.length} record di vendita`
     });
-  };
+  }, [toast]);
 
-  const getFilteredSalesData = () => {
+  const filteredSalesData = useMemo(() => {
     return filterSalesDataByDateRange(salesData, dateRange);
-  };
+  }, [salesData, dateRange]);
 
-  const handleDeleteDish = async (dishId: string) => {
+  const handleDeleteDish = useCallback(async (dishId: string) => {
     try {
       if (!restaurantId) {
         toast({
@@ -226,18 +226,18 @@ export const useFoodCostData = () => {
         variant: "destructive"
       });
     }
-  };
+  }, [restaurantId, toast, fetchData]);
 
   useEffect(() => {
     if (restaurantId) {
       fetchData();
     }
-  }, [restaurantId]);
+  }, [restaurantId, fetchData]);
 
   return {
     dishes,
     recipes,
-    salesData: getFilteredSalesData(),
+    salesData: filteredSalesData,
     allSalesData: salesData,
     foodCostSalesData,
     dateRange,

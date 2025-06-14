@@ -1,5 +1,4 @@
-
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import EditRecipeDialog from "@/components/EditRecipeDialog";
 import EditDishDialog from "@/components/EditDishDialog";
 import AssociateRecipeDialog from "@/components/AssociateRecipeDialog";
@@ -102,11 +101,11 @@ const FoodCost = () => {
   } = useFoodCostData();
 
   // Trasforma foodCostSalesData in un formato compatibile con SalesData[]
-  const transformedSalesData = foodCostSalesData.map(sale => ({
+  const transformedSalesData = useMemo(() => foodCostSalesData.map(sale => ({
     dishName: sale.dish_name,
     unitsSold: sale.total_quantity_sold,
     period: selectedPeriod,
-  }));
+  })), [foodCostSalesData, selectedPeriod]);
 
   const {
     getTotalSalesForPeriod,
@@ -123,7 +122,7 @@ const FoodCost = () => {
   // Carica i dati di food cost quando cambia il periodo o la data range
   useEffect(() => {
     loadFoodCostSalesData(selectedPeriod, dateRange);
-  }, [selectedPeriod, dateRange]);
+  }, [selectedPeriod, dateRange, loadFoodCostSalesData]);
 
   // Convert Recipe to SimpleRecipe for dialog components
   const convertToSimpleRecipe = (recipe: Recipe): SimpleRecipe => {
@@ -141,7 +140,7 @@ const FoodCost = () => {
     };
   };
 
-  const handleEditRecipeFromDialog = (simpleRecipe: SimpleRecipe) => {
+  const handleEditRecipeFromDialog = useCallback((simpleRecipe: SimpleRecipe) => {
     // Find the full recipe data
     const fullRecipe = recipes.find(r => r.id === simpleRecipe.id) || 
                       dishes.find(d => d.recipes?.id === simpleRecipe.id)?.recipes;
@@ -164,9 +163,9 @@ const FoodCost = () => {
       };
       setEditingRecipe(completeRecipe);
     }
-  };
+  }, [dishes, recipes]);
 
-  const handleSalesImportWrapper = (importedSales: FoodCostSalesData[]) => {
+  const handleSalesImportWrapper = useCallback((importedSales: FoodCostSalesData[]) => {
     // Convert to the format expected by useFoodCostData
     const convertedSales = importedSales.map(sale => ({
       dishName: sale.dishName,
@@ -176,18 +175,18 @@ const FoodCost = () => {
     }));
     
     handleSalesImport(convertedSales);
-  };
+  }, [handleSalesImport]);
 
-  const handleCalculateFoodCost = () => {
+  const handleCalculateFoodCost = useCallback(() => {
     calculateFoodCostForPeriod(selectedPeriod, dateRange, false);
-  };
+  }, [calculateFoodCostForPeriod, selectedPeriod, dateRange]);
 
-  const handleRecalculateFoodCost = () => {
+  const handleRecalculateFoodCost = useCallback(() => {
     calculateFoodCostForPeriod(selectedPeriod, dateRange, true);
-  };
+  }, [calculateFoodCostForPeriod, selectedPeriod, dateRange]);
 
   // Combina piatti e ricette per il filtro
-  const allItems = [
+  const allItems = useMemo(() => [
     ...dishes.map(dish => {
       const saleDataForDish = foodCostSalesData.find(sale => 
         sale.dish_external_id === dish.external_id || sale.dish_id === dish.id
@@ -216,10 +215,10 @@ const FoodCost = () => {
         unitsSold: 0,
         revenue: 0
       }))
-  ];
+  ], [dishes, recipes, foodCostSalesData, getDishAnalysis, getMenuEngineeringCategory, getRecipeAnalysis]);
 
   // Enhanced filtering with date range consideration
-  const filteredItems = allItems.filter(({ name, category, analysis, menuCategory }) => {
+  const filteredItems = useMemo(() => allItems.filter(({ name, category, analysis, menuCategory }) => {
     const matchesSearch = name.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesCategory = selectedCategory === "all" || category === selectedCategory;
     
@@ -232,9 +231,9 @@ const FoodCost = () => {
 
     return matchesSearch && matchesCategory && matchesFoodCostMin && matchesFoodCostMax && 
            matchesMarginMin && matchesMarginMax && matchesMenuCategory;
-  });
+  }), [allItems, searchTerm, selectedCategory, advancedFilters]);
 
-  const exportToCSV = () => {
+  const exportToCSV = useCallback(() => {
     const csvData = filteredItems.map((item) => {
       const { type, item: dataItem, analysis, menuCategory, unitsSold } = item;
       return {
@@ -267,11 +266,11 @@ const FoodCost = () => {
     a.download = `food-cost-analysis-${new Date().toISOString().split('T')[0]}.csv`;
     a.click();
     window.URL.revokeObjectURL(url);
-  };
+  }, [filteredItems, getSalesMixPercentage, dateRange]);
 
-  const handleDeleteDish = (dishId: string, dishName: string) => {
+  const handleDeleteDish = useCallback((dishId: string, dishName: string) => {
     deleteDish(dishId);
-  };
+  }, [deleteDish]);
 
   if (loading) {
     return (

@@ -115,8 +115,8 @@ const TableSelector: React.FC<TableSelectorProps> = ({
       </div>
 
       <Select 
-        value={selectedTableId || ''} 
-        onValueChange={(value) => onTableSelect(value || null)}
+        value={selectedTableId || 'unassigned'} 
+        onValueChange={(value) => onTableSelect(value === 'unassigned' ? null : value)}
         disabled={disabled || loading}
       >
         <SelectTrigger>
@@ -128,7 +128,7 @@ const TableSelector: React.FC<TableSelectorProps> = ({
           } />
         </SelectTrigger>
         <SelectContent>
-          <SelectItem value="">Nessun tavolo assegnato</SelectItem>
+          <SelectItem value="unassigned">Nessun tavolo assegnato</SelectItem>
           {tables.map(table => {
             const status = getTableStatus(table);
             return (

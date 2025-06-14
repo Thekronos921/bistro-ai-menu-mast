@@ -1,4 +1,3 @@
-
 import { calculateTotalCost, calculateCostPerPortion } from "@/utils/recipeCalculations";
 import { MenuCategory } from "@/components/MenuEngineeringBadge";
 import type { Recipe } from "@/types/recipe";
@@ -17,6 +16,7 @@ interface SalesData {
   dishName: string;
   unitsSold: number;
   period: string;
+  revenue: number;
 }
 
 interface SettingsConfig {
@@ -131,6 +131,10 @@ export const useFoodCostAnalysis = (
     return sum + (analysis.margin * soldUnits);
   }, 0);
 
+  const totalRevenue = salesData
+    .filter(s => s.period === selectedPeriod)
+    .reduce((total, s) => total + (s.revenue || 0), 0);
+
   const criticalDishes = allDishAnalyses.filter(analysis => analysis.foodCostPercentage > settings.criticalThreshold).length;
   const targetReached = allDishAnalyses.length > 0 
     ? (allDishAnalyses.filter(analysis => analysis.foodCostPercentage < settings.targetThreshold).length / allDishAnalyses.length) * 100 
@@ -146,6 +150,7 @@ export const useFoodCostAnalysis = (
     getMenuEngineeringCategory,
     avgFoodCostPercentage,
     totalMargin,
+    totalRevenue,
     criticalDishes,
     targetReached
   };

@@ -104,6 +104,7 @@ const FoodCost = () => {
   const transformedSalesData = useMemo(() => foodCostSalesData.map(sale => ({
     dishName: sale.dish_name,
     unitsSold: sale.total_quantity_sold,
+    revenue: sale.total_revenue,
     period: selectedPeriod,
   })), [foodCostSalesData, selectedPeriod]);
 
@@ -115,6 +116,7 @@ const FoodCost = () => {
     getMenuEngineeringCategory,
     avgFoodCostPercentage,
     totalMargin,
+    totalRevenue,
     criticalDishes,
     targetReached
   } = useFoodCostAnalysis(dishes, recipes, transformedSalesData, selectedPeriod, settings);
@@ -338,6 +340,7 @@ const FoodCost = () => {
         <FoodCostKPIs
           avgFoodCostPercentage={avgFoodCostPercentage}
           totalMargin={totalMargin}
+          totalRevenue={totalRevenue}
           criticalDishes={criticalDishes}
           targetReached={targetReached}
           selectedPeriod={selectedPeriod}

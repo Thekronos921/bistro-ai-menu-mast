@@ -29,6 +29,7 @@ export interface Dish {
   category: string;
   selling_price: number;
   recipe_id?: string;
+  external_id?: string;
   recipes?: Recipe;
 }
 

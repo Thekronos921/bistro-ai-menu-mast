@@ -1,3 +1,4 @@
+
 import { supabase } from "@/integrations/supabase/client";
 import type { Recipe } from "@/types/recipe";
 import type { Dish, CategoryInfo } from "./types";
@@ -127,6 +128,7 @@ export const fetchDishes = async (restaurantId: string): Promise<Dish[]> => {
       name: dish.name,
       selling_price: dish.selling_price,
       recipe_id: dish.recipe_id,
+      external_id: dish.external_id,
       category: categoryName,
       recipes: recipe
     };

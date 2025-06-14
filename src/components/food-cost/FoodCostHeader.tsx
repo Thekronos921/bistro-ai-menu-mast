@@ -32,9 +32,6 @@ const FoodCostHeader = ({
   onEditRecipe,
   onTriggerDateRangeOpen
 }: FoodCostHeaderProps) => {
-  const [showSettings, setShowSettings] = useState(false);
-  const [showAddDish, setShowAddDish] = useState(false);
-
   const handleCustomPeriodSelect = () => {
     if (onTriggerDateRangeOpen) {
       onTriggerDateRangeOpen();
@@ -59,41 +56,18 @@ const FoodCostHeader = ({
               onCustomPeriodSelect={handleCustomPeriodSelect}
             />
             
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setShowSettings(true)}
-              className="flex items-center"
-            >
-              <Settings className="w-4 h-4 mr-2" />
-              Impostazioni
-            </Button>
+            <SettingsDialog
+              settings={settings}
+              onSaveSettings={onSaveSettings}
+            />
             
-            <Button
-              size="sm"
-              onClick={() => setShowAddDish(true)}
-              className="flex items-center bg-emerald-600 hover:bg-emerald-700"
-            >
-              <Plus className="w-4 h-4 mr-2" />
-              Aggiungi Piatto
-            </Button>
+            <AddDishDialog
+              onDishAdded={onAddDish}
+              onEditRecipe={onEditRecipe}
+            />
           </div>
         </div>
       </div>
-
-      <SettingsDialog
-        isOpen={showSettings}
-        onClose={() => setShowSettings(false)}
-        settings={settings}
-        onSave={onSaveSettings}
-      />
-
-      <AddDishDialog
-        isOpen={showAddDish}
-        onClose={() => setShowAddDish(false)}
-        onDishAdded={onAddDish}
-        onEditRecipe={onEditRecipe}
-      />
     </>
   );
 };

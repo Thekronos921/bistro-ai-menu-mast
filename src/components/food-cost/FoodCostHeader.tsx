@@ -1,5 +1,4 @@
 
-import { useState, useRef } from "react";
 import { Plus, Settings } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import PeriodSelector, { TimePeriod } from "@/components/PeriodSelector";
@@ -22,7 +21,6 @@ interface FoodCostHeaderProps {
   onSaveSettings: (settings: SettingsConfig) => void;
   onAddDish: () => void;
   onEditRecipe: (recipe: any) => void;
-  onTriggerDateRangeOpen?: () => void;
 }
 
 const FoodCostHeader = ({
@@ -33,19 +31,7 @@ const FoodCostHeader = ({
   onAddDish,
   onEditRecipe,
 }: FoodCostHeaderProps) => {
-  const [showDateRange, setShowDateRange] = useState(false);
   const { dateRange, setDateRange } = useFoodCostData();
-
-  const handleCustomPeriodSelect = () => {
-    setShowDateRange(true);
-  };
-
-  const handlePeriodChange = (period: TimePeriod) => {
-    onPeriodChange(period);
-    if (period !== "custom") {
-      setShowDateRange(false);
-    }
-  };
 
   return (
     <>
@@ -61,16 +47,13 @@ const FoodCostHeader = ({
           <div className="flex flex-wrap items-center gap-3">
             <PeriodSelector
               selectedPeriod={selectedPeriod}
-              onPeriodChange={handlePeriodChange}
-              onCustomPeriodSelect={handleCustomPeriodSelect}
+              onPeriodChange={onPeriodChange}
             />
             
-            {selectedPeriod === "custom" && showDateRange && (
+            {selectedPeriod === "custom" && (
               <DateRangeSelector
                 dateRange={dateRange}
                 onDateRangeChange={setDateRange}
-                open={showDateRange}
-                onOpenChange={setShowDateRange}
               />
             )}
             

@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Button } from '@/components/ui/button';
@@ -16,15 +16,11 @@ interface DateRange {
 interface DateRangeSelectorProps {
   dateRange: DateRange;
   onDateRangeChange: (range: DateRange) => void;
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
 }
 
 const DateRangeSelector = ({
   dateRange,
   onDateRangeChange,
-  open,
-  onOpenChange
 }: DateRangeSelectorProps) => {
   const handleClearDates = () => {
     onDateRangeChange({ from: undefined, to: undefined });
@@ -39,7 +35,7 @@ const DateRangeSelector = ({
 
   return (
     <div className="flex items-center space-x-2">
-      <Popover open={open} onOpenChange={onOpenChange}>
+      <Popover>
         <PopoverTrigger asChild>
           <Button
             variant="outline"

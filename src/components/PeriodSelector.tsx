@@ -1,5 +1,4 @@
 
-import { useState } from "react";
 import { Calendar, ChevronDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -14,10 +13,9 @@ export type TimePeriod = "today" | "yesterday" | "last7days" | "last30days" | "l
 interface PeriodSelectorProps {
   selectedPeriod: TimePeriod;
   onPeriodChange: (period: TimePeriod) => void;
-  onCustomPeriodSelect?: () => void;
 }
 
-const PeriodSelector = ({ selectedPeriod, onPeriodChange, onCustomPeriodSelect }: PeriodSelectorProps) => {
+const PeriodSelector = ({ selectedPeriod, onPeriodChange }: PeriodSelectorProps) => {
   const periods = [
     { value: "today" as const, label: "Oggi" },
     { value: "yesterday" as const, label: "Ieri" },
@@ -36,12 +34,6 @@ const PeriodSelector = ({ selectedPeriod, onPeriodChange, onCustomPeriodSelect }
 
   const handlePeriodSelect = (period: TimePeriod) => {
     onPeriodChange(period);
-    if (period === "custom" && onCustomPeriodSelect) {
-      // Notifica che è stato selezionato il periodo personalizzato
-      setTimeout(() => {
-        onCustomPeriodSelect();
-      }, 100);
-    }
   };
 
   return (

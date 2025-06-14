@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { format } from 'date-fns';
 import { it } from 'date-fns/locale';
-import { X, Save, User, Mail, Phone, Users, Calendar, MessageSquare, Star } from 'lucide-react';
+import { X, Save, User, Mail, Phone, Users, Calendar, MessageSquare, Star, MapPin } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
@@ -10,6 +10,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Reservation, ReservationStatus } from '@/types/reservation';
+import { useRestaurantTables } from '@/hooks/useRestaurantTables';
+import { useRestaurant } from '@/hooks/useRestaurant';
+import TableSelector from './TableSelector';
 
 interface ReservationDetailModalProps {
   reservation: Reservation | null;
@@ -24,14 +27,18 @@ const ReservationDetailModal: React.FC<ReservationDetailModalProps> = ({
   onReservationUpdated,
   onUpdateReservation
 }) => {
+  const { restaurantId } = useRestaurant();
+  const { tables, loading: tablesLoading } = useRestaurantTables(restaurantId);
   const [status, setStatus] = useState<ReservationStatus>('nuova');
   const [internalNotes, setInternalNotes] = useState('');
+  const [tableId, setTableId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     if (reservation) {
       setStatus(reservation.status);
       setInternalNotes(reservation.internal_notes || '');
+      setTableId(reservation.table_id || null);
     }
   }, [reservation]);
 
@@ -42,14 +49,16 @@ const ReservationDetailModal: React.FC<ReservationDetailModalProps> = ({
     try {
       const success = await onUpdateReservation(reservation.id, {
         status,
-        internal_notes: internalNotes
+        internal_notes: internalNotes,
+        table_id: tableId
       });
 
       if (success) {
         onReservationUpdated({
           ...reservation,
           status,
-          internal_notes: internalNotes
+          internal_notes: internalNotes,
+          table_id: tableId
         });
       }
     } finally {
@@ -84,11 +93,18 @@ const ReservationDetailModal: React.FC<ReservationDetailModalProps> = ({
     );
   };
 
+  const getAssignedTable = () => {
+    if (!tableId || !tables.length) return null;
+    return tables.find(table => table.id === tableId);
+  };
+
+  const assignedTable = getAssignedTable();
+
   if (!reservation) return null;
 
   return (
     <Dialog open={!!reservation} onOpenChange={onClose}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center justify-between">
             <span>Dettagli Prenotazione</span>
@@ -167,6 +183,20 @@ const ReservationDetailModal: React.FC<ReservationDetailModalProps> = ({
                 </div>
               </div>
 
+              {assignedTable && (
+                <div className="flex items-center gap-3">
+                  <MapPin className="h-5 w-5 text-gray-400" />
+                  <div>
+                    <p className="text-sm text-gray-500">Tavolo Assegnato</p>
+                    <p className="font-medium">
+                      {assignedTable.name}
+                      {assignedTable.room_name && ` (${assignedTable.room_name})`}
+                      {assignedTable.seats && ` - ${assignedTable.seats} posti`}
+                    </p>
+                  </div>
+                </div>
+              )}
+
               {reservation.booking_type && (
                 <div className="col-span-full">
                   <p className="text-sm text-gray-500">Tipo/Pacchetto</p>
@@ -187,6 +217,26 @@ const ReservationDetailModal: React.FC<ReservationDetailModalProps> = ({
               </div>
             )}
           </div>
+
+          <Separator />
+
+          {/* Table Assignment */}
+          {tables.length > 0 && (
+            <div className="space-y-4">
+              <h3 className="text-lg font-semibold">Assegnazione Tavolo</h3>
+              
+              <TableSelector
+                tables={tables}
+                selectedTableId={tableId}
+                onTableSelect={setTableId}
+                reservationDate={format(new Date(reservation.reservation_time), 'yyyy-MM-dd')}
+                reservationTime={format(new Date(reservation.reservation_time), 'HH:mm')}
+                numberOfGuests={reservation.number_of_guests}
+                restaurantId={restaurantId || ''}
+                disabled={tablesLoading}
+              />
+            </div>
+          )}
 
           <Separator />
 

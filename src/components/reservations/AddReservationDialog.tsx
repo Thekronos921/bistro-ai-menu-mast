@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useCallback } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -16,7 +17,9 @@ import { useRestaurant } from '@/hooks/useRestaurant';
 import { useToast } from '@/hooks/use-toast';
 import { useRestaurantShifts, RestaurantShift } from '@/hooks/useRestaurantShifts';
 import { useShiftAvailability, ShiftAvailability } from '@/hooks/useShiftAvailability';
+import { useRestaurantTables } from '@/hooks/useRestaurantTables';
 import { getDay } from 'date-fns';
+import TableSelector from './TableSelector';
 
 interface AddReservationDialogProps {
   onReservationAdded: () => void;
@@ -25,6 +28,7 @@ interface AddReservationDialogProps {
 const AddReservationDialog: React.FC<AddReservationDialogProps> = ({ onReservationAdded }) => {
   const { restaurantId } = useRestaurant();
   const { shifts, loading: shiftsLoading, fetchShifts: refetchShifts } = useRestaurantShifts(restaurantId);
+  const { tables, loading: tablesLoading, refetch: refetchTables } = useRestaurantTables(restaurantId);
   const {
     availability: shiftAvailabilityData,
     loading: availabilityLoading,
@@ -46,17 +50,17 @@ const AddReservationDialog: React.FC<AddReservationDialogProps> = ({ onReservati
     booking_type: '',
     customer_notes: '',
     internal_notes: '',
+    table_id: null as string | null,
   });
 
   const { toast } = useToast();
 
-  // Rimosso timeSlots statico, verrà generato dinamicamente
-
   useEffect(() => {
     if (restaurantId) {
-      refetchShifts(); // Carica i turni quando il componente monta o restaurantId cambia
+      refetchShifts();
+      refetchTables();
     }
-  }, [restaurantId, refetchShifts]);
+  }, [restaurantId, refetchShifts, refetchTables]);
 
   const activeShiftsForSelectedDate = useCallback(() => {
     if (!selectedDate || shifts.length === 0) return [];
@@ -75,14 +79,11 @@ const AddReservationDialog: React.FC<AddReservationDialogProps> = ({ onReservati
 
     let endTimeLimit = new Date(selectedDate);
     endTimeLimit.setHours(endHours, endMinutes, 0, 0);
-    // Se l'ora di fine è prima o uguale all'ora di inizio, si assume che il turno finisca il giorno dopo (non gestito qui per semplicità)
-    // Per le prenotazioni, di solito i turni sono nello stesso giorno.
-    // Questa logica assume che end_time sia sempre maggiore di start_time nello stesso giorno.
 
     while (currentTime < endTimeLimit) {
       const timeString = format(currentTime, 'HH:mm');
       slots.push({ value: timeString, label: timeString });
-      currentTime.setMinutes(currentTime.getMinutes() + 30); // Intervalli di 30 minuti
+      currentTime.setMinutes(currentTime.getMinutes() + 30);
     }
     return slots;
   }, [selectedDate]);
@@ -97,19 +98,13 @@ const AddReservationDialog: React.FC<AddReservationDialogProps> = ({ onReservati
     setAvailabilityError(null);
     const dateString = format(selectedDate, 'yyyy-MM-dd');
     
-    // Usiamo una funzione asincrona interna per gestire il caricamento della disponibilità
     const loadAvailability = async () => {
       await fetchAvailability(selectedShiftInternal.id!, dateString, dateString);
-      // Dopo che fetchAvailability ha aggiornato shiftAvailabilityData, cerchiamo il record specifico
-      // Nota: shiftAvailabilityData potrebbe non essere immediatamente aggiornato qui a causa della natura asincrona di setState
-      // È più sicuro fare affidamento sul prossimo ciclo di rendering o passare i dati direttamente se fetchAvailability li restituisce
     };
 
     loadAvailability();
-
   }, [selectedDate, formData.time, selectedShiftInternal, restaurantId, fetchAvailability]);
 
-  // Questo useEffect reagisce all'aggiornamento di shiftAvailabilityData
   useEffect(() => {
     if (!selectedDate || !selectedShiftInternal) {
         setCurrentShiftAvailability(null);
@@ -131,20 +126,19 @@ const AddReservationDialog: React.FC<AddReservationDialogProps> = ({ onReservati
     }
   }, [shiftAvailabilityData, selectedDate, selectedShiftInternal, formData.number_of_guests]);
 
-
   const handleShiftChange = (shiftId: string) => {
     const newSelectedShift = shifts.find(s => s.id === shiftId) || null;
     setSelectedShiftInternal(newSelectedShift);
-    // Resetta l'orario se il turno cambia, o imposta il primo orario disponibile per il nuovo turno
+    
     if (newSelectedShift) {
         const slots = generateTimeSlotsForShift(newSelectedShift);
         if (slots.length > 0) {
-            setFormData(prev => ({ ...prev, time: slots[0].value }));
+            setFormData(prev => ({ ...prev, time: slots[0].value, table_id: null }));
         } else {
-            setFormData(prev => ({ ...prev, time: '' })); // Nessun orario disponibile
+            setFormData(prev => ({ ...prev, time: '', table_id: null }));
         }
     } else {
-        setFormData(prev => ({ ...prev, time: '' }));
+        setFormData(prev => ({ ...prev, time: '', table_id: null }));
     }
   };
 
@@ -190,6 +184,7 @@ const AddReservationDialog: React.FC<AddReservationDialogProps> = ({ onReservati
         booking_type: formData.booking_type || null,
         customer_notes: formData.customer_notes || null,
         internal_notes: formData.internal_notes || null,
+        table_id: formData.table_id,
         status: 'nuova',
         calculated_score: 0,
         social_score: 0,
@@ -212,6 +207,7 @@ const AddReservationDialog: React.FC<AddReservationDialogProps> = ({ onReservati
         booking_type: '',
         customer_notes: '',
         internal_notes: '',
+        table_id: null,
       });
       setSelectedDate(new Date());
       setOpen(false);
@@ -228,6 +224,8 @@ const AddReservationDialog: React.FC<AddReservationDialogProps> = ({ onReservati
     }
   };
 
+  const isLoading = loading || shiftsLoading || tablesLoading || availabilityLoading;
+
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
@@ -236,12 +234,12 @@ const AddReservationDialog: React.FC<AddReservationDialogProps> = ({ onReservati
           Nuova Prenotazione
         </Button>
       </DialogTrigger>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Aggiungi Nuova Prenotazione</DialogTitle>
         </DialogHeader>
         
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit} className="space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {/* Customer Name */}
             <div className="space-y-2">
@@ -263,7 +261,7 @@ const AddReservationDialog: React.FC<AddReservationDialogProps> = ({ onReservati
                 min="1"
                 max="20"
                 value={formData.number_of_guests}
-                onChange={(e) => setFormData({ ...formData, number_of_guests: parseInt(e.target.value) })}
+                onChange={(e) => setFormData({ ...formData, number_of_guests: parseInt(e.target.value), table_id: null })}
                 required
               />
             </div>
@@ -306,14 +304,14 @@ const AddReservationDialog: React.FC<AddReservationDialogProps> = ({ onReservati
                     {selectedDate ? format(selectedDate, "PPP", { locale: it }) : <span>Seleziona data</span>}
                   </Button>
                 </PopoverTrigger>
-                <PopoverContent className="w-auto p-0">
+                <PopoverContent className="w-auto p-0" align="start">
                   <Calendar
                     mode="single"
                     selected={selectedDate}
                     onSelect={(date) => {
                         setSelectedDate(date);
                         setSelectedShiftInternal(null);
-                        setFormData(prev => ({...prev, time: ''}));
+                        setFormData(prev => ({...prev, time: '', table_id: null}));
                         setCurrentShiftAvailability(null);
                         setAvailabilityError(null);
                     }}
@@ -357,7 +355,7 @@ const AddReservationDialog: React.FC<AddReservationDialogProps> = ({ onReservati
               <Label>Orario *</Label>
               <Select 
                 value={formData.time} 
-                onValueChange={(value) => setFormData({ ...formData, time: value })}
+                onValueChange={(value) => setFormData({ ...formData, time: value, table_id: null })}
                 disabled={!selectedShiftInternal || availabilityLoading}
               >
                 <SelectTrigger>
@@ -395,9 +393,27 @@ const AddReservationDialog: React.FC<AddReservationDialogProps> = ({ onReservati
                 onChange={(e) => setFormData({ ...formData, booking_type: e.target.value })}
               />
             </div>
+          </div>
 
+          {/* Table Selection */}
+          {selectedDate && formData.time && tables.length > 0 && (
+            <div className="border-t pt-6">
+              <TableSelector
+                tables={tables}
+                selectedTableId={formData.table_id}
+                onTableSelect={(tableId) => setFormData({ ...formData, table_id: tableId })}
+                reservationDate={format(selectedDate, 'yyyy-MM-dd')}
+                reservationTime={formData.time}
+                numberOfGuests={formData.number_of_guests}
+                restaurantId={restaurantId || ''}
+                disabled={isLoading}
+              />
+            </div>
+          )}
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {/* Customer Notes */}
-            <div className="space-y-2 md:col-span-2">
+            <div className="space-y-2">
               <Label htmlFor="customer_notes">Note Cliente</Label>
               <Textarea
                 id="customer_notes"
@@ -409,7 +425,7 @@ const AddReservationDialog: React.FC<AddReservationDialogProps> = ({ onReservati
             </div>
 
             {/* Internal Notes */}
-            <div className="space-y-2 md:col-span-2">
+            <div className="space-y-2">
               <Label htmlFor="internal_notes">Note Interne</Label>
               <Textarea
                 id="internal_notes"
@@ -425,8 +441,8 @@ const AddReservationDialog: React.FC<AddReservationDialogProps> = ({ onReservati
             <Button type="button" variant="outline" onClick={() => setOpen(false)}>
               Annulla
             </Button>
-            <Button type="submit" disabled={loading}>
-              {loading ? 'Aggiungendo...' : 'Aggiungi Prenotazione'}
+            <Button type="submit" disabled={isLoading}>
+              {isLoading ? 'Aggiungendo...' : 'Aggiungi Prenotazione'}
             </Button>
           </div>
         </form>

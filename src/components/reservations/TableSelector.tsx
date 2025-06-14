@@ -40,8 +40,6 @@ const TableSelector: React.FC<TableSelectorProps> = ({
     suggestBestTable 
   } = useTableAvailability(restaurantId);
 
-  const [showSuggestion, setShowSuggestion] = useState(false);
-
   useEffect(() => {
     if (tables.length > 0 && reservationDate) {
       const tableIds = tables.map(t => t.id);
@@ -89,12 +87,30 @@ const TableSelector: React.FC<TableSelectorProps> = ({
     const suggestion = suggestBestTable(tables, numberOfGuests, reservationTime, reservationDate);
     if (suggestion) {
       onTableSelect(suggestion.id);
-      setShowSuggestion(false);
     }
   };
 
   const availableTables = tables.filter(table => getTableStatus(table) === 'available');
   const selectedTable = tables.find(t => t.id === selectedTableId);
+
+  const getTableDisplayText = (table: RestaurantTable) => {
+    let text = table.name;
+    if (table.room_name) {
+      text += ` (${table.room_name})`;
+    }
+    if (table.seats) {
+      text += ` - ${table.seats} posti`;
+    }
+    
+    const status = getTableStatus(table);
+    if (status === 'occupied') {
+      text += ' - Occupato';
+    } else if (status === 'too_small') {
+      text += ' - Troppo piccolo';
+    }
+    
+    return text;
+  };
 
   return (
     <div className="space-y-4">
@@ -137,20 +153,14 @@ const TableSelector: React.FC<TableSelectorProps> = ({
                 value={table.id}
                 disabled={status !== 'available'}
               >
-                <div className="flex items-center justify-between w-full">
-                  <span>
-                    {table.name}
-                    {table.room_name && ` (${table.room_name})`}
-                    {table.seats && ` - ${table.seats} posti`}
-                  </span>
-                  {getStatusBadge(status)}
-                </div>
+                {getTableDisplayText(table)}
               </SelectItem>
             );
           })}
         </SelectContent>
       </Select>
 
+      {/* Mostra i dettagli del tavolo selezionato sotto il select */}
       {selectedTable && (
         <Card className="bg-blue-50 border-blue-200">
           <CardHeader className="pb-3">

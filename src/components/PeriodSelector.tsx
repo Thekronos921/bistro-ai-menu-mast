@@ -9,7 +9,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 
-export type TimePeriod = "today" | "yesterday" | "last7days" | "last30days" | "custom";
+export type TimePeriod = "today" | "yesterday" | "last7days" | "last30days" | "last90days" | "currentMonth" | "lastMonth" | "allTime" | "custom";
 
 interface PeriodSelectorProps {
   selectedPeriod: TimePeriod;
@@ -22,6 +22,10 @@ const PeriodSelector = ({ selectedPeriod, onPeriodChange }: PeriodSelectorProps)
     { value: "yesterday" as const, label: "Ieri" },
     { value: "last7days" as const, label: "Ultimi 7 giorni" },
     { value: "last30days" as const, label: "Ultimi 30 giorni" },
+    { value: "last90days" as const, label: "Ultimi 90 giorni" },
+    { value: "currentMonth" as const, label: "Mese corrente" },
+    { value: "lastMonth" as const, label: "Mese scorso" },
+    { value: "allTime" as const, label: "Da sempre" },
     { value: "custom" as const, label: "Periodo Personalizzato" },
   ];
 

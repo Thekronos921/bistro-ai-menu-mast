@@ -32,6 +32,8 @@ interface FilteredItem {
   category: string;
   analysis: Analysis;
   menuCategory: MenuCategory;
+  unitsSold?: number; // Aggiunto
+  revenue?: number; // Aggiunto
 }
 
 interface SettingsConfig {
@@ -42,8 +44,8 @@ interface SettingsConfig {
 
 interface FoodCostTableProps {
   filteredItems: FilteredItem[];
-  getDishSalesData: (dishName: string) => any;
-  getSalesMixPercentage: (dishName: string) => number;
+  // getDishSalesData: (dishName: string) => any; // Rimosso
+  // getSalesMixPercentage: (dishName: string) => number; // Rimosso
   getTotalSalesForPeriod: () => number;
   settings: SettingsConfig;
   onEditDish: (dish: Dish) => void;
@@ -55,8 +57,8 @@ interface FoodCostTableProps {
 
 const FoodCostTable = ({
   filteredItems,
-  getDishSalesData,
-  getSalesMixPercentage,
+  // getDishSalesData, // Rimosso
+  // getSalesMixPercentage, // Rimosso
   getTotalSalesForPeriod,
   settings,
   onEditDish,
@@ -141,12 +143,16 @@ const FoodCostTable = ({
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filteredItems.map(({ type, item, analysis, menuCategory }) => {
-                const dishSales = type === 'dish' ? getDishSalesData(item.name) : null;
-                const salesMix = type === 'dish' ? getSalesMixPercentage(item.name) : 0;
+              {filteredItems.map(({ type, item, analysis, menuCategory, unitsSold, revenue }) => { // Aggiunto unitsSold, revenue
+                // const dishSales = type === 'dish' ? getDishSalesData(item.name) : null; // Rimosso
+                // const salesMix = type === 'dish' ? getSalesMixPercentage(item.name) : 0; // Rimosso, calcolare diversamente se necessario o rimuovere colonna
                 const dish = item as Dish;
                 const hasRecipe = type === 'dish' && dish.recipe_id;
                 
+                // Calcolo Sales Mix % basato su unitsSold e getTotalSalesForPeriod
+                const totalSalesUnits = getTotalSalesForPeriod();
+                const salesMixPercentage = (type === 'dish' && totalSalesUnits > 0 && unitsSold) ? (unitsSold / totalSalesUnits) * 100 : 0;
+
                 return (
                   <TableRow key={`${type}-${item.id}`}>
                     <TableCell>
@@ -169,14 +175,14 @@ const FoodCostTable = ({
                     <TableCell className="text-slate-600">{item.category}</TableCell>
                     <TableCell className="text-right">
                       {type === 'dish' ? (
-                        <span className="font-medium">{salesMix.toFixed(2)}%</span>
+                        <span className="font-medium">{salesMixPercentage.toFixed(2)}%</span>
                       ) : (
                         <span className="text-slate-400">N/A</span>
                       )}
                     </TableCell>
                     <TableCell className="text-right">
                       {type === 'dish' ? (
-                        <span className="font-medium">{dishSales?.unitsSold || 0}</span>
+                        <span className="font-medium">{unitsSold || 0}</span>
                       ) : (
                         <span className="text-slate-400">N/A</span>
                       )}

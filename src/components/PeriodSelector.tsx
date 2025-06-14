@@ -1,4 +1,5 @@
 
+import { useState } from "react";
 import { Calendar, ChevronDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -32,10 +33,6 @@ const PeriodSelector = ({ selectedPeriod, onPeriodChange }: PeriodSelectorProps)
     return periods.find(p => p.value === selectedPeriod)?.label || "Seleziona periodo";
   };
 
-  const handlePeriodSelect = (period: TimePeriod) => {
-    onPeriodChange(period);
-  };
-
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
@@ -49,7 +46,7 @@ const PeriodSelector = ({ selectedPeriod, onPeriodChange }: PeriodSelectorProps)
         {periods.map((period) => (
           <DropdownMenuItem
             key={period.value}
-            onClick={() => handlePeriodSelect(period.value)}
+            onClick={() => onPeriodChange(period.value)}
             className={selectedPeriod === period.value ? "bg-emerald-50 text-emerald-700" : ""}
           >
             {period.label}

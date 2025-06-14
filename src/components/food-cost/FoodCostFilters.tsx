@@ -5,6 +5,12 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import AdvancedFilters, { FilterConfig } from "@/components/AdvancedFilters";
 import EnhancedSalesImportDialog from "./EnhancedSalesImportDialog";
+import DateRangeFilter from "./DateRangeFilter";
+
+interface DateRange {
+  from: Date | undefined;
+  to: Date | undefined;
+}
 
 interface SalesData {
   dishName: string;
@@ -26,6 +32,8 @@ interface FoodCostFiltersProps {
   onImportSales: (salesData: SalesData[]) => void;
   onExportCSV: () => void;
   onRefresh: () => void;
+  dateRange: DateRange;
+  onDateRangeChange: (range: DateRange) => void;
 }
 
 const FoodCostFilters = ({
@@ -40,7 +48,9 @@ const FoodCostFilters = ({
   onToggleAdvancedFilters,
   onImportSales,
   onExportCSV,
-  onRefresh
+  onRefresh,
+  dateRange,
+  onDateRangeChange
 }: FoodCostFiltersProps) => {
   return (
     <div className="bg-white rounded-2xl border border-stone-200 p-6 space-y-4">
@@ -69,6 +79,12 @@ const FoodCostFilters = ({
             ))}
           </SelectContent>
         </Select>
+
+        {/* Date Range Filter */}
+        <DateRangeFilter 
+          dateRange={dateRange}
+          onDateRangeChange={onDateRangeChange}
+        />
       </div>
 
       <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center justify-between">

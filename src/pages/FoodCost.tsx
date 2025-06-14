@@ -1,4 +1,5 @@
-import { useState, useEffect, useRef } from "react";
+
+import { useState, useEffect } from "react";
 import EditRecipeDialog from "@/components/EditRecipeDialog";
 import EditDishDialog from "@/components/EditDishDialog";
 import AssociateRecipeDialog from "@/components/AssociateRecipeDialog";
@@ -357,6 +358,8 @@ const FoodCost = () => {
           onImportSales={handleSalesImportWrapper}
           onExportCSV={exportToCSV}
           onRefresh={fetchData}
+          dateRange={dateRange}
+          onDateRangeChange={setDateRange}
         />
 
         <FoodCostTable

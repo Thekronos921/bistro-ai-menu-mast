@@ -62,7 +62,7 @@ const FoodCostHeader = ({
             />
             
             <AddDishDialog
-              onDishAdded={onAddDish}
+              onAddDish={onAddDish}
               onEditRecipe={onEditRecipe}
             />
           </div>

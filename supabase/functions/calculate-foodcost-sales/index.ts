@@ -10,7 +10,7 @@ interface CalculateRequest {
   restaurantId: string;
   periodStart: string;
   periodEnd: string;
-  periodType: 'daily' | 'weekly' | 'monthly' | 'custom';
+  periodType: 'daily' | 'weekly' | 'monthly' | 'custom' | 'all_time';
   forceRecalculate?: boolean;
 }
 

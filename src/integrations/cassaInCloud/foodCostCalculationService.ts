@@ -5,7 +5,7 @@ export interface FoodCostCalculationParams {
   restaurantId: string;
   periodStart: string;
   periodEnd: string;
-  periodType: 'daily' | 'weekly' | 'monthly' | 'custom';
+  periodType: 'daily' | 'weekly' | 'monthly' | 'custom' | 'all_time';
   forceRecalculate?: boolean;
 }
 
@@ -144,11 +144,11 @@ export async function deleteFoodCostSalesData(
 export function convertTimePeriodToParams(
   period: string,
   customDateRange?: { from: Date; to: Date }
-): { periodStart: string; periodEnd: string; periodType: 'daily' | 'weekly' | 'monthly' | 'custom' } {
+): { periodStart: string; periodEnd: string; periodType: 'daily' | 'weekly' | 'monthly' | 'custom' | 'all_time' } {
   const today = new Date();
   let startDate = new Date();
   let endDate = new Date();
-  let periodType: 'daily' | 'weekly' | 'monthly' | 'custom' = 'custom';
+  let periodType: 'daily' | 'weekly' | 'monthly' | 'custom' | 'all_time' = 'custom';
 
   switch (period) {
     case 'today':
@@ -185,6 +185,11 @@ export function convertTimePeriodToParams(
       startDate = new Date(today.getFullYear(), today.getMonth() - 1, 1);
       endDate = new Date(today.getFullYear(), today.getMonth(), 0);
       periodType = 'monthly';
+      break;
+    case 'allTime':
+      startDate = new Date('1970-01-01');
+      endDate = new Date();
+      periodType = 'all_time';
       break;
     case 'custom':
       if (customDateRange?.from && customDateRange?.to) {

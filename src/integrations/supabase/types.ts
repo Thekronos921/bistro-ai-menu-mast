@@ -201,10 +201,14 @@ export type Database = {
       }
       cassa_in_cloud_receipt_rows: {
         Row: {
+          amount: number | null
+          calculated_amount: number | null
           cic_department_id: string | null
           cic_product_id: string | null
           cic_row_id: string | null
           cic_tax_id: string | null
+          composition: boolean | null
+          cover_charge: boolean | null
           created_at: string | null
           department_description: string | null
           description: string | null
@@ -212,8 +216,19 @@ export type Database = {
           discount_percentage: number | null
           external_id: string | null
           id: string
+          id_category: string | null
+          id_department: string | null
+          id_outgoing_movement: string | null
+          id_product: string | null
+          id_product_variant: string | null
+          id_sales_mode: string | null
+          id_stock_movement: string | null
+          id_tax: string | null
           last_synced_at: string | null
+          menu: boolean | null
+          note: string | null
           notes: string | null
+          percentage_variation: number | null
           position: number | null
           price: number | null
           product_description: string | null
@@ -221,7 +236,17 @@ export type Database = {
           quantity: number | null
           raw_data: Json | null
           receipt_id: string
+          refund: boolean | null
           restaurant_id: string
+          row_component_choices: Json | null
+          row_course_choices: Json | null
+          row_modifier_values: Json | null
+          row_number: number | null
+          sales_type: Json | null
+          shared_payment_reason: string | null
+          shipping_cost: boolean | null
+          stock_movement_enabled: boolean | null
+          subtotal: boolean | null
           tax_description: string | null
           tax_percentage: number | null
           total: number | null
@@ -230,13 +255,19 @@ export type Database = {
           unit_price_gross: number | null
           unit_price_net: number | null
           updated_at: string | null
+          variation: number | null
+          variation_type: Json | null
           vat: number | null
         }
         Insert: {
+          amount?: number | null
+          calculated_amount?: number | null
           cic_department_id?: string | null
           cic_product_id?: string | null
           cic_row_id?: string | null
           cic_tax_id?: string | null
+          composition?: boolean | null
+          cover_charge?: boolean | null
           created_at?: string | null
           department_description?: string | null
           description?: string | null
@@ -244,8 +275,19 @@ export type Database = {
           discount_percentage?: number | null
           external_id?: string | null
           id?: string
+          id_category?: string | null
+          id_department?: string | null
+          id_outgoing_movement?: string | null
+          id_product?: string | null
+          id_product_variant?: string | null
+          id_sales_mode?: string | null
+          id_stock_movement?: string | null
+          id_tax?: string | null
           last_synced_at?: string | null
+          menu?: boolean | null
+          note?: string | null
           notes?: string | null
+          percentage_variation?: number | null
           position?: number | null
           price?: number | null
           product_description?: string | null
@@ -253,7 +295,17 @@ export type Database = {
           quantity?: number | null
           raw_data?: Json | null
           receipt_id: string
+          refund?: boolean | null
           restaurant_id: string
+          row_component_choices?: Json | null
+          row_course_choices?: Json | null
+          row_modifier_values?: Json | null
+          row_number?: number | null
+          sales_type?: Json | null
+          shared_payment_reason?: string | null
+          shipping_cost?: boolean | null
+          stock_movement_enabled?: boolean | null
+          subtotal?: boolean | null
           tax_description?: string | null
           tax_percentage?: number | null
           total?: number | null
@@ -262,13 +314,19 @@ export type Database = {
           unit_price_gross?: number | null
           unit_price_net?: number | null
           updated_at?: string | null
+          variation?: number | null
+          variation_type?: Json | null
           vat?: number | null
         }
         Update: {
+          amount?: number | null
+          calculated_amount?: number | null
           cic_department_id?: string | null
           cic_product_id?: string | null
           cic_row_id?: string | null
           cic_tax_id?: string | null
+          composition?: boolean | null
+          cover_charge?: boolean | null
           created_at?: string | null
           department_description?: string | null
           description?: string | null
@@ -276,8 +334,19 @@ export type Database = {
           discount_percentage?: number | null
           external_id?: string | null
           id?: string
+          id_category?: string | null
+          id_department?: string | null
+          id_outgoing_movement?: string | null
+          id_product?: string | null
+          id_product_variant?: string | null
+          id_sales_mode?: string | null
+          id_stock_movement?: string | null
+          id_tax?: string | null
           last_synced_at?: string | null
+          menu?: boolean | null
+          note?: string | null
           notes?: string | null
+          percentage_variation?: number | null
           position?: number | null
           price?: number | null
           product_description?: string | null
@@ -285,7 +354,17 @@ export type Database = {
           quantity?: number | null
           raw_data?: Json | null
           receipt_id?: string
+          refund?: boolean | null
           restaurant_id?: string
+          row_component_choices?: Json | null
+          row_course_choices?: Json | null
+          row_modifier_values?: Json | null
+          row_number?: number | null
+          sales_type?: Json | null
+          shared_payment_reason?: string | null
+          shipping_cost?: boolean | null
+          stock_movement_enabled?: boolean | null
+          subtotal?: boolean | null
           tax_description?: string | null
           tax_percentage?: number | null
           total?: number | null
@@ -294,6 +373,8 @@ export type Database = {
           unit_price_gross?: number | null
           unit_price_net?: number | null
           updated_at?: string | null
+          variation?: number | null
+          variation_type?: Json | null
           vat?: number | null
         }
         Relationships: [
@@ -465,6 +546,7 @@ export type Database = {
           last_name: string | null
           last_visit_date: string | null
           name: string | null
+          notes: string | null
           phone_number: string | null
           referral_of: string | null
           restaurant_id: string
@@ -492,6 +574,7 @@ export type Database = {
           last_name?: string | null
           last_visit_date?: string | null
           name?: string | null
+          notes?: string | null
           phone_number?: string | null
           referral_of?: string | null
           restaurant_id: string
@@ -519,6 +602,7 @@ export type Database = {
           last_name?: string | null
           last_visit_date?: string | null
           name?: string | null
+          notes?: string | null
           phone_number?: string | null
           referral_of?: string | null
           restaurant_id?: string
@@ -1572,6 +1656,7 @@ export type Database = {
           restaurant_id: string
           social_score: number | null
           status: Database["public"]["Enums"]["reservation_status"]
+          table_id: string | null
           updated_at: string
         }
         Insert: {
@@ -1595,6 +1680,7 @@ export type Database = {
           restaurant_id: string
           social_score?: number | null
           status?: Database["public"]["Enums"]["reservation_status"]
+          table_id?: string | null
           updated_at?: string
         }
         Update: {
@@ -1618,6 +1704,7 @@ export type Database = {
           restaurant_id?: string
           social_score?: number | null
           status?: Database["public"]["Enums"]["reservation_status"]
+          table_id?: string | null
           updated_at?: string
         }
         Relationships: [
@@ -1633,6 +1720,13 @@ export type Database = {
             columns: ["restaurant_id"]
             isOneToOne: false
             referencedRelation: "restaurants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reservations_table_id_fkey"
+            columns: ["table_id"]
+            isOneToOne: false
+            referencedRelation: "restaurant_tables"
             referencedColumns: ["id"]
           },
         ]

@@ -1,11 +1,15 @@
+
 import { ArrowRight, BarChart3, Calculator, ChefHat, Package, TrendingUp, Users, Utensils, PieChart, Calendar, Target, Zap } from "lucide-react";
 import { Link } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import Header from "@/components/Header";
 
 const Index = () => {
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-stone-50">
+      <Header />
+      
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-6 py-8">
         {/* Hero Section */}

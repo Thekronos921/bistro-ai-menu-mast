@@ -85,20 +85,20 @@ Deno.serve(async (req) => {
       }
     }
 
-    // 1. Recupera le ricevute per il periodo specificato
+    // 1. Recupera le ricevute per il periodo specificato usando receipt_date invece di datetime
     const { data: receipts, error: receiptsError } = await supabase
       .from('cassa_in_cloud_receipts')
-      .select('id, datetime, restaurant_id')
+      .select('id, receipt_date, restaurant_id')
       .eq('restaurant_id', restaurantId)
-      .gte('datetime', periodStart)
-      .lte('datetime', periodEnd);
+      .gte('receipt_date', periodStart)
+      .lte('receipt_date', periodEnd);
 
     if (receiptsError) {
       console.error('Error fetching receipts:', receiptsError);
       throw receiptsError;
     }
 
-    console.log(`Found ${receipts?.length || 0} receipts for the period`);
+    console.log(`Found ${receipts?.length || 0} receipts for the period using receipt_date`);
 
     if (!receipts || receipts.length === 0) {
       return new Response(

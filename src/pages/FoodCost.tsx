@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import EditRecipeDialog from "@/components/EditRecipeDialog";
 import EditDishDialog from "@/components/EditDishDialog";
 import AssociateRecipeDialog from "@/components/AssociateRecipeDialog";
@@ -12,6 +12,8 @@ import { useFoodCostData } from "@/hooks/useFoodCostData";
 import { useFoodCostAnalysis } from "@/hooks/useFoodCostAnalysis";
 import { useCategories } from '@/hooks/useCategories';
 import type { Recipe } from "@/types/recipe";
+import { getDishSalesByPeriod, type DishSaleData } from '@/integrations/cassaInCloud/cassaInCloudSalesService'; // Importa la nuova funzione e il tipo
+import { useRestaurant } from '@/hooks/useRestaurant'; // Importa useRestaurant per restaurantId
 
 interface Dish {
   id: string;
@@ -63,6 +65,8 @@ const FoodCost = () => {
   const [associatingDish, setAssociatingDish] = useState<Dish | null>(null);
   const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
   const [advancedFilters, setAdvancedFilters] = useState<FilterConfig>({});
+  const [dishSales, setDishSales] = useState<DishSaleData[]>([]); 
+  const { restaurantId } = useRestaurant(); 
 
   // Configurazioni utente (persistenti nel localStorage)
   const [settings, setSettings] = useState<SettingsConfig>(() => {
@@ -83,8 +87,8 @@ const FoodCost = () => {
   const { 
     dishes, 
     recipes, 
-    salesData, 
-    allSalesData,
+    // salesData, // Non più usato direttamente qui per le vendite dei piatti, useremo dishSales
+    allSalesData, // Mantenuto se serve per altre analisi o importazioni
     dateRange,
     setDateRange,
     loading, 
@@ -94,8 +98,19 @@ const FoodCost = () => {
     deleteDish
   } = useFoodCostData();
 
+  // Trasforma dishSales (DishSaleData[]) in un formato compatibile con SalesData[]
+  const transformedSalesData = dishSales.map(sale => {
+    // Cerca il nome del piatto corrispondente in dishes usando dishId
+    const dish = dishes.find(d => d.id === sale.dishId);
+    return {
+      dishName: dish ? dish.name : sale.dishName || 'Sconosciuto', // Usa il nome da dishes o quello in sale, o un default
+      unitsSold: sale.totalQuantitySold,
+      period: selectedPeriod, // Aggiungi il periodo corrente
+    };
+  });
+
   const {
-    getDishSalesData,
+    // getDishSalesData, // Questa funzione interna a useFoodCostAnalysis ora userà transformedSalesData
     getTotalSalesForPeriod,
     getSalesMixPercentage,
     getDishAnalysis,
@@ -105,7 +120,80 @@ const FoodCost = () => {
     totalMargin,
     criticalDishes,
     targetReached
-  } = useFoodCostAnalysis(dishes, recipes, salesData, selectedPeriod, settings);
+  } = useFoodCostAnalysis(dishes, recipes, transformedSalesData, selectedPeriod, settings);
+
+  useEffect(() => {
+    const fetchDishSalesData = async () => {
+      if (restaurantId) {
+        try {
+          let startDateStr: string | undefined;
+          let endDateStr: string | undefined = new Date().toISOString();
+
+          const today = new Date();
+          let calculatedStartDate = new Date();
+
+          switch (selectedPeriod) {
+            case 'today':
+              calculatedStartDate.setDate(today.getDate());
+              endDateStr = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 23, 59, 59, 999).toISOString();
+              break;
+            case 'yesterday':
+              calculatedStartDate.setDate(today.getDate() - 1);
+              endDateStr = new Date(today.getFullYear(), today.getMonth(), today.getDate() -1, 23, 59, 59, 999).toISOString();
+              break;
+            case 'last7days':
+              calculatedStartDate.setDate(today.getDate() - 7);
+              break;
+            case 'last30days':
+              calculatedStartDate.setDate(today.getDate() - 30);
+              break;
+            case 'last90days': // Aggiunto per coerenza se presente nel tipo TimePeriod
+              calculatedStartDate.setDate(today.getDate() - 90);
+              break;
+            case 'currentMonth':
+              calculatedStartDate = new Date(today.getFullYear(), today.getMonth(), 1);
+              break;
+            case 'lastMonth':
+              endDateStr = new Date(today.getFullYear(), today.getMonth(), 0).toISOString();
+              calculatedStartDate = new Date(today.getFullYear(), new Date(endDateStr).getMonth(), 1);
+              break;
+            case 'custom':
+              if (dateRange.from && dateRange.to) {
+                startDateStr = dateRange.from.toISOString();
+                endDateStr = dateRange.to.toISOString();
+              } else {
+                // Se custom è selezionato ma le date non ci sono, non fare nulla o imposta un default
+                return; 
+              }
+              break;
+            case 'allTime':
+              startDateStr = undefined;
+              endDateStr = undefined;
+              break;
+            default:
+              // Gestisci altri casi o imposta un default se necessario
+              console.warn(`Periodo selezionato non gestito: ${selectedPeriod}`);
+              return;
+          }
+
+          if (selectedPeriod !== 'custom' && selectedPeriod !== 'allTime') {
+            startDateStr = calculatedStartDate.toISOString();
+          }
+
+          // La chiamata a getDishSalesByPeriod ora usa startDateStr e endDateStr correttamente definiti
+          // o undefined per 'allTime'
+          const sales = await getDishSalesByPeriod({ restaurantId, startDate: startDateStr, endDate: endDateStr });
+          console.log('Raw sales data from getDishSalesByPeriod:', sales); // LOG 1
+          setDishSales(sales);
+        } catch (error) {
+          console.error("Error fetching dish sales:", error);
+          // toast({ title: "Errore", description: "Errore nel caricamento delle vendite dei piatti", variant: "destructive" });
+        }
+      }
+    };
+
+    fetchDishSalesData();
+  }, [restaurantId, selectedPeriod, dateRange]); // Aggiunto dateRange alle dipendenze
 
   // Convert Recipe to SimpleRecipe for dialog components
   const convertToSimpleRecipe = (recipe: Recipe): SimpleRecipe => {
@@ -162,14 +250,20 @@ const FoodCost = () => {
 
   // Combina piatti e ricette per il filtro
   const allItems = [
-    ...dishes.map(dish => ({ 
-      type: 'dish' as const, 
-      item: dish, 
-      name: dish.name, 
-      category: dish.category,
-      analysis: getDishAnalysis(dish),
-      menuCategory: getMenuEngineeringCategory(dish)
-    })),
+    ...dishes.map(dish => {
+      const saleDataForDish = dishSales.find(sale => sale.dishId === dish.id);
+      console.log('Processing dish for allItems:', dish.name, 'Sale data:', saleDataForDish); // LOG 3
+      return {
+        type: 'dish' as const, 
+        item: dish, 
+        name: dish.name, 
+        category: dish.category,
+        analysis: getDishAnalysis(dish),
+        menuCategory: getMenuEngineeringCategory(dish),
+        unitsSold: saleDataForDish?.totalQuantitySold ?? 0, 
+        revenue: saleDataForDish?.totalRevenue ?? 0, 
+      };
+    }),
     ...recipes
       .filter(recipe => !dishes.some(dish => dish.recipe_id === recipe.id))
       .map(recipe => ({ 
@@ -178,7 +272,9 @@ const FoodCost = () => {
         name: recipe.name, 
         category: recipe.category,
         analysis: getRecipeAnalysis(recipe),
-        menuCategory: "puzzle" as const
+        menuCategory: "puzzle" as const,
+        unitsSold: 0, // Aggiungi unitsSold per le ricette
+        revenue: 0 // Aggiungi revenue per le ricette, se necessario per coerenza
       }))
   ];
 
@@ -199,22 +295,25 @@ const FoodCost = () => {
   });
 
   const exportToCSV = () => {
-    const csvData = filteredItems.map(({ type, item, analysis, menuCategory }) => ({
-      Nome: item.name,
-      Tipo: type === 'dish' ? 'Piatto' : 'Ricetta',
-      Categoria: item.category,
-      'Popolarità %': type === 'dish' ? getSalesMixPercentage(item.name).toFixed(2) : 'N/A',
-      'Unità Vendute': type === 'dish' ? (getDishSalesData(item.name)?.unitsSold || 0) : 'N/A',
-      'Prezzo Vendita': type === 'dish' ? (item as Dish).selling_price : analysis.assumedPrice,
-      'Costo Ingredienti': analysis.foodCost.toFixed(2),
-      'Food Cost %': analysis.foodCostPercentage.toFixed(1),
+    const csvData = filteredItems.map((item) => {
+      const { type, item: dataItem, analysis, menuCategory, unitsSold } = item;
+      return {
+        Nome: dataItem.name,
+        Tipo: type === 'dish' ? 'Piatto' : 'Ricetta',
+        Categoria: dataItem.category,
+        'Popolarità %': type === 'dish' ? getSalesMixPercentage(dataItem.name).toFixed(2) : 'N/A',
+        'Unità Vendute': type === 'dish' ? unitsSold : 'N/A', // Ora unitsSold è sempre definito
+        'Prezzo Vendita': type === 'dish' ? (dataItem as Dish).selling_price : analysis.assumedPrice,
+        'Costo Ingredienti': analysis.foodCost.toFixed(2),
+        'Food Cost %': analysis.foodCostPercentage.toFixed(1),
       'Margine €': analysis.margin.toFixed(2),
       'Menu Engineering': menuCategory,
       'Popolarità Score': analysis.popularity,
       'Periodo Analisi': dateRange.from && dateRange.to 
         ? `${dateRange.from.toLocaleDateString()} - ${dateRange.to.toLocaleDateString()}`
         : 'Tutti i dati'
-    }));
+      };
+    });
 
     const csv = [
       Object.keys(csvData[0]).join(','),
@@ -285,8 +384,7 @@ const FoodCost = () => {
 
         <FoodCostTable
           filteredItems={filteredItems}
-          getDishSalesData={getDishSalesData}
-          getSalesMixPercentage={getSalesMixPercentage}
+          // getDishSalesData e getSalesMixPercentage sono stati rimossi perché i dati sono ora in filteredItems
           getTotalSalesForPeriod={getTotalSalesForPeriod}
           settings={settings}
           onEditDish={setEditingDish}

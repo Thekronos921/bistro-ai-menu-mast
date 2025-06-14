@@ -6,6 +6,42 @@
 /**
  * Receipt type for CassaInCloud integration
  */
+
+export interface CassaInCloudReceiptRow {
+  id?: string;
+  description: string;
+  quantity: number; // BigDecimal in API, number in TS
+  price: number;    // BigDecimal in API, number in TS
+  vat: number;
+  total: number;    // BigDecimal in API, number in TS
+  subtotal?: boolean;
+  refund?: boolean;
+  menu?: boolean;
+  composition?: boolean;
+  coverCharge?: boolean;
+  idProduct?: string;
+  idProductVariant?: string;
+  idCategory?: string;
+  idDepartment?: string;
+  salesType?: any; // TODO: Definire SalesType se necessario, per ora 'any'
+  idTax?: string;
+  idSalesMode?: string;
+  stockMovementEnabled?: boolean;
+  idStockMovement?: string;
+  idOutgoingMovement?: string;
+  rowNumber?: number; // Integer in API
+  percentageVariation?: number; // BigDecimal in API, number in TS
+  variation?: number; // BigDecimal in API, number in TS
+  variationType?: any; // TODO: Definire VariationType se necessario, per ora 'any'
+  rowModifierValues?: any[]; // TODO: Definire RowModifierValue se necessario, per ora 'any[]'
+  note?: string;
+  calculatedAmount?: number; // BigDecimal in API, number in TS
+  shippingCost?: boolean;
+  sharedPaymentReason?: string;
+  rowCourseChoices?: any[]; // TODO: Definire RowCourseChoice se necessario, per ora 'any[]'
+  rowComponentChoices?: any[]; // TODO: Definire RowComponentChoice se necessario, per ora 'any[]'
+}
+
 export interface CassaInCloudReceipt {
   id: string;
   number: string;
@@ -25,14 +61,7 @@ export interface CassaInCloudReceipt {
   document?: {
     id: string;
     amount: number;
-    rows?: Array<{
-      id?: string;
-      description: string;
-      quantity: number;
-      price: number;
-      vat: number;
-      total: number;
-    }>;
+    rows?: Array<CassaInCloudReceiptRow>; // Modificato per usare la nuova interfaccia
     user?: {
       id: string;
       name?: string;

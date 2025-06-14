@@ -465,7 +465,6 @@ export type Database = {
           last_name: string | null
           last_visit_date: string | null
           name: string | null
-          notes: string | null
           phone_number: string | null
           referral_of: string | null
           restaurant_id: string
@@ -493,7 +492,6 @@ export type Database = {
           last_name?: string | null
           last_visit_date?: string | null
           name?: string | null
-          notes?: string | null
           phone_number?: string | null
           referral_of?: string | null
           restaurant_id: string
@@ -521,7 +519,6 @@ export type Database = {
           last_name?: string | null
           last_visit_date?: string | null
           name?: string | null
-          notes?: string | null
           phone_number?: string | null
           referral_of?: string | null
           restaurant_id?: string
@@ -1575,7 +1572,6 @@ export type Database = {
           restaurant_id: string
           social_score: number | null
           status: Database["public"]["Enums"]["reservation_status"]
-          table_id: string | null
           updated_at: string
         }
         Insert: {
@@ -1599,7 +1595,6 @@ export type Database = {
           restaurant_id: string
           social_score?: number | null
           status?: Database["public"]["Enums"]["reservation_status"]
-          table_id?: string | null
           updated_at?: string
         }
         Update: {
@@ -1623,7 +1618,6 @@ export type Database = {
           restaurant_id?: string
           social_score?: number | null
           status?: Database["public"]["Enums"]["reservation_status"]
-          table_id?: string | null
           updated_at?: string
         }
         Relationships: [
@@ -1639,13 +1633,6 @@ export type Database = {
             columns: ["restaurant_id"]
             isOneToOne: false
             referencedRelation: "restaurants"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "reservations_table_id_fkey"
-            columns: ["table_id"]
-            isOneToOne: false
-            referencedRelation: "restaurant_tables"
             referencedColumns: ["id"]
           },
         ]

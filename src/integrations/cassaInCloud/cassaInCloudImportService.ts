@@ -545,6 +545,33 @@ export async function importReceiptsFromCassaInCloud(
             price: row.price,
             vat: row.vat,
             total: row.total,
+            // Campi aggiunti:
+            subtotal: row.subtotal,
+            refund: row.refund,
+            menu: row.menu,
+            composition: row.composition,
+            cover_charge: row.coverCharge, // snake_case per coerenza con la tabella DB
+            id_product: row.idProduct,
+            id_product_variant: row.idProductVariant,
+            id_category: row.idCategory,
+            id_department: row.idDepartment,
+            sales_type: row.salesType, // Potrebbe necessitare di serializzazione se è un oggetto complesso
+            id_tax: row.idTax,
+            id_sales_mode: row.idSalesMode,
+            stock_movement_enabled: row.stockMovementEnabled,
+            id_stock_movement: row.idStockMovement,
+            id_outgoing_movement: row.idOutgoingMovement,
+            row_number: row.rowNumber,
+            percentage_variation: row.percentageVariation,
+            variation: row.variation,
+            variation_type: row.variationType, // Potrebbe necessitare di serializzazione
+            row_modifier_values: row.rowModifierValues, // Probabilmente JSONB in DB
+            note: row.note,
+            calculated_amount: row.calculatedAmount,
+            shipping_cost: row.shippingCost,
+            shared_payment_reason: row.sharedPaymentReason,
+            row_course_choices: row.rowCourseChoices, // Probabilmente JSONB in DB
+            row_component_choices: row.rowComponentChoices, // Probabilmente JSONB in DB
             raw_data: row,
             last_synced_at: new Date().toISOString()
           });

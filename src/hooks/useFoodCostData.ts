@@ -5,19 +5,23 @@ import { useRestaurant } from "@/hooks/useRestaurant";
 import { fetchDishes, fetchRecipes } from "./food-cost/dataFetchers";
 import { createDishFromRecipe, deleteDish } from "./food-cost/dishOperations";
 import { filterSalesDataByDateRange, mergeSalesData } from "./food-cost/salesDataUtils";
+import { calculateFoodCostSales, getFoodCostSalesData, convertTimePeriodToParams } from "@/integrations/cassaInCloud/foodCostCalculationService";
 import type { 
   Dish, 
   FoodCostSalesData, 
   DateRange 
 } from "./food-cost/types";
 import type { Recipe } from "@/types/recipe";
+import type { TimePeriod } from "@/components/PeriodSelector";
 
 export const useFoodCostData = () => {
   const [dishes, setDishes] = useState<Dish[]>([]);
   const [recipes, setRecipes] = useState<Recipe[]>([]);
   const [salesData, setSalesData] = useState<FoodCostSalesData[]>([]);
+  const [foodCostSalesData, setFoodCostSalesData] = useState<any[]>([]);
   const [dateRange, setDateRange] = useState<DateRange>({ from: undefined, to: undefined });
   const [loading, setLoading] = useState(true);
+  const [calculatingFoodCost, setCalculatingFoodCost] = useState(false);
   const { toast } = useToast();
   const { restaurantId } = useRestaurant();
 
@@ -50,6 +54,98 @@ export const useFoodCostData = () => {
       });
     } finally {
       setLoading(false);
+    }
+  };
+
+  const calculateFoodCostForPeriod = async (
+    period: TimePeriod,
+    customDateRange?: DateRange,
+    forceRecalculate: boolean = false
+  ) => {
+    if (!restaurantId) {
+      toast({
+        title: "Errore",
+        description: "ID ristorante non trovato",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    setCalculatingFoodCost(true);
+
+    try {
+      // Converti il periodo in parametri per la funzione
+      const dateRangeForConversion = customDateRange?.from && customDateRange?.to 
+        ? { from: customDateRange.from, to: customDateRange.to }
+        : undefined;
+      
+      const { periodStart, periodEnd, periodType } = convertTimePeriodToParams(period, dateRangeForConversion);
+
+      console.log('Calculating food cost for period:', { period, periodStart, periodEnd, periodType });
+
+      // Chiama la Edge Function per calcolare i dati
+      const result = await calculateFoodCostSales({
+        restaurantId,
+        periodStart,
+        periodEnd,
+        periodType,
+        forceRecalculate
+      });
+
+      if (result.success) {
+        setFoodCostSalesData(result.data);
+        toast({
+          title: "Successo",
+          description: result.message,
+        });
+      } else {
+        throw new Error(result.error || 'Errore nel calcolo dei dati di vendita');
+      }
+
+    } catch (error) {
+      console.error("Calculate food cost error:", error);
+      toast({
+        title: "Errore",
+        description: "Errore nel calcolo dei dati di food cost",
+        variant: "destructive"
+      });
+    } finally {
+      setCalculatingFoodCost(false);
+    }
+  };
+
+  const loadFoodCostSalesData = async (
+    period?: TimePeriod,
+    customDateRange?: DateRange
+  ) => {
+    if (!restaurantId) return;
+
+    try {
+      let periodStart: string | undefined;
+      let periodEnd: string | undefined;
+      let periodType: string | undefined;
+
+      if (period) {
+        const dateRangeForConversion = customDateRange?.from && customDateRange?.to 
+          ? { from: customDateRange.from, to: customDateRange.to }
+          : undefined;
+        
+        const params = convertTimePeriodToParams(period, dateRangeForConversion);
+        periodStart = params.periodStart;
+        periodEnd = params.periodEnd;
+        periodType = params.periodType;
+      }
+
+      const data = await getFoodCostSalesData(restaurantId, periodStart, periodEnd, periodType);
+      setFoodCostSalesData(data);
+
+    } catch (error) {
+      console.error("Load food cost sales data error:", error);
+      toast({
+        title: "Errore",
+        description: "Errore nel caricamento dei dati di food cost",
+        variant: "destructive"
+      });
     }
   };
 
@@ -143,12 +239,16 @@ export const useFoodCostData = () => {
     recipes,
     salesData: getFilteredSalesData(),
     allSalesData: salesData,
+    foodCostSalesData,
     dateRange,
     setDateRange,
     loading,
+    calculatingFoodCost,
     fetchData,
     createDishFromRecipe: handleCreateDishFromRecipe,
     handleSalesImport,
-    deleteDish: handleDeleteDish
+    deleteDish: handleDeleteDish,
+    calculateFoodCostForPeriod,
+    loadFoodCostSalesData
   };
 };

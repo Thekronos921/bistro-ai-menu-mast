@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import EditRecipeDialog from "@/components/EditRecipeDialog";
 import EditDishDialog from "@/components/EditDishDialog";
@@ -11,9 +12,9 @@ import FoodCostTable from "@/components/food-cost/FoodCostTable";
 import { useFoodCostData } from "@/hooks/useFoodCostData";
 import { useFoodCostAnalysis } from "@/hooks/useFoodCostAnalysis";
 import { useCategories } from '@/hooks/useCategories';
+import { Button } from "@/components/ui/button";
+import { Calculator, RefreshCw } from "lucide-react";
 import type { Recipe } from "@/types/recipe";
-import { getDishSalesByPeriod, type DishSaleData } from '@/integrations/cassaInCloud/cassaInCloudSalesService'; // Importa la nuova funzione e il tipo
-import { useRestaurant } from '@/hooks/useRestaurant'; // Importa useRestaurant per restaurantId
 
 interface Dish {
   id: string;
@@ -65,8 +66,6 @@ const FoodCost = () => {
   const [associatingDish, setAssociatingDish] = useState<Dish | null>(null);
   const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
   const [advancedFilters, setAdvancedFilters] = useState<FilterConfig>({});
-  const [dishSales, setDishSales] = useState<DishSaleData[]>([]); 
-  const { restaurantId } = useRestaurant(); 
 
   // Configurazioni utente (persistenti nel localStorage)
   const [settings, setSettings] = useState<SettingsConfig>(() => {
@@ -87,30 +86,28 @@ const FoodCost = () => {
   const { 
     dishes, 
     recipes, 
-    // salesData, // Non più usato direttamente qui per le vendite dei piatti, useremo dishSales
-    allSalesData, // Mantenuto se serve per altre analisi o importazioni
+    allSalesData,
+    foodCostSalesData,
     dateRange,
     setDateRange,
     loading, 
+    calculatingFoodCost,
     fetchData, 
     createDishFromRecipe, 
     handleSalesImport,
-    deleteDish
+    deleteDish,
+    calculateFoodCostForPeriod,
+    loadFoodCostSalesData
   } = useFoodCostData();
 
-  // Trasforma dishSales (DishSaleData[]) in un formato compatibile con SalesData[]
-  const transformedSalesData = dishSales.map(sale => {
-    // Cerca il nome del piatto corrispondente in dishes usando dishId
-    const dish = dishes.find(d => d.id === sale.dishId);
-    return {
-      dishName: dish ? dish.name : sale.dishName || 'Sconosciuto', // Usa il nome da dishes o quello in sale, o un default
-      unitsSold: sale.totalQuantitySold,
-      period: selectedPeriod, // Aggiungi il periodo corrente
-    };
-  });
+  // Trasforma foodCostSalesData in un formato compatibile con SalesData[]
+  const transformedSalesData = foodCostSalesData.map(sale => ({
+    dishName: sale.dish_name,
+    unitsSold: sale.total_quantity_sold,
+    period: selectedPeriod,
+  }));
 
   const {
-    // getDishSalesData, // Questa funzione interna a useFoodCostAnalysis ora userà transformedSalesData
     getTotalSalesForPeriod,
     getSalesMixPercentage,
     getDishAnalysis,
@@ -122,78 +119,10 @@ const FoodCost = () => {
     targetReached
   } = useFoodCostAnalysis(dishes, recipes, transformedSalesData, selectedPeriod, settings);
 
+  // Carica i dati di food cost quando cambia il periodo o la data range
   useEffect(() => {
-    const fetchDishSalesData = async () => {
-      if (restaurantId) {
-        try {
-          let startDateStr: string | undefined;
-          let endDateStr: string | undefined = new Date().toISOString();
-
-          const today = new Date();
-          let calculatedStartDate = new Date();
-
-          switch (selectedPeriod) {
-            case 'today':
-              calculatedStartDate.setDate(today.getDate());
-              endDateStr = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 23, 59, 59, 999).toISOString();
-              break;
-            case 'yesterday':
-              calculatedStartDate.setDate(today.getDate() - 1);
-              endDateStr = new Date(today.getFullYear(), today.getMonth(), today.getDate() -1, 23, 59, 59, 999).toISOString();
-              break;
-            case 'last7days':
-              calculatedStartDate.setDate(today.getDate() - 7);
-              break;
-            case 'last30days':
-              calculatedStartDate.setDate(today.getDate() - 30);
-              break;
-            case 'last90days': // Aggiunto per coerenza se presente nel tipo TimePeriod
-              calculatedStartDate.setDate(today.getDate() - 90);
-              break;
-            case 'currentMonth':
-              calculatedStartDate = new Date(today.getFullYear(), today.getMonth(), 1);
-              break;
-            case 'lastMonth':
-              endDateStr = new Date(today.getFullYear(), today.getMonth(), 0).toISOString();
-              calculatedStartDate = new Date(today.getFullYear(), new Date(endDateStr).getMonth(), 1);
-              break;
-            case 'custom':
-              if (dateRange.from && dateRange.to) {
-                startDateStr = dateRange.from.toISOString();
-                endDateStr = dateRange.to.toISOString();
-              } else {
-                // Se custom è selezionato ma le date non ci sono, non fare nulla o imposta un default
-                return; 
-              }
-              break;
-            case 'allTime':
-              startDateStr = undefined;
-              endDateStr = undefined;
-              break;
-            default:
-              // Gestisci altri casi o imposta un default se necessario
-              console.warn(`Periodo selezionato non gestito: ${selectedPeriod}`);
-              return;
-          }
-
-          if (selectedPeriod !== 'custom' && selectedPeriod !== 'allTime') {
-            startDateStr = calculatedStartDate.toISOString();
-          }
-
-          // La chiamata a getDishSalesByPeriod ora usa startDateStr e endDateStr correttamente definiti
-          // o undefined per 'allTime'
-          const sales = await getDishSalesByPeriod({ restaurantId, startDate: startDateStr, endDate: endDateStr });
-          console.log('Raw sales data from getDishSalesByPeriod:', sales); // LOG 1
-          setDishSales(sales);
-        } catch (error) {
-          console.error("Error fetching dish sales:", error);
-          // toast({ title: "Errore", description: "Errore nel caricamento delle vendite dei piatti", variant: "destructive" });
-        }
-      }
-    };
-
-    fetchDishSalesData();
-  }, [restaurantId, selectedPeriod, dateRange]); // Aggiunto dateRange alle dipendenze
+    loadFoodCostSalesData(selectedPeriod, dateRange);
+  }, [selectedPeriod, dateRange]);
 
   // Convert Recipe to SimpleRecipe for dialog components
   const convertToSimpleRecipe = (recipe: Recipe): SimpleRecipe => {
@@ -248,11 +177,21 @@ const FoodCost = () => {
     handleSalesImport(convertedSales);
   };
 
+  const handleCalculateFoodCost = () => {
+    calculateFoodCostForPeriod(selectedPeriod, dateRange, false);
+  };
+
+  const handleRecalculateFoodCost = () => {
+    calculateFoodCostForPeriod(selectedPeriod, dateRange, true);
+  };
+
   // Combina piatti e ricette per il filtro
   const allItems = [
     ...dishes.map(dish => {
-      const saleDataForDish = dishSales.find(sale => sale.dishId === dish.id);
-      console.log('Processing dish for allItems:', dish.name, 'Sale data:', saleDataForDish); // LOG 3
+      const saleDataForDish = foodCostSalesData.find(sale => 
+        sale.dish_external_id === dish.external_id || sale.dish_id === dish.id
+      );
+      
       return {
         type: 'dish' as const, 
         item: dish, 
@@ -260,8 +199,8 @@ const FoodCost = () => {
         category: dish.category,
         analysis: getDishAnalysis(dish),
         menuCategory: getMenuEngineeringCategory(dish),
-        unitsSold: saleDataForDish?.totalQuantitySold ?? 0, 
-        revenue: saleDataForDish?.totalRevenue ?? 0, 
+        unitsSold: saleDataForDish?.total_quantity_sold ?? 0, 
+        revenue: saleDataForDish?.total_revenue ?? 0, 
       };
     }),
     ...recipes
@@ -273,8 +212,8 @@ const FoodCost = () => {
         category: recipe.category,
         analysis: getRecipeAnalysis(recipe),
         menuCategory: "puzzle" as const,
-        unitsSold: 0, // Aggiungi unitsSold per le ricette
-        revenue: 0 // Aggiungi revenue per le ricette, se necessario per coerenza
+        unitsSold: 0,
+        revenue: 0
       }))
   ];
 
@@ -302,16 +241,16 @@ const FoodCost = () => {
         Tipo: type === 'dish' ? 'Piatto' : 'Ricetta',
         Categoria: dataItem.category,
         'Popolarità %': type === 'dish' ? getSalesMixPercentage(dataItem.name).toFixed(2) : 'N/A',
-        'Unità Vendute': type === 'dish' ? unitsSold : 'N/A', // Ora unitsSold è sempre definito
+        'Unità Vendute': type === 'dish' ? unitsSold : 'N/A',
         'Prezzo Vendita': type === 'dish' ? (dataItem as Dish).selling_price : analysis.assumedPrice,
         'Costo Ingredienti': analysis.foodCost.toFixed(2),
         'Food Cost %': analysis.foodCostPercentage.toFixed(1),
-      'Margine €': analysis.margin.toFixed(2),
-      'Menu Engineering': menuCategory,
-      'Popolarità Score': analysis.popularity,
-      'Periodo Analisi': dateRange.from && dateRange.to 
-        ? `${dateRange.from.toLocaleDateString()} - ${dateRange.to.toLocaleDateString()}`
-        : 'Tutti i dati'
+        'Margine €': analysis.margin.toFixed(2),
+        'Menu Engineering': menuCategory,
+        'Popolarità Score': analysis.popularity,
+        'Periodo Analisi': dateRange.from && dateRange.to 
+          ? `${dateRange.from.toLocaleDateString()} - ${dateRange.to.toLocaleDateString()}`
+          : 'Tutti i dati'
       };
     });
 
@@ -356,6 +295,46 @@ const FoodCost = () => {
       />
 
       <main className="max-w-7xl mx-auto px-6 py-8">
+        {/* Sezione calcolo food cost */}
+        <div className="mb-6 p-4 bg-white rounded-lg shadow-sm border">
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="text-lg font-semibold text-gray-900">Calcolo Dati di Vendita</h3>
+              <p className="text-sm text-gray-600">
+                Calcola i dati di vendita dei piatti basandoti sulle ricevute del periodo selezionato
+              </p>
+            </div>
+            <div className="flex gap-2">
+              <Button
+                onClick={handleCalculateFoodCost}
+                disabled={calculatingFoodCost}
+                className="flex items-center gap-2"
+              >
+                {calculatingFoodCost ? (
+                  <RefreshCw className="w-4 h-4 animate-spin" />
+                ) : (
+                  <Calculator className="w-4 h-4" />
+                )}
+                Calcola Vendite
+              </Button>
+              <Button
+                onClick={handleRecalculateFoodCost}
+                disabled={calculatingFoodCost}
+                variant="outline"
+                className="flex items-center gap-2"
+              >
+                <RefreshCw className="w-4 h-4" />
+                Ricalcola
+              </Button>
+            </div>
+          </div>
+          {foodCostSalesData.length > 0 && (
+            <div className="mt-3 text-sm text-green-600">
+              ✓ Dati disponibili per {foodCostSalesData.length} prodotti
+            </div>
+          )}
+        </div>
+
         <FoodCostKPIs
           avgFoodCostPercentage={avgFoodCostPercentage}
           totalMargin={totalMargin}
@@ -384,7 +363,6 @@ const FoodCost = () => {
 
         <FoodCostTable
           filteredItems={filteredItems}
-          // getDishSalesData e getSalesMixPercentage sono stati rimossi perché i dati sono ora in filteredItems
           getTotalSalesForPeriod={getTotalSalesForPeriod}
           settings={settings}
           onEditDish={setEditingDish}

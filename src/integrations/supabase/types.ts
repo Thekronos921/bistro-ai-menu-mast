@@ -908,6 +908,65 @@ export type Database = {
           },
         ]
       }
+      foodcost: {
+        Row: {
+          average_unit_price: number
+          calculation_date: string
+          created_at: string
+          dish_external_id: string | null
+          dish_id: string | null
+          dish_name: string
+          id: string
+          period_end: string
+          period_start: string
+          period_type: string
+          restaurant_id: string
+          total_quantity_sold: number
+          total_revenue: number
+          updated_at: string
+        }
+        Insert: {
+          average_unit_price?: number
+          calculation_date?: string
+          created_at?: string
+          dish_external_id?: string | null
+          dish_id?: string | null
+          dish_name: string
+          id?: string
+          period_end: string
+          period_start: string
+          period_type: string
+          restaurant_id: string
+          total_quantity_sold?: number
+          total_revenue?: number
+          updated_at?: string
+        }
+        Update: {
+          average_unit_price?: number
+          calculation_date?: string
+          created_at?: string
+          dish_external_id?: string | null
+          dish_id?: string | null
+          dish_name?: string
+          id?: string
+          period_end?: string
+          period_start?: string
+          period_type?: string
+          restaurant_id?: string
+          total_quantity_sold?: number
+          total_revenue?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "foodcost_dish_id_fkey"
+            columns: ["dish_id"]
+            isOneToOne: false
+            referencedRelation: "dishes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       ingredient_allocations: {
         Row: {
           allocated_quantity: number

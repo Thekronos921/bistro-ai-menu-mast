@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { format } from 'date-fns';
 import { it } from 'date-fns/locale';
-import { X, Save, User, Mail, Phone, Users, Calendar, MessageSquare, Star, MapPin } from 'lucide-react';
+import { X, Save, User, Mail, Phone, Users, Calendar, MessageSquare, Star } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
@@ -10,10 +10,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Reservation, ReservationStatus } from '@/types/reservation';
-import { useRestaurant } from '@/hooks/useRestaurant';
-import { useRestaurantTables } from '@/hooks/useRestaurantTables';
-import { useTableAvailability } from '@/hooks/useTableAvailability';
-import TableSelector from './TableSelector';
 
 interface ReservationDetailModalProps {
   reservation: Reservation | null;
@@ -30,23 +26,12 @@ const ReservationDetailModal: React.FC<ReservationDetailModalProps> = ({
 }) => {
   const [status, setStatus] = useState<ReservationStatus>('nuova');
   const [internalNotes, setInternalNotes] = useState('');
-  const [assignedTableId, setAssignedTableId] = useState<string | undefined>();
   const [saving, setSaving] = useState(false);
-  const { restaurantId } = useRestaurant();
-
-  // Hooks for tables and availability
-  const { tables, rooms, loading: tablesLoading } = useRestaurantTables(restaurantId || '');
-  const { availability, loading: availabilityLoading } = useTableAvailability(
-    restaurantId || '', 
-    reservation ? format(new Date(reservation.reservation_time), 'yyyy-MM-dd') : '',
-    reservation ? format(new Date(reservation.reservation_time), 'HH:mm') : ''
-  );
 
   useEffect(() => {
     if (reservation) {
       setStatus(reservation.status);
       setInternalNotes(reservation.internal_notes || '');
-      setAssignedTableId(reservation.assigned_table_id);
     }
   }, [reservation]);
 
@@ -57,16 +42,14 @@ const ReservationDetailModal: React.FC<ReservationDetailModalProps> = ({
     try {
       const success = await onUpdateReservation(reservation.id, {
         status,
-        internal_notes: internalNotes,
-        assigned_table_id: assignedTableId
+        internal_notes: internalNotes
       });
 
       if (success) {
         onReservationUpdated({
           ...reservation,
           status,
-          internal_notes: internalNotes,
-          assigned_table_id: assignedTableId
+          internal_notes: internalNotes
         });
       }
     } finally {
@@ -101,29 +84,11 @@ const ReservationDetailModal: React.FC<ReservationDetailModalProps> = ({
     );
   };
 
-  const getAssignedTableInfo = () => {
-    if (!assignedTableId) return null;
-    
-    const table = tables.find(t => t.id === assignedTableId);
-    if (!table) return null;
-
-    const room = rooms.find(r => r.id === table.room_id);
-    
-    return (
-      <div className="flex items-center gap-2 text-sm">
-        <MapPin className="h-4 w-4 text-gray-400" />
-        <span className="font-medium">{table.name}</span>
-        <span className="text-gray-500">({table.seats} posti)</span>
-        {room && <span className="text-gray-500">- {room.name}</span>}
-      </div>
-    );
-  };
-
   if (!reservation) return null;
 
   return (
     <Dialog open={!!reservation} onOpenChange={onClose}>
-      <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center justify-between">
             <span>Dettagli Prenotazione</span>
@@ -208,16 +173,6 @@ const ReservationDetailModal: React.FC<ReservationDetailModalProps> = ({
                   <p className="font-medium">{reservation.booking_type}</p>
                 </div>
               )}
-
-              {/* Current Table Assignment */}
-              {(assignedTableId || reservation.assigned_table_id) && (
-                <div className="col-span-full">
-                  <p className="text-sm text-gray-500 mb-1">Tavolo Assegnato</p>
-                  {getAssignedTableInfo() || (
-                    <p className="text-sm text-gray-400">Tavolo non trovato</p>
-                  )}
-                </div>
-              )}
             </div>
 
             {reservation.customer_notes && (
@@ -261,17 +216,6 @@ const ReservationDetailModal: React.FC<ReservationDetailModalProps> = ({
                   {getStatusBadge(reservation.status)}
                 </div>
               </div>
-
-              {/* Table Assignment */}
-              {!tablesLoading && !availabilityLoading && (
-                <TableSelector
-                  availability={availability}
-                  rooms={rooms}
-                  selectedTableId={assignedTableId}
-                  onTableSelect={setAssignedTableId}
-                  guestCount={reservation.number_of_guests}
-                />
-              )}
 
               <div>
                 <label className="text-sm font-medium mb-2 block">Note Interne</label>

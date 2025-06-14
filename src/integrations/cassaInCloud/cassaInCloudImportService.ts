@@ -473,7 +473,7 @@ export async function importReceiptsFromCassaInCloud(
   params: GetReceiptsParams,
   apiKeyOverride?: string
 ): Promise<{ count: number; error?: Error; message?: string; warnings?: string[] }> {
-  const warnings: string[] = []; // Array per collezionare avvisi
+  const warnings: string[] = [];
   try {
     console.log(
       `Inizio importazione ricevute da CassaInCloud per ristorante Supabase: ${restaurantIdSupabase}`
@@ -769,83 +769,3 @@ export async function importTablesFromCassaInCloud(
     return { count: 0, error: error instanceof Error ? error : new Error(String(error)), warnings };
   }
 }
-
-export const importSalesData = async (
-  restaurantId: string,
-  startDate: Date,
-  endDate: Date,
-  apiKey: string,
-  onProgress?: (progress: number) => void
-): Promise<boolean> => {
-  try {
-    console.log('Starting sales data import for restaurant:', restaurantId);
-    onProgress?.(10);
-
-    const service = new CassaInCloudService(apiKey);
-    const startTimestamp = startDate.getTime();
-    const endTimestamp = endDate.getTime();
-
-    // Get sold by product report
-    const params: GetSoldByProductParams = {
-      start: 0,
-      limit: 1000,
-      datetimeFrom: startTimestamp,
-      datetimeTo: endTimestamp
-    };
-
-    console.log('Fetching sold by product report with params:', params);
-    const reportData = await service.getSoldByProductReport(params);
-    onProgress?.(30);
-
-    if (!reportData.sold || reportData.sold.length === 0) {
-      console.log('No sales data found for the specified period');
-      return true;
-    }
-
-    console.log(`Processing ${reportData.sold.length} sold products`);
-    
-    // Process and save sales data
-    const salesProductDetails = await Promise.all(
-      reportData.sold.map(async (item) => {
-        const productName = item.product?.description || 'Prodotto Sconosciuto';
-        const menuProductName = item.menuProduct?.description || null;
-
-        return {
-          id: crypto.randomUUID(),
-          restaurant_id: restaurantId,
-          report_date: startDate.toISOString(),
-          product_id: item.idProduct,
-          product_name: productName,
-          id_menu_product: item.idMenuProduct || null,
-          menu_product_name: menuProductName,
-          quantity: item.quantity,
-          profit: item.profit,
-          percent_total: item.percentTotal,
-          is_menu_entry: item.isMenuEntry || false,
-          is_composition_entry: item.isCompositionEntry || false,
-          created_at: new Date().toISOString()
-        };
-      })
-    );
-
-    onProgress?.(60);
-
-    // Save to database
-    const { error: insertError } = await supabase
-      .from('sales_product_details')
-      .insert(salesProductDetails);
-
-    if (insertError) {
-      console.error('Error saving sales product details:', insertError);
-      throw insertError;
-    }
-
-    onProgress?.(100);
-    console.log('Sales data import completed successfully');
-    return true;
-
-  } catch (error) {
-    console.error('Error during sales data import:', error);
-    throw error;
-  }
-};

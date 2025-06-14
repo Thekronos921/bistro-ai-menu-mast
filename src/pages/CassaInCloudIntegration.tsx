@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useRef } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -649,50 +650,6 @@ const CassaInCloudIntegration = () => {
       return <Badge variant="destructive"><XCircle className="w-3 h-3 mr-1" />Errore</Badge>;
     }
     return <Badge variant="secondary"><AlertCircle className="w-3 h-3 mr-1" />Non Connesso</Badge>;
-  };
-
-  const handleTestReceiptsImport = async () => {
-    if (!apiKey) {
-      toast({
-        title: "Errore",
-        description: "Inserisci la chiave API prima di procedere",
-        variant: "destructive"
-      });
-      return;
-    }
-
-    setIsTestingReceipts(true);
-    try {
-      const service = new CassaInCloudService(apiKey);
-      const endDate = new Date();
-      const startDate = new Date();
-      startDate.setDate(endDate.getDate() - 7);
-
-      const params: GetReceiptsParams = {
-        start: 0,
-        limit: 10,
-        datetimeFrom: startDate.getTime(),
-        datetimeTo: endDate.getTime()
-      };
-
-      const receiptsData = await service.getReceipts(params);
-      
-      toast({
-        title: "Test completato",
-        description: `Trovate ${receiptsData.receipts.length} ricevute negli ultimi 7 giorni`,
-      });
-      
-      console.log('Test receipts data:', receiptsData);
-    } catch (error) {
-      console.error('Error testing receipts import:', error);
-      toast({
-        title: "Errore nel test",
-        description: error instanceof Error ? error.message : "Errore sconosciuto",
-        variant: "destructive"
-      });
-    } finally {
-      setIsTestingReceipts(false);
-    }
   };
 
   return (

@@ -5,7 +5,9 @@ import { Button } from "@/components/ui/button";
 import PeriodSelector, { TimePeriod } from "@/components/PeriodSelector";
 import SettingsDialog from "@/components/SettingsDialog";
 import AddDishDialog from "@/components/AddDishDialog";
+import DateRangeSelector from "./DateRangeSelector";
 import Header from "@/components/Header";
+import { useFoodCostData } from "@/hooks/useFoodCostData";
 
 interface SettingsConfig {
   criticalThreshold: number;
@@ -30,11 +32,18 @@ const FoodCostHeader = ({
   onSaveSettings,
   onAddDish,
   onEditRecipe,
-  onTriggerDateRangeOpen
 }: FoodCostHeaderProps) => {
+  const [showDateRange, setShowDateRange] = useState(false);
+  const { dateRange, setDateRange } = useFoodCostData();
+
   const handleCustomPeriodSelect = () => {
-    if (onTriggerDateRangeOpen) {
-      onTriggerDateRangeOpen();
+    setShowDateRange(true);
+  };
+
+  const handlePeriodChange = (period: TimePeriod) => {
+    onPeriodChange(period);
+    if (period !== "custom") {
+      setShowDateRange(false);
     }
   };
 
@@ -52,9 +61,18 @@ const FoodCostHeader = ({
           <div className="flex flex-wrap items-center gap-3">
             <PeriodSelector
               selectedPeriod={selectedPeriod}
-              onPeriodChange={onPeriodChange}
+              onPeriodChange={handlePeriodChange}
               onCustomPeriodSelect={handleCustomPeriodSelect}
             />
+            
+            {selectedPeriod === "custom" && showDateRange && (
+              <DateRangeSelector
+                dateRange={dateRange}
+                onDateRangeChange={setDateRange}
+                open={showDateRange}
+                onOpenChange={setShowDateRange}
+              />
+            )}
             
             <SettingsDialog
               settings={settings}

@@ -5,13 +5,6 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import AdvancedFilters, { FilterConfig } from "@/components/AdvancedFilters";
 import EnhancedSalesImportDialog from "./EnhancedSalesImportDialog";
-import DateRangeFilter from "./DateRangeFilter";
-import { forwardRef } from "react";
-
-interface DateRange {
-  from: Date | undefined;
-  to: Date | undefined;
-}
 
 interface SalesData {
   dishName: string;
@@ -33,13 +26,9 @@ interface FoodCostFiltersProps {
   onImportSales: (salesData: SalesData[]) => void;
   onExportCSV: () => void;
   onRefresh: () => void;
-  dateRange: DateRange;
-  onDateRangeChange: (range: DateRange) => void;
-  triggerDateRangeOpen?: boolean;
-  onDateRangeOpenChange?: (open: boolean) => void;
 }
 
-const FoodCostFilters = forwardRef<HTMLButtonElement, FoodCostFiltersProps>(({
+const FoodCostFilters = ({
   searchTerm,
   onSearchChange,
   selectedCategory,
@@ -51,12 +40,8 @@ const FoodCostFilters = forwardRef<HTMLButtonElement, FoodCostFiltersProps>(({
   onToggleAdvancedFilters,
   onImportSales,
   onExportCSV,
-  onRefresh,
-  dateRange,
-  onDateRangeChange,
-  triggerDateRangeOpen,
-  onDateRangeOpenChange
-}, ref) => {
+  onRefresh
+}: FoodCostFiltersProps) => {
   return (
     <div className="bg-white rounded-2xl border border-stone-200 p-6 space-y-4">
       <div className="flex flex-col lg:flex-row gap-4">
@@ -84,15 +69,6 @@ const FoodCostFilters = forwardRef<HTMLButtonElement, FoodCostFiltersProps>(({
             ))}
           </SelectContent>
         </Select>
-
-        {/* Date Range Filter */}
-        <DateRangeFilter 
-          ref={ref}
-          dateRange={dateRange}
-          onDateRangeChange={onDateRangeChange}
-          triggerOpen={triggerDateRangeOpen}
-          onOpenChange={onDateRangeOpenChange}
-        />
       </div>
 
       <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center justify-between">
@@ -145,8 +121,6 @@ const FoodCostFilters = forwardRef<HTMLButtonElement, FoodCostFiltersProps>(({
       )}
     </div>
   );
-});
-
-FoodCostFilters.displayName = "FoodCostFilters";
+};
 
 export default FoodCostFilters;

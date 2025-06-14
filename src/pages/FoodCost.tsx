@@ -66,9 +66,6 @@ const FoodCost = () => {
   const [associatingDish, setAssociatingDish] = useState<Dish | null>(null);
   const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
   const [advancedFilters, setAdvancedFilters] = useState<FilterConfig>({});
-  const [triggerDateRangeOpen, setTriggerDateRangeOpen] = useState(false);
-  
-  const dateRangeRef = useRef<HTMLButtonElement>(null);
 
   // Configurazioni utente (persistenti nel localStorage)
   const [settings, setSettings] = useState<SettingsConfig>(() => {
@@ -189,7 +186,8 @@ const FoodCost = () => {
   };
 
   const handleTriggerDateRangeOpen = () => {
-    setTriggerDateRangeOpen(true);
+    // Questa funzione ora attiva il date range nel header quando si seleziona periodo personalizzato
+    // Il date range è gestito solo dal PeriodSelector in alto
   };
 
   const handleDateRangeOpenChange = (open: boolean) => {
@@ -359,7 +357,6 @@ const FoodCost = () => {
         />
 
         <FoodCostFilters
-          ref={dateRangeRef}
           searchTerm={searchTerm}
           onSearchChange={setSearchTerm}
           selectedCategory={selectedCategory}
@@ -372,10 +369,6 @@ const FoodCost = () => {
           onImportSales={handleSalesImportWrapper}
           onExportCSV={exportToCSV}
           onRefresh={fetchData}
-          dateRange={dateRange}
-          onDateRangeChange={setDateRange}
-          triggerDateRangeOpen={triggerDateRangeOpen}
-          onDateRangeOpenChange={handleDateRangeOpenChange}
         />
 
         <FoodCostTable

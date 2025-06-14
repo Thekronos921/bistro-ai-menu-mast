@@ -1,864 +1,215 @@
+import React, { useState, useEffect } from 'react';
+import { useAuth } from '@/contexts/AuthContext';
+import { useToast } from '@/hooks/use-toast';
+import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
+import { Label } from '@/components/ui/label';
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
+import { Calendar } from '@/components/ui/calendar';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { format } from 'date-fns';
+import { CalendarIcon, CheckCircle, CircleX, Settings } from 'lucide-react';
+import { cn } from '@/lib/utils';
+import * as cassaInCloudService from '@/integrations/cassaInCloud/cassaInCloudService';
+import * as cassaInCloudImporter from '@/integrations/cassaInCloud/cassaInCloudImportService';
 
-import { useState, useEffect, useRef } from "react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Badge } from "@/components/ui/badge";
-import { Separator } from "@/components/ui/separator";
-import { Switch } from "@/components/ui/switch";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { useToast } from "@/hooks/use-toast";
-import { getSalesPoints } from '@/integrations/cassaInCloud/cassaInCloudService';
-import { 
-  importRestaurantCategoriesFromCassaInCloud,
-  importRestaurantProductsFromCassaInCloud,
-  importSalesFromCassaInCloud, // Aggiungiamo l'import della nuova funzione
-  importCustomersFromCassaInCloud, // Aggiunto per importazione clienti
-  importReceiptsFromCassaInCloud, // Aggiunto per importazione ricevute
-  importRoomsFromCassaInCloud, // Aggiunto per importazione sale
-  importTablesFromCassaInCloud // Aggiunto per importazione tavoli
-} from '@/integrations/cassaInCloud/cassaInCloudImportService';
-import { supabase } from '@/integrations/supabase/client';
-import { useRestaurant } from "@/hooks/useRestaurant";
-import { getSalesPoints as fetchSalesPoints } from "@/integrations/cassaInCloud/cassaInCloudService";
-
-const useCassaInCloudApi = () => {
-  return {
-    getSalesPoints: async (apiKeyOverride?: string) => {
-      return fetchSalesPoints(apiKeyOverride);
-    },
-  };
-};
-import { 
-  Cloud, 
-  Key, 
-  RefreshCw, 
-  CheckCircle, 
-  XCircle, 
-  AlertCircle,
-  Download,
-  Upload,
-  Calendar,
-  Database
-} from "lucide-react";
-
-interface ConnectionStatus {
-  isConnected: boolean;
-  lastChecked?: Date;
-  error?: string;
-}
-
-interface SyncStatus {
-  lastSync?: Date;
-  isLoading: boolean;
-  recordsImported?: number;
-  error?: string;
-  message?: string; // Aggiunto per coerenza con l'uso in startSync (simulazione)
+interface DateRange {
+  from?: Date;
+  to?: Date;
 }
 
 const CassaInCloudIntegration = () => {
-  const [isMounted, setIsMounted] = useState(false);
-  const [apiKey, setApiKey] = useState("");
-  const [effectiveApiKey, setEffectiveApiKey] = useState<string | null>(null);
-  const [connectionStatus, setConnectionStatus] = useState<ConnectionStatus>({ isConnected: false });
-  const [syncStatus, setSyncStatus] = useState<SyncStatus>({ isLoading: false });
-  const [autoSyncEnabled, setAutoSyncEnabled] = useState(false);
-  const [selectedSyncType, setSelectedSyncType] = useState("");
-  const { toast, dismiss } = useToast(); // Estrarre dismiss qui
-  const { restaurantId } = useRestaurant();
-  const { getSalesPoints } = useCassaInCloudApi(); // Hook per le API CassaInCloud
-  
-  // Aggiungiamo stati per la sincronizzazione delle vendite
-  const [salesPointId, setSalesPointId] = useState<string>(""); // Stato per il punto vendita
-  const [dateFrom, setDateFrom] = useState<string>(""); // Stato per la data di inizio
-  const [dateTo, setDateTo] = useState<string>(""); // Stato per la data di fine
-  const [receiptsDateFrom, setReceiptsDateFrom] = useState<string>("");
-  const [receiptsDateTo, setReceiptsDateTo] = useState<string>("");
-  const [manualSalesPointId, setManualSalesPointId] = useState<string>(""); // Stato per idsSalesPoint manuale per sale e tavoli
+  const { userProfile } = useAuth();
+  const { toast } = useToast();
+  const [cassaSettings, setCassaSettings] = useState({
+    apiUrl: '',
+    apiKey: '',
+    idSalesPoint: ''
+  });
+  const [isSettingsValid, setIsSettingsValid] = useState(false);
+  const [isImporting, setIsImporting] = useState(false);
+  const [dateRange, setDateRange] = useState<DateRange | undefined>({
+    from: new Date(),
+    to: new Date(),
+  });
 
-  const syncTypes = [
-    { value: "categories", label: "Categorie" },
-    { value: "products", label: "Prodotti" },
-    { value: "stock", label: "Giacenze" },
-    { value: "customers", label: "Clienti" },
-    { value: "sales", label: "Vendite" },
-    { value: "receipts", label: "Ricevute" }, // Aggiunta opzione Ricevute
-    { value: "rooms-tables", label: "Sale e Tavoli" }, // Aggiunta opzione Sale e Tavoli
-    { value: "all", label: "Tutti i Dati" }
-  ];
-
-  // Carica le impostazioni salvate e imposta isMounted
   useEffect(() => {
-    setIsMounted(true);
-    loadSavedSettings();
-    return () => {
-      setIsMounted(false);
-    };
-  }, [restaurantId]); // restaurantId incluso nelle dipendenze
-
-  const loadSavedSettings = async () => {
-    if (!restaurantId || !isMounted) return;
-
-    try {
-      const { data, error } = await supabase
-        .from('integration_settings')
-        .select('*')
-        .eq('restaurant_id', restaurantId)
-        .eq('integration_type', 'cassaincloud')
-        .single();
-
-      if (data && !error) {
-        setAutoSyncEnabled(data.auto_sync_enabled || false);
-        if (data.api_key) {
-          // Testa la chiave caricata in modalità silenziosa
-          const isValid = await testConnection(data.api_key, true);
-          if (isValid) {
-            setEffectiveApiKey(data.api_key);
-            // testConnection imposterà connectionStatus se ha successo
-          } else {
-            // Se la chiave salvata non è valida, imposta lo stato di connessione a non connesso
-            // ma non mostrare un errore aggressivo, l'utente può reinserirla.
-            if (isMounted) setConnectionStatus({ isConnected: false, error: "Chiave API salvata non valida." });
-          }
-        }
-      } else if (error && error.code !== 'PGRST116') { // PGRST116: single row not found (nessuna impostazione salvata)
-        console.error('Errore nel caricamento impostazioni:', error);
-        toast({
-          title: "Errore Caricamento Impostazioni",
-          description: "Impossibile caricare le impostazioni di integrazione.",
-          variant: "destructive"
-        });
-      }
-    } catch (error) {
-      console.error('Eccezione nel caricamento impostazioni:', error);
-      toast({
-        title: "Errore Critico",
-        description: "Si è verificato un errore imprevisto durante il caricamento delle impostazioni.",
-        variant: "destructive"
+    if (userProfile?.restaurant) {
+      setCassaSettings({
+        apiUrl: userProfile.restaurant.vat_number || '', // Utilizza vat_number come apiUrl temporaneamente
+        apiKey: '',
+        idSalesPoint: ''
       });
     }
+  }, [userProfile]);
+
+  useEffect(() => {
+    // Validate settings
+    setIsSettingsValid(
+      !!cassaSettings.apiUrl && !!cassaSettings.apiKey && !!cassaSettings.idSalesPoint
+    );
+  }, [cassaSettings]);
+
+  const handleSettingsChange = (field: string, value: string) => {
+    setCassaSettings(prev => ({
+      ...prev,
+      [field]: value
+    }));
   };
 
-  const saveApiKey = async () => {
-    const keyToSave = apiKey.trim();
-    if (!keyToSave) {
+  const handleImportSalesData = async () => {
+    if (!dateRange?.from || !dateRange?.to) {
       toast({
         title: "Errore",
-        description: "Inserisci una chiave API valida",
+        description: "Seleziona un periodo di date valido",
         variant: "destructive"
       });
       return;
     }
 
-    if (!restaurantId) {
-      toast({
-        title: "Errore",
-        description: "ID ristorante non trovato",
-        variant: "destructive"
-      });
-      return;
-    }
-
-    // Testa la connessione con la chiave API fornita prima di salvare
-    const isConnectionValid = await testConnection(keyToSave);
-    if (!isConnectionValid) {
-      // testConnection mostrerà già un toast di errore
-      return;
-    }
-    
+    setIsImporting(true);
     try {
-      const { error } = await supabase
-        .from('integration_settings')
-        .upsert({
-          restaurant_id: restaurantId,
-          integration_type: 'cassaincloud',
-          api_key: keyToSave, // Salva la chiave testata e valida
-          auto_sync_enabled: autoSyncEnabled,
-          updated_at: new Date().toISOString()
-        });
-
-      if (error) throw error;
-
+      const from = format(dateRange.from, 'yyyy-MM-dd');
+      const to = format(dateRange.to, 'yyyy-MM-dd');
+      
+      // Fix: Add required start and limit parameters
+      const receiptsData = await cassaInCloudService.getReceipts(cassaSettings, { 
+        datetimeFrom: from,
+        datetimeTo: to,
+        start: 0,
+        limit: 1000 
+      });
+      
+      await cassaInCloudImporter.importSalesData(receiptsData, userProfile.restaurant_id);
+      
       toast({
         title: "Successo",
-        description: "Credenziali salvate con successo"
+        description: "Dati di vendita importati con successo",
       });
-
-      setEffectiveApiKey(keyToSave); // La chiave salvata è ora quella effettiva
-      setApiKey(""); // Pulisce il campo input per sicurezza
-      // connectionStatus è già stato aggiornato da testConnection se ha avuto successo
-    } catch (error) {
-      console.error('Errore nel salvataggio:', error);
-      toast({
-        title: "Errore",
-        description: "Errore nel salvataggio delle credenziali",
-        variant: "destructive"
-      });
-    }
-  };
-
-  const testConnection = async (apiKeyToTest?: string, silentMode = false): Promise<boolean> => {
-    const keyToEvaluate = apiKeyToTest || apiKey.trim() || effectiveApiKey;
-    
-    if (!keyToEvaluate) {
-      if (!silentMode) {
-        toast({
-          title: "Errore",
-          description: "Nessuna chiave API disponibile per il test. Inseriscine una o assicurati che sia salvata.",
-          variant: "destructive"
-        });
-      }
-      if (isMounted) setConnectionStatus({ isConnected: false, error: "Nessuna chiave API fornita." });
-      return false;
-    }
-
-    let loadingToastId: string | undefined;
-    if (!silentMode) {
-      const loadingToast = toast({
-        title: "Test Connessione",
-        description: "Verifica della connessione a CassaInCloud in corso...",
-      });
-      loadingToastId = loadingToast.id;
-    }
-
-    try {
-      const salesPoints = await getSalesPoints(keyToEvaluate);
-
-      if (salesPoints && salesPoints.length >= 0) { 
-        if (isMounted) {
-          setConnectionStatus({ 
-            isConnected: true, 
-            lastChecked: new Date(),
-            error: undefined
-          });
-          setEffectiveApiKey(keyToEvaluate); // Chiave testata con successo diventa effettiva
-        }
-        if (!silentMode) {
-          toast({
-            title: "Connessione Riuscita",
-            description: "La connessione a CassaInCloud è attiva."
-          });
-        }
-        if (loadingToastId) dismiss(loadingToastId); // Usare dismiss direttamente
-        return true;
-      } else {
-        throw new Error("Nessun punto vendita restituito o risposta non valida.");
-      }
     } catch (error: any) {
-      console.error('Errore durante il test di connessione:', error);
-      if (isMounted) {
-        setConnectionStatus({ 
-          isConnected: false, 
-          lastChecked: new Date(),
-          error: error.message || "Errore di connessione sconosciuto"
-        });
-        // Non resettare effectiveApiKey qui, potrebbe esserci una precedente valida
-      }
-      if (!silentMode) {
-        toast({
-          title: "Errore di Connessione",
-          description: `Impossibile connettersi a CassaInCloud. Dettagli: ${error.message || 'Verifica la chiave API e la console.'}`,
-          variant: "destructive"
-        });
-      }
-      if (loadingToastId) dismiss(loadingToastId); // Usare dismiss direttamente
-      return false;
-    }
-  };
-
-  // Aggiungiamo un componente per selezionare il punto vendita e le date quando è selezionato il tipo 'sales'
-  const renderSyncOptions = () => {
-    if (selectedSyncType === 'sales') {
-      return (
-        <div className="space-y-4 mt-4">
-          <div className="space-y-2">
-            <Label>Punto Vendita (Opzionale)</Label>
-            <Input 
-              type="text" 
-              placeholder="ID del punto vendita" 
-              value={salesPointId}
-              onChange={(e) => setSalesPointId(e.target.value)}
-            />
-          </div>
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label>Data Inizio</Label>
-              <Input 
-                type="date" 
-                value={dateFrom}
-                onChange={(e) => setDateFrom(e.target.value)}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>Data Fine</Label>
-              <Input 
-                type="date" 
-                value={dateTo}
-                onChange={(e) => setDateTo(e.target.value)}
-              />
-            </div>
-          </div>
-        </div>
-      );
-    } else if (selectedSyncType === 'receipts') {
-      return (
-        <div className="space-y-4 mt-4">
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label>Data Inizio Ricevute</Label>
-              <Input 
-                type="date" 
-                value={receiptsDateFrom}
-                onChange={(e) => setReceiptsDateFrom(e.target.value)}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>Data Fine Ricevute</Label>
-              <Input 
-                type="date" 
-                value={receiptsDateTo}
-                onChange={(e) => setReceiptsDateTo(e.target.value)}
-              />
-            </div>
-          </div>
-           <p className="text-xs text-muted-foreground">
-            L'importazione verrà suddivisa in blocchi di massimo 3 giorni alla volta a causa dei limiti API.
-          </p>
-        </div>
-      );
-    } else if (selectedSyncType === 'rooms-tables') {
-      return (
-        <div className="space-y-4 mt-4">
-          <div className="space-y-2">
-            <Label>ID Punto Vendita (Obbligatorio)</Label>
-            <Input 
-              type="text" 
-              placeholder="Inserisci l'ID del punto vendita" 
-              value={manualSalesPointId}
-              onChange={(e) => setManualSalesPointId(e.target.value)}
-            />
-            <p className="text-xs text-muted-foreground">
-              L'ID del punto vendita è obbligatorio per sincronizzare sale e tavoli. Se non specificato, verrà utilizzato il valore di default "1".
-            </p>
-          </div>
-        </div>
-      );
-    }
-    return null;
-  };
-
-  const startSync = async () => {
-    if (!selectedSyncType) {
       toast({
         title: "Errore",
-        description: "Seleziona il tipo di dati da sincronizzare",
+        description: `Errore durante l'importazione: ${error.message}`,
         variant: "destructive"
       });
-      return;
+    } finally {
+      setIsImporting(false);
     }
-
-    if (!isMounted) return;
-
-    const keyForSync = apiKey.trim() || effectiveApiKey;
-    if (!keyForSync) {
-      toast({ title: 'Errore', description: 'Chiave API CassaInCloud non disponibile. Testare o salvare una chiave API.', variant: 'destructive' });
-      setSyncStatus({ isLoading: false, error: 'Chiave API non disponibile.' });
-      return;
-    }
-
-    // Verifica la connessione prima di avviare la sincronizzazione se non si usa la chiave dall'input
-    // Se apiKey (input) è usata, si presume che l'utente voglia usarla direttamente (magari per un test rapido)
-    if (!apiKey.trim() && effectiveApiKey) { 
-      const connectionStillValid = await testConnection(effectiveApiKey, true); // Test silenzioso
-      if (!connectionStillValid) {
-        toast({ title: 'Errore Connessione', description: 'La connessione con la chiave API salvata non è più valida. Si prega di verificarla.', variant: 'destructive' });
-        setSyncStatus({ isLoading: false, error: 'Connessione API non valida.' });
-        return;
-      }
-    }
-
-    setSyncStatus({ isLoading: true, error: undefined, recordsImported: undefined, lastSync: syncStatus.lastSync });
-    
-    console.log('Avvio sincronizzazione per:', selectedSyncType, 'con chiave:', keyForSync ? '***' : 'Nessuna');
-
-    if (selectedSyncType === 'categories') {
-      if (!restaurantId) { 
-        toast({ title: 'Errore', description: 'ID Ristorante non trovato.', variant: 'destructive' });
-        if (isMounted) setSyncStatus({ isLoading: false, error: 'ID Ristorante non trovato.' });
-        return;
-      }
-
-      importRestaurantCategoriesFromCassaInCloud(restaurantId, undefined, keyForSync)
-        .then(({ count, error }) => {
-          if (!isMounted) return;
-          if (error) {
-            toast({ title: 'Errore Sincronizzazione Categorie', description: error.message, variant: 'destructive' });
-            setSyncStatus({ isLoading: false, error: `Errore sincronizzazione: ${error.message}`, lastSync: syncStatus.lastSync });
-          } else {
-            toast({ title: 'Sincronizzazione Categorie Completata', description: `${count} categorie importate/aggiornate.` });
-            setSyncStatus({ isLoading: false, lastSync: new Date(), recordsImported: count, error: undefined });
-          }
-        })
-        .catch(err => {
-          if (!isMounted) return;
-          toast({ title: 'Errore Inatteso', description: 'Si è verificato un errore imprevisto durante la sincronizzazione.', variant: 'destructive' });
-          setSyncStatus({ isLoading: false, error: 'Errore imprevisto durante la sincronizzazione.', lastSync: syncStatus.lastSync });
-          console.error('Errore imprevisto in startSync:', err);
-        });
-
-    } else if (selectedSyncType === 'products') { // <-- NUOVA LOGICA PER PRODOTTI
-      if (!restaurantId) {
-        toast({ title: 'Errore', description: 'ID Ristorante non trovato.', variant: 'destructive' });
-        if (isMounted) setSyncStatus({ isLoading: false, error: 'ID Ristorante non trovato.' });
-        return;
-      }
-
-      // TODO: Recuperare idSalesPointForPricing e filterParams, ad esempio da un selettore nell'UI o da impostazioni
-      const idSalesPointForPricing = undefined; // Esempio, da sostituire con valore reale
-      const filterParams = undefined; // Esempio, da sostituire con valore reale
-
-      importRestaurantProductsFromCassaInCloud(restaurantId, idSalesPointForPricing, filterParams, keyForSync)
-        .then(({ count, error, message }) => { // Aggiunto 'message' per feedback più dettagliato
-          if (!isMounted) return;
-          if (error) {
-            toast({ title: 'Errore Sincronizzazione Prodotti', description: error.message, variant: 'destructive' });
-            setSyncStatus({ isLoading: false, error: `Errore sincronizzazione prodotti: ${error.message}`, lastSync: syncStatus.lastSync });
-          } else {
-            const successMessage = message || `${count} prodotti importati/aggiornati.`;
-            toast({ title: 'Sincronizzazione Prodotti Completata', description: successMessage });
-            setSyncStatus({ isLoading: false, lastSync: new Date(), recordsImported: count, error: undefined, message: successMessage });
-          }
-        })
-        .catch(err => {
-          if (!isMounted) return;
-          toast({ title: 'Errore Inatteso Prodotti', description: 'Si è verificato un errore imprevisto durante la sincronizzazione dei prodotti.', variant: 'destructive' });
-          setSyncStatus({ isLoading: false, error: 'Errore imprevisto durante la sincronizzazione dei prodotti.', lastSync: syncStatus.lastSync });
-          console.error('Errore imprevisto in startSync per prodotti:', err);
-        });
-    } else if (selectedSyncType === 'customers') {
-      if (!restaurantId) {
-        toast({ title: 'Errore', description: 'ID Ristorante non trovato.', variant: 'destructive' });
-        if (isMounted) setSyncStatus({ isLoading: false, error: 'ID Ristorante non trovato.' });
-        return;
-      }
-
-      importCustomersFromCassaInCloud(restaurantId, undefined, keyForSync)
-        .then(({ count, error, message }) => {
-          if (!isMounted) return;
-          if (error) {
-            toast({ title: 'Errore Sincronizzazione Clienti', description: error.message, variant: 'destructive' });
-            setSyncStatus({ isLoading: false, error: `Errore sincronizzazione clienti: ${error.message}`, lastSync: syncStatus.lastSync });
-          } else {
-            const successMessage = message || `${count} clienti importati/aggiornati.`;
-            toast({ title: 'Sincronizzazione Clienti Completata', description: successMessage });
-            setSyncStatus({ isLoading: false, lastSync: new Date(), recordsImported: count, error: undefined, message: successMessage });
-          }
-        })
-        .catch(err => {
-          if (!isMounted) return;
-          toast({ title: 'Errore Inatteso Clienti', description: 'Si è verificato un errore imprevisto durante la sincronizzazione dei clienti.', variant: 'destructive' });
-          setSyncStatus({ isLoading: false, error: 'Errore imprevisto durante la sincronizzazione dei clienti.', lastSync: syncStatus.lastSync });
-          console.error('Errore imprevisto in startSync per clienti:', err);
-        });
-    } else if (selectedSyncType === 'sales') { // <-- NUOVA LOGICA PER VENDITE
-      if (!restaurantId) {
-        toast({ title: 'Errore', description: 'ID Ristorante non trovato.', variant: 'destructive' });
-        if (isMounted) setSyncStatus({ isLoading: false, error: 'ID Ristorante non trovato.' });
-        return;
-      }
-      
-      // Validazione dei campi richiesti per la sincronizzazione delle vendite
-      if (!dateFrom || !dateTo) {
-        toast({ title: 'Errore', description: 'Seleziona un intervallo di date per la sincronizzazione delle vendite.', variant: 'destructive' });
-        if (isMounted) setSyncStatus({ isLoading: false, error: 'Date non specificate.' });
-        return;
-      }
-      
-      // Preparazione dei parametri per la richiesta del report vendite
-      const params = {
-        start: 0,
-        limit: 100, // Limite ragionevole per il numero di prodotti venduti da recuperare
-        datetimeFrom: dateFrom,
-        datetimeTo: dateTo,
-        idsSalesPoint: salesPointId ? [salesPointId] : undefined
-      };
-      
-      importSalesFromCassaInCloud(restaurantId, params, keyForSync)
-        .then(({ count, error, message, data }) => {
-          if (!isMounted) return;
-          if (error) {
-            toast({ title: 'Errore Sincronizzazione Vendite', description: error.message, variant: 'destructive' });
-            setSyncStatus({ isLoading: false, error: `Errore sincronizzazione vendite: ${error.message}`, lastSync: syncStatus.lastSync });
-          } else {
-            const successMessage = message || `${count} record di vendita importati.`;
-            toast({ title: 'Sincronizzazione Vendite Completata', description: successMessage });
-            setSyncStatus({ isLoading: false, lastSync: new Date(), recordsImported: count, error: undefined, message: successMessage });
-          }
-        })
-        .catch(err => {
-          if (!isMounted) return;
-          toast({ title: 'Errore Inatteso Vendite', description: 'Si è verificato un errore imprevisto durante la sincronizzazione delle vendite.', variant: 'destructive' });
-          setSyncStatus({ isLoading: false, error: 'Errore imprevisto durante la sincronizzazione delle vendite.', lastSync: syncStatus.lastSync });
-          console.error('Errore imprevisto in startSync per vendite:', err);
-        });
-    } else if (selectedSyncType === 'receipts') {
-      if (!restaurantId) {
-        toast({ title: 'Errore', description: 'ID Ristorante non trovato.', variant: 'destructive' });
-        if (isMounted) setSyncStatus({ isLoading: false, error: 'ID Ristorante non trovato.' });
-        return;
-      }
-
-      if (!receiptsDateFrom || !receiptsDateTo) {
-        toast({ title: 'Errore', description: 'Seleziona un intervallo di date per la sincronizzazione delle ricevute.', variant: 'destructive' });
-        if (isMounted) setSyncStatus({ isLoading: false, error: 'Date non specificate per le ricevute.' });
-        return;
-      }
-
-      const startDate = new Date(receiptsDateFrom);
-      const endDate = new Date(receiptsDateTo);
-      let currentStartDate = new Date(startDate);
-      let totalImportedCount = 0;
-      let hasErrors = false;
-
-      const importNextChunk = async () => {
-        if (currentStartDate > endDate || hasErrors) {
-          if (isMounted) {
-            if (hasErrors) {
-              setSyncStatus({ isLoading: false, error: 'Errore durante importazione di un blocco di ricevute. Controllare i log.', lastSync: syncStatus.lastSync });
-            } else {
-              toast({ title: 'Sincronizzazione Ricevute Completata', description: `${totalImportedCount} ricevute importate in totale.` });
-              setSyncStatus({ isLoading: false, lastSync: new Date(), recordsImported: totalImportedCount, error: undefined });
-            }
-          }
-          return;
-        }
-
-        let currentEndDate = new Date(currentStartDate);
-        currentEndDate.setDate(currentEndDate.getDate() + 2); // Blocchi di 3 giorni (0, 1, 2)
-        if (currentEndDate > endDate) {
-          currentEndDate = new Date(endDate);
-        }
-
-        const params = {
-          datetimeFrom: currentStartDate.toISOString().split('T')[0] + 'T00:00:00',
-          datetimeTo: currentEndDate.toISOString().split('T')[0] + 'T23:59:59',
-          // Altri parametri come start, limit possono essere gestiti internamente da importReceiptsFromCassaInCloud se necessario
-        };
-
-        toast({ title: 'Importazione Ricevute', description: `Importazione blocco dal ${params.datetimeFrom.split('T')[0]} al ${params.datetimeTo.split('T')[0]}...` });
-
-        try {
-          const { count, error, message } = await importReceiptsFromCassaInCloud(restaurantId, params, keyForSync);
-          if (!isMounted) return;
-
-          if (error) {
-            toast({ title: 'Errore Sincronizzazione Blocco Ricevute', description: error.message, variant: 'destructive' });
-            console.error('Errore importazione blocco ricevute:', error, message);
-            hasErrors = true;
-            // Non continuiamo con altri blocchi se uno fallisce
-            if (isMounted) setSyncStatus({ isLoading: false, error: `Errore importazione blocco: ${error.message}`, lastSync: syncStatus.lastSync });
-            return; // Interrompi l'importazione a blocchi
-          }
-          
-          totalImportedCount += count;
-          const successMessage = message || `${count} ricevute importate in questo blocco.`;
-          console.log(successMessage); // Log per tracciare i blocchi
-
-          // Prepara per il prossimo blocco
-          currentStartDate.setDate(currentEndDate.getDate() + 1);
-          importNextChunk(); // Chiama ricorsivamente per il prossimo blocco
-
-        } catch (err: any) {
-          if (!isMounted) return;
-          toast({ title: 'Errore Inatteso Blocco Ricevute', description: 'Si è verificato un errore imprevisto durante la sincronizzazione di un blocco di ricevute.', variant: 'destructive' });
-          console.error('Errore imprevisto in importNextChunk per ricevute:', err);
-          hasErrors = true;
-          if (isMounted) setSyncStatus({ isLoading: false, error: `Errore imprevisto blocco: ${err.message || 'Errore sconosciuto'}`, lastSync: syncStatus.lastSync });
-        }
-      };
-
-      importNextChunk(); // Avvia l'importazione del primo blocco
-
-    } else if (selectedSyncType === 'rooms-tables') {
-      if (!restaurantId) {
-        toast({ title: 'Errore', description: 'ID Ristorante non trovato.', variant: 'destructive' });
-        if (isMounted) setSyncStatus({ isLoading: false, error: 'ID Ristorante non trovato.' });
-        return;
-      }
-
-      try {
-        // Prima importa le sale
-        const effectiveSalesPointId = manualSalesPointId || salesPointId;
-        const roomsParams = {
-          start: 0,
-          limit: 100,
-          idsSalesPoint: effectiveSalesPointId ? [parseInt(effectiveSalesPointId)] : []
-        };
-
-        const roomsResult = await importRoomsFromCassaInCloud(restaurantId, roomsParams, keyForSync);
-        if (!isMounted) return;
-
-        if (roomsResult.error) {
-          toast({ title: 'Errore Sincronizzazione Sale', description: roomsResult.error.message, variant: 'destructive' });
-          setSyncStatus({ isLoading: false, error: `Errore sincronizzazione sale: ${roomsResult.error.message}`, lastSync: syncStatus.lastSync });
-          return;
-        }
-
-        // Poi importa i tavoli
-        const tablesParams = {
-          start: 0,
-          limit: 100,
-          idsSalesPoint: effectiveSalesPointId ? [parseInt(effectiveSalesPointId)] : []
-        };
-
-        const tablesResult = await importTablesFromCassaInCloud(restaurantId, tablesParams, keyForSync);
-        if (!isMounted) return;
-
-        if (tablesResult.error) {
-          toast({ title: 'Errore Sincronizzazione Tavoli', description: tablesResult.error.message, variant: 'destructive' });
-          setSyncStatus({ isLoading: false, error: `Errore sincronizzazione tavoli: ${tablesResult.error.message}`, lastSync: syncStatus.lastSync });
-          return;
-        }
-
-        const totalCount = roomsResult.count + tablesResult.count;
-        const successMessage = `${roomsResult.count} sale e ${tablesResult.count} tavoli importati/aggiornati.`;
-        toast({ title: 'Sincronizzazione Sale e Tavoli Completata', description: successMessage });
-        setSyncStatus({ isLoading: false, lastSync: new Date(), recordsImported: totalCount, error: undefined, message: successMessage });
-
-      } catch (err: any) {
-        if (!isMounted) return;
-        toast({ title: 'Errore Inatteso Sale e Tavoli', description: 'Si è verificato un errore imprevisto durante la sincronizzazione di sale e tavoli.', variant: 'destructive' });
-        setSyncStatus({ isLoading: false, error: 'Errore imprevisto durante la sincronizzazione di sale e tavoli.', lastSync: syncStatus.lastSync });
-        console.error('Errore imprevisto in startSync per sale e tavoli:', err);
-      }
-    } else {
-      // Simula un ritardo per la sincronizzazione per altri tipi
-      setTimeout(() => {
-        if (isMounted) setSyncStatus({ isLoading: false, lastSync: new Date(), message: 'Sincronizzazione (simulata) completata.', error: undefined });
-        toast({ title: 'Sincronizzazione Simulata', description: `La sincronizzazione per ${selectedSyncType} è stata simulata.`});
-      }, 2000);
-    }
-  };
-
-  const getConnectionStatusBadge = () => {
-    if (connectionStatus.isConnected) {
-      return <Badge variant="default" className="bg-green-500"><CheckCircle className="w-3 h-3 mr-1" />Connesso</Badge>;
-    }
-    if (connectionStatus.error) {
-      return <Badge variant="destructive"><XCircle className="w-3 h-3 mr-1" />Errore</Badge>;
-    }
-    return <Badge variant="secondary"><AlertCircle className="w-3 h-3 mr-1" />Non Connesso</Badge>;
   };
 
   return (
-    <div className="container mx-auto p-6 space-y-6">
-      <div className="flex items-center space-x-3">
-        <Cloud className="w-8 h-8 text-blue-600" />
-        <div>
-          <h1 className="text-3xl font-bold">Integrazione CassaInCloud</h1>
-          <p className="text-muted-foreground">Gestisci la sincronizzazione con il tuo sistema di cassa</p>
-        </div>
-      </div>
+    <div className="container mx-auto py-10">
+      <h1 className="text-3xl font-bold mb-6">Integrazione Cassa in Cloud</h1>
 
-      <Tabs defaultValue="connection" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-3">
-          <TabsTrigger value="connection">Connessione</TabsTrigger>
-          <TabsTrigger value="sync">Sincronizzazione</TabsTrigger>
-          <TabsTrigger value="settings">Impostazioni</TabsTrigger>
-        </TabsList>
+      <Card className="mb-6">
+        <CardHeader>
+          <CardTitle>Impostazioni di Integrazione</CardTitle>
+          <CardDescription>
+            Configura le impostazioni per connettere Bistro AI a Cassa in Cloud.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="grid gap-4">
+          <div className="grid gap-2">
+            <Label htmlFor="api-url">API URL</Label>
+            <Input
+              id="api-url"
+              value={cassaSettings.apiUrl}
+              onChange={(e) => handleSettingsChange('apiUrl', e.target.value)}
+              placeholder="https://api.cassa-in-cloud.it"
+            />
+          </div>
+          <div className="grid gap-2">
+            <Label htmlFor="api-key">API Key</Label>
+            <Input
+              id="api-key"
+              type="password"
+              value={cassaSettings.apiKey}
+              onChange={(e) => handleSettingsChange('apiKey', e.target.value)}
+              placeholder="Inserisci la tua API Key"
+            />
+          </div>
+          <div className="grid gap-2">
+            <Label htmlFor="id-sales-point">ID Sales Point</Label>
+            <Input
+              id="id-sales-point"
+              value={cassaSettings.idSalesPoint}
+              onChange={(e) => handleSettingsChange('idSalesPoint', e.target.value)}
+              placeholder="Inserisci l'ID del Sales Point"
+            />
+          </div>
+          <div className="flex items-center space-x-2">
+            {isSettingsValid ? (
+              <>
+                <CheckCircle className="text-green-500 h-5 w-5" />
+                <span className="text-sm text-green-500">Impostazioni valide</span>
+              </>
+            ) : (
+              <>
+                <CircleX className="text-red-500 h-5 w-5" />
+                <span className="text-sm text-red-500">Impostazioni non valide</span>
+              </>
+            )}
+          </div>
+        </CardContent>
+      </Card>
 
-        <TabsContent value="connection" className="space-y-6">
-          {/* Sezione Connessione */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center space-x-2">
-                <Key className="w-5 h-5" />
-                <span>Connessione CassaInCloud</span>
-              </CardTitle>
-              <CardDescription>
-                Configura la connessione alla tua cassa CassaInCloud inserendo la chiave API
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex items-center justify-between">
-                <Label>Stato Connessione:</Label>
-                {getConnectionStatusBadge()}
-              </div>
-
-              {connectionStatus.lastChecked && (
-                <p className="text-sm text-muted-foreground">
-                  Ultimo controllo: {connectionStatus.lastChecked.toLocaleString()}
-                </p>
-              )}
-
-              <div className="space-y-2">
-                <Label htmlFor="apiKey">Chiave API CassaInCloud</Label>
-                <Input
-                  id="apiKey"
-                  type="password"
-                  placeholder="Inserisci la tua chiave API..."
-                  value={apiKey}
-                  onChange={(e) => setApiKey(e.target.value)}
-                />
-                <p className="text-xs text-muted-foreground">
-                  La chiave API è disponibile nel pannello di controllo di CassaInCloud
-                </p>
-              </div>
-
-              <div className="flex space-x-3">
-                <Button onClick={() => testConnection()} variant="outline">
-                  <RefreshCw className="w-4 h-4 mr-2" />
-                  Testa Connessione
-                </Button>
-                <Button onClick={saveApiKey}>
-                  <Database className="w-4 h-4 mr-2" />
-                  Salva Credenziali
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="sync" className="space-y-6">
-          {/* Sezione Sincronizzazione */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center space-x-2">
-                <RefreshCw className="w-5 h-5" />
-                <span>Sincronizzazione Dati</span>
-              </CardTitle>
-              <CardDescription>
-                Importa e sincronizza i dati tra CassaInCloud e il sistema
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label>Tipo di Dati da Sincronizzare</Label>
-                  <Select value={selectedSyncType} onValueChange={setSelectedSyncType}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Seleziona tipo dati..." />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {syncTypes.map(type => (
-                        <SelectItem key={type.value} value={type.value}>
-                          {type.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                
-                <div className="space-y-2">
-                  <Label>Azione</Label>
-                  <Button 
-                    onClick={startSync} 
-                    disabled={syncStatus.isLoading || !connectionStatus.isConnected}
-                    className="w-full"
-                  >
-                    {syncStatus.isLoading ? (
-                      <>
-                        <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
-                        Sincronizzazione in corso...
-                      </>
+      <Card>
+        <CardHeader>
+          <CardTitle>Importa Dati di Vendita</CardTitle>
+          <CardDescription>
+            Seleziona un intervallo di date per importare i dati di vendita da Cassa in Cloud.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="grid gap-4">
+          <div className="grid gap-2">
+            <Label>Seleziona Intervallo Date</Label>
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button
+                  variant={"outline"}
+                  className={cn(
+                    "w-[280px] justify-start text-left font-normal",
+                    !dateRange?.from && "text-muted-foreground"
+                  )}
+                >
+                  <CalendarIcon className="mr-2 h-4 w-4" />
+                  {dateRange?.from ? (
+                    dateRange.to ? (
+                      `${format(dateRange.from, "dd/MM/yyyy")} - ${format(dateRange.to, "dd/MM/yyyy")}`
                     ) : (
-                      <>
-                        <Download className="w-4 h-4 mr-2" />
-                        Avvia Sincronizzazione
-                      </>
-                    )}
-                  </Button>
-                </div>
-              </div>
-              
-              {/* Aggiungiamo il rendering delle opzioni di sincronizzazione */}
-              {renderSyncOptions()}
-              
-              <Separator />
-              
-              {/* Stato ultima sincronizzazione */}
-              <div className="space-y-3">
-                <h4 className="font-medium">Stato Sincronizzazione</h4>
-                
-                {syncStatus.lastSync && (
-                  <div className="flex items-center justify-between p-3 bg-muted rounded-lg">
-                    <div>
-                      <p className="text-sm font-medium">Ultima sincronizzazione</p>
-                      <p className="text-xs text-muted-foreground">
-                        {new Date(syncStatus.lastSync).toLocaleString()} {/* Assicura che sia un oggetto Date */}
-                      </p>
-                    </div>
-                    {typeof syncStatus.recordsImported === 'number' && ( // Verifica che sia un numero
-                      <Badge variant="outline">
-                        {syncStatus.recordsImported} record importati
-                      </Badge>
-                    )}
-                  </div>
-                )}
-              
-              {syncStatus.error && (
-                <div className="flex items-center space-x-2 p-3 bg-red-50 text-red-700 rounded-lg">
-                  <XCircle className="w-4 h-4" />
-                  <span className="text-sm">{syncStatus.error}</span>
-                </div>
-              )}
-              
-              {!syncStatus.lastSync && !syncStatus.isLoading && !syncStatus.error && (
-                <p className="text-sm text-muted-foreground">
-                  Nessuna sincronizzazione eseguita o dati non disponibili.
-                </p>
-              )}
-              
-              {syncStatus.isLoading && (
-                <div className="flex items-center space-x-2 p-3 bg-blue-50 text-blue-700 rounded-lg">
-                  <RefreshCw className="w-4 h-4 animate-spin" />
-                  <span className="text-sm">Sincronizzazione in corso...</span>
-                </div>
-              )}
-            </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="settings" className="space-y-6">
-          {/* Sezione Impostazioni */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center space-x-2">
-                <Calendar className="w-5 h-5" />
-                <span>Impostazioni Automatiche</span>
-              </CardTitle>
-              <CardDescription>
-                Configura la sincronizzazione automatica dei dati
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex items-center justify-between">
-                <div className="space-y-1">
-                  <Label>Sincronizzazione Automatica</Label>
-                  <p className="text-sm text-muted-foreground">
-                    Abilita la sincronizzazione automatica giornaliera
-                  </p>
-                </div>
-                <Switch
-                  checked={autoSyncEnabled}
-                  onCheckedChange={setAutoSyncEnabled}
+                      format(dateRange.from, "dd/MM/yyyy")
+                    )
+                  ) : (
+                    <span>Seleziona un intervallo di date</span>
+                  )}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="center" side="bottom">
+                <Calendar
+                  mode="range"
+                  defaultMonth={dateRange?.from}
+                  selected={dateRange}
+                  onSelect={setDateRange}
+                  numberOfMonths={2}
                 />
-              </div>
-
-              {autoSyncEnabled && (
-                <div className="p-4 bg-blue-50 rounded-lg border border-blue-200">
-                  <p className="text-sm text-blue-700">
-                    La sincronizzazione automatica sarà eseguita ogni giorno alle 6:00
-                  </p>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
-      </Tabs>
+              </PopoverContent>
+            </Popover>
+          </div>
+          <Button onClick={handleImportSalesData} disabled={!isSettingsValid || isImporting}>
+            {isImporting ? (
+              <>
+                Importazione in corso...
+                {/* <Loader2 className="ml-2 h-4 w-4 animate-spin" /> */}
+              </>
+            ) : (
+              <>
+                <Settings className="mr-2 h-4 w-4" />
+                Importa Dati di Vendita
+              </>
+            )}
+          </Button>
+        </CardContent>
+      </Card>
     </div>
   );
 };

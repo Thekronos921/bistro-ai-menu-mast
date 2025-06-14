@@ -395,22 +395,19 @@ export interface CassaInCloudRoom {
  * Parametri per la funzione getRooms
  */
 export interface GetRoomsParams {
-  start: number;
-  limit: number;
-  idsSalesPoint: number[]; 
-  sorts?: any[]; // Definire meglio Sort se necessario
-  ids?: string[];
-  name?: string;
-  lastUpdateFrom?: number; // Timestamp
-  lastUpdateTo?: number; // Timestamp
+  start?: number;
+  limit?: number;
+  idSalesPoint?: number;
 }
 
 /**
  * Risposta API per getRooms
  */
 export interface GetRoomsApiResponse {
-  rooms: CassaInCloudRoom[];
-  totalCount: number;
+  data: CassaInCloudRoom[];
+  start: number;
+  limit: number;
+  total: number;
 }
 
 /**
@@ -433,22 +430,18 @@ export interface CassaInCloudTable {
  * Parametri per la funzione getTables
  */
 export interface GetTablesParams {
-  start: number;
-  limit: number;
-  idsSalesPoint: number[];
-  sorts?: any[]; // Definire meglio Sort se necessario
-  ids?: string[];
-  name?: string;
-  idsRoom?: string[];
-  externalId?: string[];
-  lastUpdateFrom?: number; // Timestamp
-  lastUpdateTo?: number; // Timestamp
+  start?: number;
+  limit?: number;
+  idRoom?: number;
+  idSalesPoint?: number;
 }
 
 /**
  * Risposta API per getTables
  */
 export interface GetTablesApiResponse {
-  tables: CassaInCloudTable[];
-  totalCount: number;
+  data: CassaInCloudTable[];
+  start: number;
+  limit: number;
+  total: number;
 }

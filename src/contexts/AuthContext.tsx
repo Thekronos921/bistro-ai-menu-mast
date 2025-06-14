@@ -1,3 +1,4 @@
+
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
@@ -30,8 +31,6 @@ interface AuthContextType {
   userProfile: UserProfile | null;
   session: Session | null;
   loading: boolean;
-  error: string | null;
-  retryLoading: () => Promise<void>;
   signIn: (email: string, password: string) => Promise<{ success: boolean; error?: string }>;
   signOut: () => Promise<void>;
   register: (restaurantData: RegisterData) => Promise<{ success: boolean; error?: string }>;
@@ -66,39 +65,26 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const { toast } = useToast();
 
-  // Timeout per le operazioni di caricamento (10 secondi)
-  const LOADING_TIMEOUT = 10000;
-  
   useEffect(() => {
     console.log('AuthProvider: Setting up auth listeners');
     
-    // Timeout di sicurezza per evitare caricamenti infiniti
-    const loadingTimeout = setTimeout(() => {
-      if (loading) {
-        console.warn('AuthProvider: Loading timeout reached, setting loading to false');
-        setLoading(false);
-        setError('Timeout durante il caricamento. Riprova.');
-      }
-    }, LOADING_TIMEOUT);
-
     // Set up auth state listener
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
         console.log('Auth event:', event, 'Session:', !!session);
         setSession(session);
         setUser(session?.user ?? null);
-        setError(null); // Reset error on auth change
         
         if (session?.user) {
-          // Fetch user profile with retry logic
-          await fetchUserProfileWithRetry(session.user.id);
+          // Fetch user profile data with a small delay to ensure consistency
+          setTimeout(async () => {
+            await fetchUserProfile(session.user.id);
+          }, 100);
         } else {
           setUserProfile(null);
           setLoading(false);
-          clearTimeout(loadingTimeout);
         }
       }
     );
@@ -109,9 +95,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const { data: { session }, error } = await supabase.auth.getSession();
         if (error) {
           console.error('Error getting session:', error);
-          setError('Errore nel recupero della sessione');
           setLoading(false);
-          clearTimeout(loadingTimeout);
           return;
         }
         
@@ -120,37 +104,24 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setUser(session?.user ?? null);
         
         if (session?.user) {
-          await fetchUserProfileWithRetry(session.user.id);
+          await fetchUserProfile(session.user.id);
         } else {
           setLoading(false);
-          clearTimeout(loadingTimeout);
         }
       } catch (error) {
         console.error('Error in getInitialSession:', error);
-        setError('Errore durante l\'inizializzazione');
         setLoading(false);
-        clearTimeout(loadingTimeout);
       }
     };
 
     getInitialSession();
 
-    return () => {
-      subscription.unsubscribe();
-      clearTimeout(loadingTimeout);
-    };
+    return () => subscription.unsubscribe();
   }, []);
 
-  const fetchUserProfileWithRetry = async (userId: string, retryCount = 0): Promise<void> => {
-    const MAX_RETRIES = 3;
-    const RETRY_DELAY = 1000; // 1 secondo
-    
+  const fetchUserProfile = async (userId: string) => {
     try {
-      console.log(`Fetching user profile for: ${userId} (attempt ${retryCount + 1})`);
-      
-      // Timeout per la singola richiesta (5 secondi)
-      const controller = new AbortController();
-      const requestTimeout = setTimeout(() => controller.abort(), 5000);
+      console.log('Fetching user profile for:', userId);
       
       const { data, error } = await supabase
         .from('users')
@@ -159,49 +130,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           restaurant:restaurants!users_restaurant_id_fkey(*)
         `)
         .eq('id', userId)
-        .abortSignal(controller.signal)
         .single();
 
-      clearTimeout(requestTimeout);
-
       if (error) {
-        throw error;
+        console.error('Error fetching user profile:', error);
+        setLoading(false);
+        return;
       }
 
-      console.log('User profile fetched successfully');
+      console.log('User profile fetched:', !!data);
       setUserProfile(data);
       setLoading(false);
-      setError(null);
-    } catch (error: any) {
-      console.error(`Error fetching user profile (attempt ${retryCount + 1}):`, error);
-      
-      if (retryCount < MAX_RETRIES && error.name !== 'AbortError') {
-        console.log(`Retrying in ${RETRY_DELAY}ms...`);
-        setTimeout(() => {
-          fetchUserProfileWithRetry(userId, retryCount + 1);
-        }, RETRY_DELAY);
-      } else {
-        setError(error.name === 'AbortError' ? 'Timeout nel caricamento del profilo' : 'Errore nel caricamento del profilo');
-        setLoading(false);
-        
-        // Toast di errore solo se non è un timeout
-        if (error.name !== 'AbortError') {
-          toast({
-            title: "Errore di caricamento",
-            description: "Problema nel caricamento del profilo utente. Riprova.",
-            variant: "destructive"
-          });
-        }
-      }
-    }
-  };
-
-  // Funzione per ritentare il caricamento manualmente
-  const retryLoading = async () => {
-    if (user) {
-      setLoading(true);
-      setError(null);
-      await fetchUserProfileWithRetry(user.id);
+    } catch (error) {
+      console.error('Error fetching user profile:', error);
+      setLoading(false);
     }
   };
 
@@ -333,8 +275,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     userProfile,
     session,
     loading,
-    error,
-    retryLoading,
     signIn,
     signOut,
     register,

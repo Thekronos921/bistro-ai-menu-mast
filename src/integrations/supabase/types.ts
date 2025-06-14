@@ -465,7 +465,6 @@ export type Database = {
           last_name: string | null
           last_visit_date: string | null
           name: string | null
-          notes: string | null
           phone_number: string | null
           referral_of: string | null
           restaurant_id: string
@@ -493,7 +492,6 @@ export type Database = {
           last_name?: string | null
           last_visit_date?: string | null
           name?: string | null
-          notes?: string | null
           phone_number?: string | null
           referral_of?: string | null
           restaurant_id: string
@@ -521,7 +519,6 @@ export type Database = {
           last_name?: string | null
           last_visit_date?: string | null
           name?: string | null
-          notes?: string | null
           phone_number?: string | null
           referral_of?: string | null
           restaurant_id?: string

@@ -1,3 +1,4 @@
+
 import { DollarSign, Edit, Link2, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -32,8 +33,8 @@ interface FilteredItem {
   category: string;
   analysis: Analysis;
   menuCategory: MenuCategory;
-  unitsSold?: number; // Aggiunto
-  revenue?: number; // Aggiunto
+  unitsSold?: number;
+  revenue?: number;
 }
 
 interface SettingsConfig {
@@ -44,8 +45,6 @@ interface SettingsConfig {
 
 interface FoodCostTableProps {
   filteredItems: FilteredItem[];
-  // getDishSalesData: (dishName: string) => any; // Rimosso
-  // getSalesMixPercentage: (dishName: string) => number; // Rimosso
   getTotalSalesForPeriod: () => number;
   settings: SettingsConfig;
   onEditDish: (dish: Dish) => void;
@@ -57,8 +56,6 @@ interface FoodCostTableProps {
 
 const FoodCostTable = ({
   filteredItems,
-  // getDishSalesData, // Rimosso
-  // getSalesMixPercentage, // Rimosso
   getTotalSalesForPeriod,
   settings,
   onEditDish,
@@ -92,6 +89,24 @@ const FoodCostTable = ({
       dishId: '',
       dishName: ''
     });
+  };
+
+  // Helper function to create a complete recipe object with all required fields
+  const createCompleteRecipe = (recipe: Recipe): Recipe => {
+    return {
+      ...recipe,
+      preparation_time: recipe.preparation_time || 0,
+      difficulty: recipe.difficulty || 'Facile',
+      portions: recipe.portions || 1,
+      description: recipe.description || '',
+      allergens: recipe.allergens || '',
+      calories: recipe.calories || 0,
+      protein: recipe.protein || 0,
+      carbs: recipe.carbs || 0,
+      fat: recipe.fat || 0,
+      is_semilavorato: recipe.is_semilavorato || false,
+      recipe_instructions: recipe.recipe_instructions || []
+    };
   };
 
   if (filteredItems.length === 0) {
@@ -143,11 +158,9 @@ const FoodCostTable = ({
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filteredItems.map(({ type, item, analysis, menuCategory, unitsSold, revenue }) => { // Aggiunto unitsSold, revenue
-                // const dishSales = type === 'dish' ? getDishSalesData(item.name) : null; // Rimosso
-                // const salesMix = type === 'dish' ? getSalesMixPercentage(item.name) : 0; // Rimosso, calcolare diversamente se necessario o rimuovere colonna
+              {filteredItems.map(({ type, item, analysis, menuCategory, unitsSold, revenue }) => {
                 const dish = item as Dish;
-                const hasRecipe = type === 'dish' && dish.recipe_id;
+                const hasRecipe = type === 'dish' && dish.recipe_id && dish.recipes;
                 
                 // Calcolo Sales Mix % basato su unitsSold e getTotalSalesForPeriod
                 const totalSalesUnits = getTotalSalesForPeriod();
@@ -247,22 +260,11 @@ const FoodCostTable = ({
                             {hasRecipe ? (
                               <Button
                                 onClick={() => {
-                                  const recipe = (item as Dish).recipes!;
-                                  const completeRecipe: Recipe = {
-                                    ...recipe,
-                                    preparation_time: recipe.preparation_time || 0,
-                                    difficulty: recipe.difficulty || 'Facile',
-                                    portions: recipe.portions || 1,
-                                    description: recipe.description || '',
-                                    allergens: recipe.allergens || '',
-                                    calories: recipe.calories || 0,
-                                    protein: recipe.protein || 0,
-                                    carbs: recipe.carbs || 0,
-                                    fat: recipe.fat || 0,
-                                    is_semilavorato: recipe.is_semilavorato || false,
-                                    recipe_instructions: recipe.recipe_instructions || []
-                                  };
-                                  onEditRecipe(completeRecipe);
+                                  const dishWithRecipe = item as Dish;
+                                  if (dishWithRecipe.recipes) {
+                                    const completeRecipe = createCompleteRecipe(dishWithRecipe.recipes);
+                                    onEditRecipe(completeRecipe);
+                                  }
                                 }}
                                 size="sm"
                                 variant="outline"
@@ -288,21 +290,8 @@ const FoodCostTable = ({
                           <>
                             <Button
                               onClick={() => {
-                                const recipe = item as Recipe;
-                                const completeRecipe: Recipe = {
-                                  ...recipe,
-                                  preparation_time: recipe.preparation_time || 0,
-                                  difficulty: recipe.difficulty || 'Facile',
-                                  portions: recipe.portions || 1,
-                                  description: recipe.description || '',
-                                  allergens: recipe.allergens || '',
-                                  calories: recipe.calories || 0,
-                                  protein: recipe.protein || 0,
-                                  carbs: recipe.carbs || 0,
-                                  fat: recipe.fat || 0,
-                                  is_semilavorato: recipe.is_semilavorato || false,
-                                  recipe_instructions: recipe.recipe_instructions || []
-                                };
+                                const recipeItem = item as Recipe;
+                                const completeRecipe = createCompleteRecipe(recipeItem);
                                 onEditRecipe(completeRecipe);
                               }}
                               size="sm"

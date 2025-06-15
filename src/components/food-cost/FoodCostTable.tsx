@@ -45,6 +45,7 @@ interface SettingsConfig {
 
 interface FoodCostTableProps {
   filteredItems: FilteredItem[];
+  totalItems: number;
   getTotalSalesForPeriod: () => number;
   settings: SettingsConfig;
   onEditDish: (dish: Dish) => void;
@@ -56,6 +57,7 @@ interface FoodCostTableProps {
 
 const FoodCostTable = ({
   filteredItems,
+  totalItems,
   getTotalSalesForPeriod,
   settings,
   onEditDish,
@@ -129,7 +131,7 @@ const FoodCostTable = ({
         <div className="px-6 py-4 border-b border-stone-200">
           <div className="flex items-center justify-between">
             <h2 className="text-lg font-semibold text-slate-800">
-              Analisi Menu Engineering ({filteredItems.length} elementi)
+              Analisi Menu Engineering ({totalItems} elementi)
             </h2>
             {getTotalSalesForPeriod() > 0 && (
               <p className="text-sm text-slate-500">

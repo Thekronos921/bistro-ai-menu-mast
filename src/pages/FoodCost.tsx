@@ -14,6 +14,8 @@ import { useCategories } from '@/hooks/useCategories';
 import { Button } from "@/components/ui/button";
 import { Calculator, RefreshCw } from "lucide-react";
 import type { Recipe } from "@/types/recipe";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Pagination, PaginationContent, PaginationItem, PaginationPrevious, PaginationNext } from "@/components/ui/pagination";
 
 interface Dish {
   id: string;
@@ -66,6 +68,8 @@ const FoodCost = () => {
   const [associatingDish, setAssociatingDish] = useState<Dish | null>(null);
   const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
   const [advancedFilters, setAdvancedFilters] = useState<FilterConfig>({});
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(20);
 
   // Configurazioni utente (persistenti nel localStorage)
   const [settings, setSettings] = useState<SettingsConfig>(() => {
@@ -125,6 +129,11 @@ const FoodCost = () => {
   useEffect(() => {
     loadFoodCostSalesData(selectedPeriod, dateRange);
   }, [selectedPeriod, dateRange, loadFoodCostSalesData]);
+
+  // reset page on filter change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, selectedCategory, advancedFilters, itemsPerPage]);
 
   // Convert Recipe to SimpleRecipe for dialog components
   const convertToSimpleRecipe = (recipe: Recipe): SimpleRecipe => {
@@ -234,6 +243,14 @@ const FoodCost = () => {
     return matchesSearch && matchesCategory && matchesFoodCostMin && matchesFoodCostMax && 
            matchesMarginMin && matchesMarginMax && matchesMenuCategory;
   }), [allItems, searchTerm, selectedCategory, advancedFilters]);
+
+  // Pagination logic
+  const paginatedItems = useMemo(() => {
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    return filteredItems.slice(startIndex, startIndex + itemsPerPage);
+  }, [filteredItems, currentPage, itemsPerPage]);
+
+  const totalPages = Math.ceil(filteredItems.length / itemsPerPage);
 
   const exportToCSV = useCallback(() => {
     const csvData = filteredItems.map((item) => {
@@ -365,7 +382,8 @@ const FoodCost = () => {
         />
 
         <FoodCostTable
-          filteredItems={filteredItems}
+          filteredItems={paginatedItems}
+          totalItems={filteredItems.length}
           getTotalSalesForPeriod={getTotalSalesForPeriod}
           settings={settings}
           onEditDish={setEditingDish}
@@ -374,6 +392,59 @@ const FoodCost = () => {
           onAssociateRecipe={setAssociatingDish}
           onDeleteDish={handleDeleteDish}
         />
+
+        {filteredItems.length > 0 && (
+          <div className="flex items-center justify-between mt-4">
+            <div className="text-sm text-slate-600">
+              Mostrando <strong>{paginatedItems.length}</strong> di <strong>{filteredItems.length}</strong> risultati
+            </div>
+            <div className="flex items-center gap-4">
+              <div className="flex items-center space-x-2">
+                <span className="text-sm text-slate-600">Elementi per pagina:</span>
+                <Select
+                  value={String(itemsPerPage)}
+                  onValueChange={(value) => {
+                    setItemsPerPage(Number(value));
+                    setCurrentPage(1);
+                  }}
+                >
+                  <SelectTrigger className="w-[80px]">
+                    <SelectValue placeholder={itemsPerPage} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="10">10</SelectItem>
+                    <SelectItem value="20">20</SelectItem>
+                    <SelectItem value="50">50</SelectItem>
+                    <SelectItem value="100">100</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              {totalPages > 1 && (
+                <Pagination>
+                  <PaginationContent>
+                    <PaginationItem>
+                      <PaginationPrevious
+                        href="#"
+                        onClick={(e) => { e.preventDefault(); setCurrentPage(p => Math.max(1, p - 1)); }}
+                        className={currentPage === 1 ? 'pointer-events-none opacity-50' : ''}
+                      />
+                    </PaginationItem>
+                    <PaginationItem>
+                      <span className="px-4 py-2 text-sm">Pagina {currentPage} di {totalPages}</span>
+                    </PaginationItem>
+                    <PaginationItem>
+                      <PaginationNext
+                        href="#"
+                        onClick={(e) => { e.preventDefault(); setCurrentPage(p => Math.min(totalPages, p + 1)); }}
+                        className={currentPage === totalPages ? 'pointer-events-none opacity-50' : ''}
+                      />
+                    </PaginationItem>
+                  </PaginationContent>
+                </Pagination>
+              )}
+            </div>
+          </div>
+        )}
       </main>
 
       {/* Edit Recipe Dialog */}

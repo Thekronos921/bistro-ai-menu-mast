@@ -1,5 +1,5 @@
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { TableAvailability, TimeSlotAvailability } from '@/types/reservation';
 import { format, addMinutes, startOfDay, endOfDay } from 'date-fns';
@@ -8,7 +8,7 @@ export const useTableAvailability = (restaurantId?: string) => {
   const [availability, setAvailability] = useState<TableAvailability[]>([]);
   const [loading, setLoading] = useState(false);
 
-  const checkTableAvailability = async (tableId: string, date: string, duration = 120) => {
+  const checkTableAvailability = useCallback(async (tableId: string, date: string, duration = 120) => {
     if (!restaurantId) return [];
 
     try {
@@ -69,9 +69,9 @@ export const useTableAvailability = (restaurantId?: string) => {
       console.error('Error checking table availability:', err);
       return [];
     }
-  };
+  }, [restaurantId]);
 
-  const fetchTableAvailability = async (tableIds: string[], date: string) => {
+  const fetchTableAvailability = useCallback(async (tableIds: string[], date: string) => {
     if (!restaurantId || tableIds.length === 0) return;
 
     setLoading(true);
@@ -92,7 +92,7 @@ export const useTableAvailability = (restaurantId?: string) => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [restaurantId, checkTableAvailability]);
 
   const isTableAvailable = (tableId: string, time: string, date: string, duration = 120) => {
     const tableAvailability = availability.find(a => a.table_id === tableId && a.date === date);

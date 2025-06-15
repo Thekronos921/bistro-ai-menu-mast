@@ -5,6 +5,11 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
+const roundToTwo = (num: number): number => {
+  if (isNaN(num)) return 0;
+  return Math.round((num + Number.EPSILON) * 100) / 100;
+}
+
 interface CalculateRequest {
   restaurantId: string;
   periodStart: string;
@@ -24,13 +29,19 @@ interface DishSalesData {
 const getRowRevenue = (row: any): number => {
   const quantity = Number(row.quantity) || 0;
   // Cascata di priorità per il calcolo del ricavo, dal più affidabile al meno.
-  if (row.total_price_gross !== null && !isNaN(Number(row.total_price_gross))) return Number(row.total_price_gross);
-  if (row.total !== null && !isNaN(Number(row.total))) return Number(row.total);
-  if (row.amount !== null && !isNaN(Number(row.amount))) return Number(row.amount);
+  if (row.total_price_gross !== null && !isNaN(Number(row.total_price_gross))) {
+    return roundToTwo(Number(row.total_price_gross));
+  }
+  if (row.total !== null && !isNaN(Number(row.total))) {
+    return roundToTwo(Number(row.total));
+  }
+  if (row.amount !== null && !isNaN(Number(row.amount))) {
+    return roundToTwo(Number(row.amount));
+  }
   
   // Ultima risorsa: calcolo manuale.
   const price = Number(row.price) || 0;
-  return price * quantity;
+  return roundToTwo(price * quantity);
 }
 
 Deno.serve(async (req) => {
@@ -220,11 +231,12 @@ Deno.serve(async (req) => {
       });
     }
 
-    // 5. Prepara i dati aggregati per la tabella 'foodcost' (invariato)
+    // 5. Prepara i dati aggregati per la tabella 'foodcost'
     const foodcostData: any[] = [];
     salesMap.forEach((sale, productId) => {
       const dishInfo = dishNamesMap.get(productId);
-      const averageUnitPrice = sale.quantity > 0 ? sale.revenue / sale.quantity : 0;
+      const totalRevenue = roundToTwo(sale.revenue);
+      const averageUnitPrice = sale.quantity > 0 ? totalRevenue / sale.quantity : 0;
       
       foodcostData.push({
         restaurant_id: restaurantId,
@@ -235,8 +247,8 @@ Deno.serve(async (req) => {
         period_end: periodEnd,
         period_type: periodType,
         total_quantity_sold: sale.quantity,
-        total_revenue: sale.revenue,
-        average_unit_price: averageUnitPrice,
+        total_revenue: totalRevenue,
+        average_unit_price: roundToTwo(averageUnitPrice),
       });
     });
 
@@ -315,7 +327,7 @@ Deno.serve(async (req) => {
             external_product_id: row.id_product,
             unmapped_product_description: row.product_description || `Prodotto ${row.id_product}`,
             quantity_sold: quantity,
-            price_per_unit_sold: unitPrice,
+            price_per_unit_sold: roundToTwo(unitPrice),
             total_amount_sold_for_row: revenue,
             sale_timestamp: receiptInfo.datetime || receiptInfo.receipt_date,
             raw_bill_data: row,

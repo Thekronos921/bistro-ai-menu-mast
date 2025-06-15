@@ -1,295 +1,70 @@
-import { useState, useEffect, useMemo, useCallback } from "react";
+
 import EditRecipeDialog from "@/components/EditRecipeDialog";
 import EditDishDialog from "@/components/EditDishDialog";
 import AssociateRecipeDialog from "@/components/AssociateRecipeDialog";
-import { FilterConfig } from "@/components/AdvancedFilters";
-import { TimePeriod } from "@/components/PeriodSelector";
 import FoodCostHeader from "@/components/food-cost/FoodCostHeader";
 import FoodCostKPIs from "@/components/food-cost/FoodCostKPIs";
 import FoodCostFilters from "@/components/food-cost/FoodCostFilters";
 import FoodCostTable from "@/components/food-cost/FoodCostTable";
-import { useFoodCostData } from "@/hooks/useFoodCostData";
-import { useFoodCostAnalysis } from "@/hooks/useFoodCostAnalysis";
-import { useCategories } from '@/hooks/useCategories';
-import { Button } from "@/components/ui/button";
-import { Calculator, RefreshCw } from "lucide-react";
-import type { Recipe } from "@/types/recipe";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Pagination, PaginationContent, PaginationItem, PaginationPrevious, PaginationNext } from "@/components/ui/pagination";
-
-interface Dish {
-  id: string;
-  name: string;
-  category: string;
-  selling_price: number;
-  recipe_id?: string;
-  external_id?: string;
-  recipes?: Recipe;
-}
-
-interface FoodCostSalesData {
-  dishName: string;
-  unitsSold: number;
-  saleDate: string;
-  period?: string;
-}
-
-interface DateRange {
-  from: Date | undefined;
-  to: Date | undefined;
-}
-
-interface SettingsConfig {
-  criticalThreshold: number;
-  targetThreshold: number;
-  targetPercentage: number;
-}
-
-// Simplified Recipe interface for dialogs
-interface SimpleRecipe {
-  id: string;
-  name: string;
-  category: string;
-  is_semilavorato?: boolean;
-  recipe_ingredients: {
-    ingredients: {
-      cost_per_unit: number;
-    };
-    quantity: number;
-  }[];
-}
+import FoodCostCalculationSection from "@/components/food-cost/FoodCostCalculationSection";
+import FoodCostPagination from "@/components/food-cost/FoodCostPagination";
+import { useFoodCostPage } from "@/hooks/useFoodCostPage";
 
 const FoodCost = () => {
-  const [searchTerm, setSearchTerm] = useState("");
-  const [selectedCategory, setSelectedCategory] = useState("all");
-  const [selectedPeriod, setSelectedPeriod] = useState<TimePeriod>("last30days");
-  const [editingRecipe, setEditingRecipe] = useState<Recipe | null>(null);
-  const [editingDish, setEditingDish] = useState<Dish | null>(null);
-  const [associatingDish, setAssociatingDish] = useState<Dish | null>(null);
-  const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
-  const [advancedFilters, setAdvancedFilters] = useState<FilterConfig>({});
-  const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage, setItemsPerPage] = useState(20);
-
-  // Configurazioni utente (persistenti nel localStorage)
-  const [settings, setSettings] = useState<SettingsConfig>(() => {
-    const saved = localStorage.getItem('foodCostSettings');
-    return saved ? JSON.parse(saved) : {
-      criticalThreshold: 40,
-      targetThreshold: 35,
-      targetPercentage: 80
-    };
-  });
-
-  const { categories } = useCategories();
-  const saveSettings = (newSettings: SettingsConfig) => {
-    setSettings(newSettings);
-    localStorage.setItem('foodCostSettings', JSON.stringify(newSettings));
-  };
-
-  const { 
-    dishes, 
-    recipes, 
-    allSalesData,
-    foodCostSalesData,
+  const {
+    // State
+    searchTerm,
+    setSearchTerm,
+    selectedCategory,
+    setSelectedCategory,
+    selectedPeriod,
+    setSelectedPeriod,
+    editingRecipe,
+    setEditingRecipe,
+    editingDish,
+    setEditingDish,
+    associatingDish,
+    setAssociatingDish,
+    showAdvancedFilters,
+    setShowAdvancedFilters,
+    advancedFilters,
+    setAdvancedFilters,
+    currentPage,
+    setCurrentPage,
+    itemsPerPage,
+    setItemsPerPage,
     dateRange,
     setDateRange,
-    loading, 
+    settings,
+    saveSettings,
+
+    // Data
+    foodCostSalesData,
+    categories,
+    loading,
     calculatingFoodCost,
-    fetchData, 
-    createDishFromRecipe, 
-    handleSalesImport,
-    deleteDish,
-    calculateFoodCostForPeriod,
-    loadFoodCostSalesData
-  } = useFoodCostData();
-
-  // Trasforma foodCostSalesData in un formato compatibile con SalesData[]
-  const transformedSalesData = useMemo(() => foodCostSalesData.map(sale => ({
-    dishName: sale.dish_name,
-    unitsSold: sale.total_quantity_sold,
-    revenue: sale.total_revenue,
-    period: selectedPeriod,
-  })), [foodCostSalesData, selectedPeriod]);
-
-  const {
-    getTotalSalesForPeriod,
-    getSalesMixPercentage,
-    getDishAnalysis,
-    getRecipeAnalysis,
-    getMenuEngineeringCategory,
+    
+    // Computed values
+    paginatedItems,
+    filteredItems,
+    totalPages,
     avgFoodCostPercentage,
     totalMargin,
     totalRevenue,
     criticalDishes,
-    targetReached
-  } = useFoodCostAnalysis(dishes, recipes, transformedSalesData, selectedPeriod, settings);
+    targetReached,
+    getTotalSalesForPeriod,
 
-  // Carica i dati di food cost quando cambia il periodo o la data range
-  useEffect(() => {
-    loadFoodCostSalesData(selectedPeriod, dateRange);
-  }, [selectedPeriod, dateRange, loadFoodCostSalesData]);
-
-  // reset page on filter change
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [searchTerm, selectedCategory, advancedFilters, itemsPerPage]);
-
-  // Convert Recipe to SimpleRecipe for dialog components
-  const convertToSimpleRecipe = (recipe: Recipe): SimpleRecipe => {
-    return {
-      id: recipe.id,
-      name: recipe.name,
-      category: recipe.category,
-      is_semilavorato: recipe.is_semilavorato,
-      recipe_ingredients: recipe.recipe_ingredients.map(ri => ({
-        ingredients: {
-          cost_per_unit: ri.ingredients.cost_per_unit
-        },
-        quantity: ri.quantity
-      }))
-    };
-  };
-
-  const handleEditRecipeFromDialog = useCallback((simpleRecipe: SimpleRecipe) => {
-    // Find the full recipe data
-    const fullRecipe = recipes.find(r => r.id === simpleRecipe.id) || 
-                      dishes.find(d => d.recipes?.id === simpleRecipe.id)?.recipes;
-    
-    if (fullRecipe) {
-      // Ensure all required fields are present with proper defaults
-      const completeRecipe: Recipe = {
-        ...fullRecipe,
-        preparation_time: fullRecipe.preparation_time || 0,
-        difficulty: fullRecipe.difficulty || 'Facile',
-        portions: fullRecipe.portions || 1,
-        description: fullRecipe.description || '',
-        allergens: fullRecipe.allergens || '',
-        calories: fullRecipe.calories || 0,
-        protein: fullRecipe.protein || 0,
-        carbs: fullRecipe.carbs || 0,
-        fat: fullRecipe.fat || 0,
-        is_semilavorato: fullRecipe.is_semilavorato || false,
-        recipe_instructions: fullRecipe.recipe_instructions || []
-      };
-      setEditingRecipe(completeRecipe);
-    }
-  }, [dishes, recipes]);
-
-  const handleSalesImportWrapper = useCallback((importedSales: FoodCostSalesData[]) => {
-    // Convert to the format expected by useFoodCostData
-    const convertedSales = importedSales.map(sale => ({
-      dishName: sale.dishName,
-      unitsSold: sale.unitsSold,
-      saleDate: sale.saleDate,
-      period: sale.period || 'imported'
-    }));
-    
-    handleSalesImport(convertedSales);
-  }, [handleSalesImport]);
-
-  const handleCalculateFoodCost = useCallback(() => {
-    calculateFoodCostForPeriod(selectedPeriod, dateRange, false);
-  }, [calculateFoodCostForPeriod, selectedPeriod, dateRange]);
-
-  const handleRecalculateFoodCost = useCallback(() => {
-    calculateFoodCostForPeriod(selectedPeriod, dateRange, true);
-  }, [calculateFoodCostForPeriod, selectedPeriod, dateRange]);
-
-  // Combina piatti e ricette per il filtro
-  const allItems = useMemo(() => [
-    ...dishes.map(dish => {
-      const saleDataForDish = foodCostSalesData.find(sale => 
-        sale.dish_external_id === dish.external_id || sale.dish_id === dish.id
-      );
-      
-      return {
-        type: 'dish' as const, 
-        item: dish, 
-        name: dish.name, 
-        category: dish.category,
-        analysis: getDishAnalysis(dish),
-        menuCategory: getMenuEngineeringCategory(dish),
-        unitsSold: saleDataForDish?.total_quantity_sold ?? 0, 
-        revenue: saleDataForDish?.total_revenue ?? 0, 
-      };
-    }),
-    ...recipes
-      .filter(recipe => !dishes.some(dish => dish.recipe_id === recipe.id))
-      .map(recipe => ({ 
-        type: 'recipe' as const, 
-        item: recipe, 
-        name: recipe.name, 
-        category: recipe.category,
-        analysis: getRecipeAnalysis(recipe),
-        menuCategory: "puzzle" as const,
-        unitsSold: 0,
-        revenue: 0
-      }))
-  ], [dishes, recipes, foodCostSalesData, getDishAnalysis, getMenuEngineeringCategory, getRecipeAnalysis]);
-
-  // Enhanced filtering with date range consideration
-  const filteredItems = useMemo(() => allItems.filter(({ name, category, analysis, menuCategory }) => {
-    const matchesSearch = name.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesCategory = selectedCategory === "all" || category === selectedCategory;
-    
-    // Filtri avanzati
-    const matchesFoodCostMin = !advancedFilters.foodCostMin || analysis.foodCostPercentage >= advancedFilters.foodCostMin;
-    const matchesFoodCostMax = !advancedFilters.foodCostMax || analysis.foodCostPercentage <= advancedFilters.foodCostMax;
-    const matchesMarginMin = !advancedFilters.marginMin || analysis.margin >= advancedFilters.marginMin;
-    const matchesMarginMax = !advancedFilters.marginMax || analysis.margin <= advancedFilters.marginMax;
-    const matchesMenuCategory = !advancedFilters.menuCategory || menuCategory === advancedFilters.menuCategory;
-
-    return matchesSearch && matchesCategory && matchesFoodCostMin && matchesFoodCostMax && 
-           matchesMarginMin && matchesMarginMax && matchesMenuCategory;
-  }), [allItems, searchTerm, selectedCategory, advancedFilters]);
-
-  // Pagination logic
-  const paginatedItems = useMemo(() => {
-    const startIndex = (currentPage - 1) * itemsPerPage;
-    return filteredItems.slice(startIndex, startIndex + itemsPerPage);
-  }, [filteredItems, currentPage, itemsPerPage]);
-
-  const totalPages = Math.ceil(filteredItems.length / itemsPerPage);
-
-  const exportToCSV = useCallback(() => {
-    const csvData = filteredItems.map((item) => {
-      const { type, item: dataItem, analysis, menuCategory, unitsSold } = item;
-      return {
-        Nome: dataItem.name,
-        Tipo: type === 'dish' ? 'Piatto' : 'Ricetta',
-        Categoria: dataItem.category,
-        'Popolarità %': type === 'dish' ? getSalesMixPercentage(dataItem.name).toFixed(2) : 'N/A',
-        'Unità Vendute': type === 'dish' ? unitsSold : 'N/A',
-        'Prezzo Vendita': type === 'dish' ? (dataItem as Dish).selling_price : analysis.assumedPrice,
-        'Costo Ingredienti': analysis.foodCost.toFixed(2),
-        'Food Cost %': analysis.foodCostPercentage.toFixed(1),
-        'Margine €': analysis.margin.toFixed(2),
-        'Menu Engineering': menuCategory,
-        'Popolarità Score': analysis.popularity,
-        'Periodo Analisi': dateRange.from && dateRange.to 
-          ? `${dateRange.from.toLocaleDateString()} - ${dateRange.to.toLocaleDateString()}`
-          : 'Tutti i dati'
-      };
-    });
-
-    const csv = [
-      Object.keys(csvData[0]).join(','),
-      ...csvData.map(row => Object.values(row).join(','))
-    ].join('\n');
-
-    const blob = new Blob([csv], { type: 'text/csv' });
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `food-cost-analysis-${new Date().toISOString().split('T')[0]}.csv`;
-    a.click();
-    window.URL.revokeObjectURL(url);
-  }, [filteredItems, getSalesMixPercentage, dateRange]);
-
-  const handleDeleteDish = useCallback((dishId: string, dishName: string) => {
-    deleteDish(dishId);
-  }, [deleteDish]);
+    // Functions
+    fetchData,
+    createDishFromRecipe,
+    handleEditRecipeFromDialog,
+    handleSalesImportWrapper,
+    handleCalculateFoodCost,
+    handleRecalculateFoodCost,
+    exportToCSV,
+    handleDeleteDish
+  } = useFoodCostPage();
 
   if (loading) {
     return (
@@ -314,45 +89,12 @@ const FoodCost = () => {
       />
 
       <main className="max-w-7xl mx-auto px-6 py-8">
-        {/* Sezione calcolo food cost */}
-        <div className="mb-6 p-4 bg-white rounded-lg shadow-sm border">
-          <div className="flex items-center justify-between">
-            <div>
-              <h3 className="text-lg font-semibold text-gray-900">Calcolo Dati di Vendita</h3>
-              <p className="text-sm text-gray-600">
-                Calcola i dati di vendita dei piatti basandoti sulle ricevute del periodo selezionato
-              </p>
-            </div>
-            <div className="flex gap-2">
-              <Button
-                onClick={handleCalculateFoodCost}
-                disabled={calculatingFoodCost}
-                className="flex items-center gap-2"
-              >
-                {calculatingFoodCost ? (
-                  <RefreshCw className="w-4 h-4 animate-spin" />
-                ) : (
-                  <Calculator className="w-4 h-4" />
-                )}
-                Calcola Vendite
-              </Button>
-              <Button
-                onClick={handleRecalculateFoodCost}
-                disabled={calculatingFoodCost}
-                variant="outline"
-                className="flex items-center gap-2"
-              >
-                <RefreshCw className="w-4 h-4" />
-                Ricalcola
-              </Button>
-            </div>
-          </div>
-          {foodCostSalesData.length > 0 && (
-            <div className="mt-3 text-sm text-green-600">
-              ✓ Dati disponibili per {foodCostSalesData.length} prodotti
-            </div>
-          )}
-        </div>
+        <FoodCostCalculationSection
+          onCalculate={handleCalculateFoodCost}
+          onRecalculate={handleRecalculateFoodCost}
+          calculatingFoodCost={calculatingFoodCost}
+          foodCostSalesDataCount={foodCostSalesData.length}
+        />
 
         <FoodCostKPIs
           avgFoodCostPercentage={avgFoodCostPercentage}
@@ -393,58 +135,15 @@ const FoodCost = () => {
           onDeleteDish={handleDeleteDish}
         />
 
-        {filteredItems.length > 0 && (
-          <div className="flex items-center justify-between mt-4">
-            <div className="text-sm text-slate-600">
-              Mostrando <strong>{paginatedItems.length}</strong> di <strong>{filteredItems.length}</strong> risultati
-            </div>
-            <div className="flex items-center gap-4">
-              <div className="flex items-center space-x-2">
-                <span className="text-sm text-slate-600">Elementi per pagina:</span>
-                <Select
-                  value={String(itemsPerPage)}
-                  onValueChange={(value) => {
-                    setItemsPerPage(Number(value));
-                    setCurrentPage(1);
-                  }}
-                >
-                  <SelectTrigger className="w-[80px]">
-                    <SelectValue placeholder={itemsPerPage} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="10">10</SelectItem>
-                    <SelectItem value="20">20</SelectItem>
-                    <SelectItem value="50">50</SelectItem>
-                    <SelectItem value="100">100</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              {totalPages > 1 && (
-                <Pagination>
-                  <PaginationContent>
-                    <PaginationItem>
-                      <PaginationPrevious
-                        href="#"
-                        onClick={(e) => { e.preventDefault(); setCurrentPage(p => Math.max(1, p - 1)); }}
-                        className={currentPage === 1 ? 'pointer-events-none opacity-50' : ''}
-                      />
-                    </PaginationItem>
-                    <PaginationItem>
-                      <span className="px-4 py-2 text-sm">Pagina {currentPage} di {totalPages}</span>
-                    </PaginationItem>
-                    <PaginationItem>
-                      <PaginationNext
-                        href="#"
-                        onClick={(e) => { e.preventDefault(); setCurrentPage(p => Math.min(totalPages, p + 1)); }}
-                        className={currentPage === totalPages ? 'pointer-events-none opacity-50' : ''}
-                      />
-                    </PaginationItem>
-                  </PaginationContent>
-                </Pagination>
-              )}
-            </div>
-          </div>
-        )}
+        <FoodCostPagination
+          currentPage={currentPage}
+          totalPages={totalPages}
+          itemsPerPage={itemsPerPage}
+          totalItems={filteredItems.length}
+          paginatedItemsLength={paginatedItems.length}
+          onPageChange={setCurrentPage}
+          onItemsPerPageChange={setItemsPerPage}
+        />
       </main>
 
       {/* Edit Recipe Dialog */}

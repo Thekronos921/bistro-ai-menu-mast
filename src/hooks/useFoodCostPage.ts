@@ -7,7 +7,6 @@ import { useFoodCostAnalysis } from "@/hooks/useFoodCostAnalysis";
 import { useCategories } from '@/hooks/useCategories';
 import type { Recipe } from "@/types/recipe";
 import { convertTimePeriodToParams } from "@/integrations/cassaInCloud/foodCostCalculationService";
-import { isWithinInterval } from 'date-fns';
 
 interface Dish {
   id: string;
@@ -102,18 +101,17 @@ export const useFoodCostPage = () => {
       return [];
     }
     
-    const { periodStart, periodEnd } = convertTimePeriodToParams(selectedPeriod, dateRange);
-    const startDate = new Date(periodStart);
-    const endDate = new Date(periodEnd);
+    const { periodStartLocal, periodEndLocal } = convertTimePeriodToParams(selectedPeriod, dateRange);
 
     console.log(`[FoodCostDebug] Filtering for period: "${selectedPeriod}"`);
-    console.log(`[FoodCostDebug] Start: ${startDate.toISOString()} | End: ${endDate.toISOString()}`);
+    console.log(`[FoodCostDebug] Start Date: ${periodStartLocal} | End Date: ${periodEndLocal}`);
     console.log(`[FoodCostDebug] Total sales before filter: ${detailedSalesData.length}`);
 
     const filteredSales = detailedSalesData.filter(sale => {
-      if (!sale.sale_timestamp) return false;
-      const saleDate = new Date(sale.sale_timestamp);
-      return isWithinInterval(saleDate, { start: startDate, end: endDate });
+      // Use the pre-calculated local date for accurate, timezone-independent filtering.
+      if (!sale.sale_date_local) return false;
+      // Simple string comparison works reliably with 'YYYY-MM-DD' format.
+      return sale.sale_date_local >= periodStartLocal && sale.sale_date_local <= periodEndLocal;
     });
     
     console.log(`[FoodCostDebug] Total sales after filter: ${filteredSales.length}`);

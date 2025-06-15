@@ -1,4 +1,3 @@
-
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.49.8'
 
 const corsHeaders = {
@@ -231,6 +230,10 @@ Deno.serve(async (req) => {
           continue;
         }
         
+        const saleTimestampString = receiptInfo.receipt_date;
+        // Calcola la data locale usando il fuso orario corretto. 'fr-CA' dà il formato YYYY-MM-DD.
+        const localSaleDate = new Date(saleTimestampString).toLocaleDateString('fr-CA', { timeZone: 'Europe/Rome' });
+
         // Arrotonda i valori solo prima dell'inserimento
         const finalRevenue = roundToTwo(rawRevenue);
         const rawQuantity = Number(row.quantity) || 0;
@@ -239,7 +242,7 @@ Deno.serve(async (req) => {
         const dishInfo = row.id_product ? dishNamesMap.get(row.id_product) : undefined;
 
         salesHistoryData.push({
-            receipt_id: receiptInfo.id, // Aggiunta FK alla ricevuta
+            receipt_id: receiptInfo.id,
             bill_id_external: receiptInfo.external_id,
             document_row_id_external: row.cic_row_id,
             restaurant_id: restaurantId,
@@ -249,7 +252,8 @@ Deno.serve(async (req) => {
             quantity_sold: finalQuantity,
             price_per_unit_sold: unitPrice,
             total_amount_sold_for_row: finalRevenue,
-            sale_timestamp: receiptInfo.receipt_date,
+            sale_timestamp: saleTimestampString,
+            sale_date_local: localSaleDate, // Aggiunta la data locale
             raw_bill_data: row,
             operator_id_external: null, // Campo da popolare se disponibile
             operator_name: null, // Campo da popolare se disponibile

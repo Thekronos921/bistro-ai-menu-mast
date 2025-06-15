@@ -857,6 +857,7 @@ export type Database = {
           raw_bill_data: Json | null
           receipt_id: string | null
           restaurant_id: string
+          sale_date_local: string
           sale_timestamp: string
           total_amount_sold_for_row: number
           unmapped_product_description: string | null
@@ -875,6 +876,7 @@ export type Database = {
           raw_bill_data?: Json | null
           receipt_id?: string | null
           restaurant_id: string
+          sale_date_local: string
           sale_timestamp: string
           total_amount_sold_for_row: number
           unmapped_product_description?: string | null
@@ -893,6 +895,7 @@ export type Database = {
           raw_bill_data?: Json | null
           receipt_id?: string | null
           restaurant_id?: string
+          sale_date_local?: string
           sale_timestamp?: string
           total_amount_sold_for_row?: number
           unmapped_product_description?: string | null

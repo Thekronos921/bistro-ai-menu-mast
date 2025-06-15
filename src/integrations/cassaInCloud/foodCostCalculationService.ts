@@ -1,5 +1,6 @@
+
 import { supabase } from '@/integrations/supabase/client';
-import { startOfDay, endOfDay, subDays, startOfMonth, endOfMonth, subMonths } from 'date-fns';
+import { startOfDay, endOfDay, subDays, startOfMonth, endOfMonth, subMonths, format } from 'date-fns';
 import { toZonedTime } from 'date-fns-tz';
 
 export interface FoodCostCalculationParams {
@@ -16,6 +17,7 @@ export interface ExternalSaleData {
   quantity_sold: number;
   total_amount_sold_for_row: number;
   sale_timestamp: string;
+  sale_date_local: string;
   created_at: string;
 }
 
@@ -68,7 +70,7 @@ export async function getDetailedSalesData(
   try {
     let query = supabase
       .from('external_sales_data')
-      .select('id, restaurant_id, dish_id, external_product_id, unmapped_product_description, quantity_sold, total_amount_sold_for_row, sale_timestamp, created_at')
+      .select('id, restaurant_id, dish_id, external_product_id, unmapped_product_description, quantity_sold, total_amount_sold_for_row, sale_timestamp, sale_date_local, created_at')
       .eq('restaurant_id', restaurantId)
       .order('sale_timestamp', { ascending: false });
 
@@ -94,7 +96,7 @@ export async function getDetailedSalesData(
 export function convertTimePeriodToParams(
   period: string,
   customDateRange?: { from: Date; to: Date }
-): { periodStart: string; periodEnd: string; periodType: 'daily' | 'weekly' | 'monthly' | 'custom' | 'all_time' } {
+): { periodStart: string; periodEnd: string; periodStartLocal: string; periodEndLocal: string; periodType: 'daily' | 'weekly' | 'monthly' | 'custom' | 'all_time' } {
   const timeZone = 'Europe/Rome';
   const now = toZonedTime(new Date(), timeZone);
   
@@ -166,6 +168,8 @@ export function convertTimePeriodToParams(
   return {
     periodStart: startDate.toISOString(),
     periodEnd: endDate.toISOString(),
+    periodStartLocal: format(startDate, 'yyyy-MM-dd'),
+    periodEndLocal: format(endDate, 'yyyy-MM-dd'),
     periodType
   };
 }

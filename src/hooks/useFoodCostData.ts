@@ -6,9 +6,8 @@ import { createDishFromRecipe, deleteDish } from "./food-cost/dishOperations";
 import { filterSalesDataByDateRange, mergeSalesData } from "./food-cost/salesDataUtils";
 import { 
   calculateFoodCostSales, 
-  getFoodCostSalesData, 
-  convertTimePeriodToParams,
-  FoodCostSalesData as FoodCostDbRow
+  getDetailedSalesData,
+  ExternalSaleData
 } from "@/integrations/cassaInCloud/foodCostCalculationService";
 import type { 
   Dish, 
@@ -16,13 +15,12 @@ import type {
   DateRange 
 } from "./food-cost/types";
 import type { Recipe } from "@/types/recipe";
-import type { TimePeriod } from "@/components/PeriodSelector";
 
 export const useFoodCostData = () => {
   const [dishes, setDishes] = useState<Dish[]>([]);
   const [recipes, setRecipes] = useState<Recipe[]>([]);
-  const [salesData, setSalesData] = useState<FoodCostSalesData[]>([]);
-  const [foodCostSalesData, setFoodCostSalesData] = useState<FoodCostDbRow[]>([]);
+  const [salesData, setSalesData] = useState<FoodCostSalesData[]>([]); // For manual CSV import
+  const [detailedSalesData, setDetailedSalesData] = useState<ExternalSaleData[]>([]);
   const [lastCalculationDate, setLastCalculationDate] = useState<string | null>(null);
   const [dateRange, setDateRange] = useState<DateRange>({ from: undefined, to: undefined });
   const [loading, setLoading] = useState(true);
@@ -30,7 +28,7 @@ export const useFoodCostData = () => {
   const { toast } = useToast();
   const { restaurantId } = useRestaurant();
 
-  const fetchData = useCallback(async () => {
+  const loadInitialData = useCallback(async () => {
     try {
       if (!restaurantId) {
         console.log("No restaurant ID available");
@@ -38,15 +36,17 @@ export const useFoodCostData = () => {
         return;
       }
 
-      console.log("Fetching data for restaurant:", restaurantId);
+      console.log("Fetching initial data for restaurant:", restaurantId);
 
-      const [dishesData, recipesData] = await Promise.all([
+      const [dishesData, recipesData, salesHistory] = await Promise.all([
         fetchDishes(restaurantId),
-        fetchRecipes(restaurantId)
+        fetchRecipes(restaurantId),
+        getDetailedSalesData(restaurantId)
       ]);
 
       console.log("Fetched dishes:", dishesData);
       console.log("Fetched recipes:", recipesData);
+      console.log("Fetched detailed sales:", salesHistory);
 
       const recipesById = new Map(recipesData.map(r => [r.id, r]));
 
@@ -57,6 +57,18 @@ export const useFoodCostData = () => {
 
       setDishes(linkedDishes);
       setRecipes(recipesData);
+      setDetailedSalesData(salesHistory);
+
+      if (salesHistory.length > 0) {
+        const mostRecentDate = salesHistory.reduce((max, item) => {
+          const itemDate = new Date(item.created_at);
+          return itemDate > max ? itemDate : max;
+        }, new Date(0));
+        setLastCalculationDate(mostRecentDate.toISOString());
+      } else {
+        setLastCalculationDate(null);
+      }
+
     } catch (error) {
       console.error("Fetch data error:", error);
       toast({
@@ -69,11 +81,7 @@ export const useFoodCostData = () => {
     }
   }, [restaurantId, toast]);
 
-  const calculateFoodCostForPeriod = useCallback(async (
-    period: TimePeriod,
-    customDateRange?: DateRange,
-    forceRecalculate: boolean = false
-  ) => {
+  const triggerSalesCalculation = useCallback(async (forceRecalculate: boolean = false) => {
     if (!restaurantId) {
       toast({
         title: "Errore",
@@ -86,26 +94,22 @@ export const useFoodCostData = () => {
     setCalculatingFoodCost(true);
 
     try {
-      // Converti il periodo in parametri per la funzione
-      const dateRangeForConversion = customDateRange?.from && customDateRange?.to 
-        ? { from: customDateRange.from, to: customDateRange.to }
-        : undefined;
+      console.log('Triggering sales calculation, force:', forceRecalculate);
       
-      const { periodStart, periodEnd, periodType } = convertTimePeriodToParams(period, dateRangeForConversion);
-
-      console.log('Calculating food cost for period:', { period, periodStart, periodEnd, periodType });
-
-      // Chiama la Edge Function per calcolare i dati
       const result = await calculateFoodCostSales({
         restaurantId,
-        periodStart,
-        periodEnd,
-        periodType,
         forceRecalculate
       });
 
       if (result.success) {
-        setFoodCostSalesData(result.data);
+        setDetailedSalesData(result.data);
+         if (result.data.length > 0) {
+          const mostRecentDate = result.data.reduce((max, item) => {
+            const itemDate = new Date(item.created_at);
+            return itemDate > max ? itemDate : max;
+          }, new Date(0));
+          setLastCalculationDate(mostRecentDate.toISOString());
+        }
         toast({
           title: "Successo",
           description: result.message,
@@ -123,77 +127,6 @@ export const useFoodCostData = () => {
       });
     } finally {
       setCalculatingFoodCost(false);
-    }
-  }, [restaurantId, toast]);
-
-  const loadFoodCostSalesData = useCallback(async (
-    period?: TimePeriod,
-    customDateRange?: DateRange
-  ) => {
-    if (!restaurantId) return;
-
-    try {
-      let finalData: FoodCostDbRow[] = [];
-
-      if (period === 'allTime') {
-        const allData = await getFoodCostSalesData(restaurantId, undefined, undefined, undefined);
-        
-        if (allData.length > 0) {
-          const aggregatedData = Object.values(
-            allData.reduce((acc, current) => {
-              const key = current.dish_id || current.dish_external_id || current.dish_name;
-              if (!acc[key]) {
-                acc[key] = { ...current, period_type: 'allTime', total_quantity_sold: Number(current.total_quantity_sold), total_revenue: Number(current.total_revenue) };
-              } else {
-                acc[key].total_quantity_sold += Number(current.total_quantity_sold);
-                acc[key].total_revenue += Number(current.total_revenue);
-                // Keep the latest updated_at
-                if (new Date(current.updated_at) > new Date(acc[key].updated_at)) {
-                  acc[key].updated_at = current.updated_at;
-                }
-              }
-              return acc;
-            }, {} as Record<string, FoodCostDbRow>)
-          );
-          finalData = aggregatedData;
-        }
-      } else {
-        let periodStart: string | undefined;
-        let periodEnd: string | undefined;
-        let periodType: string | undefined;
-
-        if (period) {
-          const dateRangeForConversion = customDateRange?.from && customDateRange?.to 
-            ? { from: customDateRange.from, to: customDateRange.to }
-            : undefined;
-          
-          const params = convertTimePeriodToParams(period, dateRangeForConversion);
-          periodStart = params.periodStart;
-          periodEnd = params.periodEnd;
-          periodType = params.periodType;
-        }
-        finalData = await getFoodCostSalesData(restaurantId, periodStart, periodEnd, periodType);
-      }
-
-      setFoodCostSalesData(finalData);
-
-      if (finalData.length > 0) {
-        const mostRecentDate = finalData.reduce((max, item) => {
-          const itemDate = new Date(item.updated_at);
-          return itemDate > max ? itemDate : max;
-        }, new Date(0));
-        setLastCalculationDate(mostRecentDate.toISOString());
-      } else {
-        setLastCalculationDate(null);
-      }
-
-    } catch (error) {
-      console.error("Load food cost sales data error:", error);
-      toast({
-        title: "Errore",
-        description: "Errore nel caricamento dei dati di food cost",
-        variant: "destructive"
-      });
     }
   }, [restaurantId, toast]);
 
@@ -222,7 +155,7 @@ export const useFoodCostData = () => {
         description: `Piatto "${recipe.name}" creato con prezzo suggerito €${suggestedPrice.toFixed(2)}`,
       });
 
-      fetchData();
+      loadInitialData(); // Reload all data
     } catch (error) {
       console.error("Create dish error:", error);
       toast({
@@ -231,7 +164,7 @@ export const useFoodCostData = () => {
         variant: "destructive"
       });
     }
-  }, [restaurantId, toast, fetchData]);
+  }, [restaurantId, toast, loadInitialData]);
 
   const handleSalesImport = useCallback((importedSales: FoodCostSalesData[]) => {
     setSalesData(prev => mergeSalesData(prev, importedSales));
@@ -244,6 +177,7 @@ export const useFoodCostData = () => {
   }, [toast]);
 
   const filteredSalesData = useMemo(() => {
+    // This is for manually imported data, logic remains the same.
     return filterSalesDataByDateRange(salesData, dateRange);
   }, [salesData, dateRange]);
 
@@ -265,7 +199,7 @@ export const useFoodCostData = () => {
         description: "Piatto eliminato con successo"
       });
 
-      fetchData();
+      loadInitialData(); // Reload all data
     } catch (error) {
       console.error("Delete dish error:", error);
       toast({
@@ -274,30 +208,29 @@ export const useFoodCostData = () => {
         variant: "destructive"
       });
     }
-  }, [restaurantId, toast, fetchData]);
+  }, [restaurantId, toast, loadInitialData]);
 
   useEffect(() => {
     if (restaurantId) {
-      fetchData();
+      loadInitialData();
     }
-  }, [restaurantId, fetchData]);
+  }, [restaurantId, loadInitialData]);
 
   return {
     dishes,
     recipes,
-    salesData: filteredSalesData,
-    allSalesData: salesData,
-    foodCostSalesData,
+    salesData: filteredSalesData, // Manual import data
+    allSalesData: salesData, // Manual import data
+    detailedSalesData,
     lastCalculationDate,
     dateRange,
     setDateRange,
     loading,
     calculatingFoodCost,
-    fetchData,
+    fetchData: loadInitialData,
     createDishFromRecipe: handleCreateDishFromRecipe,
     handleSalesImport,
     deleteDish: handleDeleteDish,
-    calculateFoodCostForPeriod,
-    loadFoodCostSalesData
+    triggerSalesCalculation
   };
 };

@@ -17,10 +17,11 @@ const roundQuantity = (num: number): number => {
 
 interface CalculateRequest {
   restaurantId: string;
-  periodStart: string;
-  periodEnd: string;
-  periodType: 'daily' | 'weekly' | 'monthly' | 'custom' | 'all_time';
   forceRecalculate?: boolean;
+  // periodStart, periodEnd, periodType are no longer used but kept for client compatibility
+  periodStart?: string;
+  periodEnd?: string;
+  periodType?: 'daily' | 'weekly' | 'monthly' | 'custom' | 'all_time';
 }
 
 interface DishSalesData {
@@ -68,71 +69,50 @@ Deno.serve(async (req) => {
       );
     }
 
-    const { restaurantId, periodStart, periodEnd, periodType, forceRecalculate = false }: CalculateRequest = await req.json();
+    const { restaurantId, forceRecalculate = false }: CalculateRequest = await req.json();
 
-    console.log('Calculating foodcost sales with new rounding logic for:', { restaurantId, periodStart, periodEnd, periodType, forceRecalculate });
+    console.log('Calculating full sales history for restaurant:', { restaurantId, forceRecalculate });
 
-    // Verifica se esistono già dati per questo periodo
-    if (!forceRecalculate) {
-      const { data: existingData, error: existingError } = await supabase
-        .from('foodcost')
-        .select('id')
-        .eq('restaurant_id', restaurantId)
-        .eq('period_start', periodStart)
-        .eq('period_end', periodEnd)
-        .eq('period_type', periodType)
-        .limit(1);
-
-      if (existingError) {
-        console.error('Error checking existing data:', existingError);
-      } else if (existingData && existingData.length > 0) {
-        console.log('Data already exists for this period, skipping calculation');
-        
-        // Restituisci i dati esistenti
-        const { data: existingFoodcostData, error: fetchError } = await supabase
-          .from('foodcost')
-          .select('*')
-          .eq('restaurant_id', restaurantId)
-          .eq('period_start', periodStart)
-          .eq('period_end', periodEnd)
-          .eq('period_type', periodType);
-
-        if (fetchError) {
-          throw fetchError;
-        }
-
-        return new Response(
-          JSON.stringify({ 
-            success: true, 
-            data: existingFoodcostData,
-            message: 'Data already calculated for this period'
-          }),
-          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
+    // Se forceRecalculate è true, puliamo prima i dati di vendita dettagliati esistenti.
+    if (forceRecalculate) {
+      console.log('Force recalculate enabled - deleting existing detailed sales data');
+      
+      const { error: deleteSalesHistoryError } = await supabase
+        .from('external_sales_data')
+        .delete()
+        .eq('restaurant_id', restaurantId);
+      
+      if (deleteSalesHistoryError) {
+        console.error('Error deleting existing sales history data:', deleteSalesHistoryError);
+        // Non blocchiamo, ma è un problema serio
+      } else {
+        console.log('Successfully deleted existing sales history data for the restaurant.');
       }
+    } else {
+      // Potremmo aggiungere una logica per non ricalcolare se non è forzato,
+      // ma per ora il calcolo è l'unica via per aggiornare.
+      console.log('Proceeding with calculation (non-forced). Data will be added/updated.');
     }
 
-    // 1. Recupera gli ID delle ricevute per il periodo specificato
+    // 1. Recupera TUTTI gli ID delle ricevute per il ristorante
     const { data: receipts, error: receiptsError } = await supabase
       .from('cassa_in_cloud_receipts')
-      .select('id') // Seleziono solo l'ID, il resto dei dati lo recupero con la join dopo
-      .eq('restaurant_id', restaurantId)
-      .gte('receipt_date', periodStart)
-      .lte('receipt_date', periodEnd);
+      .select('id')
+      .eq('restaurant_id', restaurantId);
 
     if (receiptsError) {
       console.error('Error fetching receipts:', receiptsError);
       throw receiptsError;
     }
 
-    console.log(`Found ${receipts?.length || 0} receipts for the period using receipt_date`);
+    console.log(`Found ${receipts?.length || 0} total receipts for the restaurant.`);
 
     if (!receipts || receipts.length === 0) {
       return new Response(
         JSON.stringify({ 
           success: true, 
           data: [],
-          message: 'No receipts found for the specified period'
+          message: 'No receipts found for this restaurant'
         }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
@@ -141,7 +121,7 @@ Deno.serve(async (req) => {
     const receiptIds = receipts.map(r => r.id);
     console.log(`Processing ${receiptIds.length} receipt IDs`);
 
-    // 2. Recupera le righe delle ricevute con i prodotti
+    // 2. Recupera le righe delle ricevute con i prodotti (logica invariata)
     let allReceiptRows: any[] = [];
     const batchSize = 100;
     
@@ -194,39 +174,11 @@ Deno.serve(async (req) => {
       );
     }
 
-    // 3. Aggrega i dati per prodotto. I calcoli vengono fatti sui valori grezzi per massima precisione.
-    console.log('Aggregating sales data. Rounding will be applied only at the final step.');
-    const salesMap = new Map<string, { quantity: number; revenue: number; productName: string }>();
-
-    for (const row of allReceiptRows) {
-      if (!row.id_product) continue;
-
-      // Usa i valori grezzi, non arrotondati, per i calcoli
-      const revenue = getRowRevenue(row); 
-      const quantity = Number(row.quantity) || 0;
-
-      const existing = salesMap.get(row.id_product) || { 
-        quantity: 0, 
-        revenue: 0, 
-        productName: row.product_description || `Prodotto ${row.id_product}`
-      };
-      
-      // Somma i valori grezzi senza arrotondare
-      existing.quantity += quantity;
-      existing.revenue += revenue;
-      
-      salesMap.set(row.id_product, existing);
-    }
-
-    console.log(`Aggregated data for ${salesMap.size} unique products.`);
-    // Log di esempio per un prodotto prima dell'arrotondamento
-    if (salesMap.size > 0) {
-      const firstKey = salesMap.keys().next().value;
-      console.log('Sample raw aggregated data before rounding:', salesMap.get(firstKey));
-    }
+    // 3. Rimuoviamo la vecchia aggregazione per la tabella 'foodcost'.
+    // Ci concentriamo solo su 'external_sales_data'.
 
     // 4. Recupera i nomi dei piatti dalla tabella dishes (invariato)
-    const productIds = Array.from(salesMap.keys());
+    const productIds = Array.from(new Set(allReceiptRows.map(r => r.id_product).filter(Boolean)));
     const { data: dishes, error: dishesError } = await supabase
       .from('dishes')
       .select('external_id, name, id')
@@ -245,81 +197,11 @@ Deno.serve(async (req) => {
       });
     }
 
-    // 5. Prepara i dati aggregati per la tabella 'foodcost' APPLICANDO GLI ARROTONDAMENTI FINALI
-    const foodcostData: any[] = [];
-    salesMap.forEach((sale, productId) => {
-      const dishInfo = dishNamesMap.get(productId);
+    // 5. Rimuoviamo la preparazione per la tabella 'foodcost'.
 
-      // Applica gli arrotondamenti qui, una sola volta, prima di salvare.
-      const totalRevenue = roundToTwo(sale.revenue);
-      const totalQuantity = roundQuantity(sale.quantity);
-      const averageUnitPrice = totalQuantity > 0 ? roundToTwo(totalRevenue / totalQuantity) : 0;
-      
-      foodcostData.push({
-        restaurant_id: restaurantId,
-        dish_id: dishInfo?.dishId || null,
-        dish_external_id: productId,
-        dish_name: dishInfo?.name || sale.productName,
-        period_start: periodStart,
-        period_end: periodEnd,
-        period_type: periodType,
-        total_quantity_sold: totalQuantity,
-        total_revenue: totalRevenue,
-        average_unit_price: averageUnitPrice,
-      });
-    });
+    // 6. Rimuoviamo la cancellazione da 'foodcost' su forceRecalculate (già fatto sopra).
 
-    console.log(`Prepared ${foodcostData.length} foodcost records to be inserted/updated.`);
-
-    // 6. Se forceRecalculate è true, elimina i dati esistenti prima di inserire i nuovi
-    if (forceRecalculate) {
-      console.log('Force recalculate enabled - deleting existing data');
-      
-      // Elimina da foodcost (aggregati)
-      const { error: deleteError } = await supabase
-        .from('foodcost')
-        .delete()
-        .eq('restaurant_id', restaurantId)
-        .eq('period_start', periodStart)
-        .eq('period_end', periodEnd)
-        .eq('period_type', periodType);
-
-      if (deleteError) {
-        console.error('Error deleting existing data:', deleteError);
-      } else {
-        console.log('Successfully deleted existing foodcost data for the period.');
-      }
-
-      // Elimina da external_sales_data (storico dettagliato)
-      const { error: deleteSalesHistoryError } = await supabase
-        .from('external_sales_data')
-        .delete()
-        .eq('restaurant_id', restaurantId)
-        .gte('sale_timestamp', periodStart)
-        .lte('sale_timestamp', periodEnd);
-      
-      if (deleteSalesHistoryError) {
-        console.error('Error deleting existing sales history data:', deleteSalesHistoryError);
-      } else {
-        console.log('Successfully deleted existing sales history data for the period.');
-      }
-    }
-
-    // 7. Inserisci i dati aggregati nella tabella 'foodcost'
-    const { data: insertedData, error: insertError } = await supabase
-      .from('foodcost')
-      .upsert(foodcostData, { 
-        onConflict: 'restaurant_id,dish_external_id,period_start,period_end,period_type',
-        ignoreDuplicates: false
-      })
-      .select();
-
-    if (insertError) {
-      console.error('Error inserting foodcost data:', insertError);
-      throw insertError;
-    }
-
-    console.log(`Successfully inserted/updated ${insertedData?.length || 0} foodcost records`);
+    // 7. Rimuoviamo l'inserimento nella tabella 'foodcost'.
 
     // 8. Prepara e inserisce lo storico dettagliato in 'external_sales_data' con arrotondamenti corretti
     const salesHistoryData: any[] = [];
@@ -349,7 +231,7 @@ Deno.serve(async (req) => {
             restaurant_id: restaurantId,
             dish_id: dishInfo?.dishId || null,
             external_product_id: row.id_product,
-            unmapped_product_description: row.product_description || `Prodotto ${row.id_product}`,
+            unmapped_product_description: dishInfo?.name || row.product_description || `Prodotto ${row.id_product}`,
             quantity_sold: finalQuantity,
             price_per_unit_sold: unitPrice,
             total_amount_sold_for_row: finalRevenue,
@@ -360,17 +242,25 @@ Deno.serve(async (req) => {
         });
     }
 
+    let insertedData: any[] = [];
+
     if (salesHistoryData.length > 0) {
-      console.log(`Preparing to insert ${salesHistoryData.length} sales history records.`);
-      const { error: salesHistoryError } = await supabase
+      console.log(`Preparing to upsert ${salesHistoryData.length} sales history records.`);
+      // Usiamo upsert per gestire sia i nuovi calcoli che gli aggiornamenti
+      const { data, error: salesHistoryError } = await supabase
         .from('external_sales_data')
-        .insert(salesHistoryData); // Uso 'insert' dopo aver pulito con forceRecalculate
+        .upsert(salesHistoryData, { 
+          onConflict: 'restaurant_id,document_row_id_external',
+          ignoreDuplicates: false
+        })
+        .select();
 
       if (salesHistoryError) {
-        console.error('Error inserting sales history data:', salesHistoryError);
-        // Non bloccante, ma loggo l'errore
+        console.error('Error upserting sales history data:', salesHistoryError);
+        throw salesHistoryError;
       } else {
-        console.log(`Successfully inserted ${salesHistoryData.length} sales history records.`);
+        console.log(`Successfully upserted ${data?.length || 0} sales history records.`);
+        insertedData = data || [];
       }
     }
 
@@ -378,7 +268,7 @@ Deno.serve(async (req) => {
       JSON.stringify({ 
         success: true, 
         data: insertedData,
-        message: `Successfully calculated sales data for ${foodcostData.length} products with improved precision`
+        message: `Successfully calculated sales history. ${insertedData.length} records processed.`
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );

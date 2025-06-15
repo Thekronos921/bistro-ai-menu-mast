@@ -23,7 +23,7 @@ const FoodCostCalculationSection = ({
         <div>
           <h3 className="text-lg font-semibold text-gray-900">Calcolo Dati di Vendita</h3>
           <p className="text-sm text-gray-600">
-            Calcola i dati di vendita dei piatti basandoti sulle ricevute del periodo selezionato
+            Calcola o aggiorna lo storico completo dei dati di vendita basato su tutte le ricevute.
           </p>
         </div>
         <div className="flex gap-2">
@@ -37,7 +37,7 @@ const FoodCostCalculationSection = ({
             ) : (
               <Calculator className="w-4 h-4" />
             )}
-            Calcola Vendite
+            Calcola/Aggiorna
           </Button>
           <Button
             onClick={onRecalculate}
@@ -46,23 +46,21 @@ const FoodCostCalculationSection = ({
             className="flex items-center gap-2"
           >
             <RefreshCw className="w-4 h-4" />
-            Ricalcola
+            Forza Ricalcolo
           </Button>
         </div>
       </div>
-      {foodCostSalesDataCount > 0 && (
+      {lastCalculationDate && !calculatingFoodCost && (
         <div className="mt-3 text-sm text-green-600">
-          ✓ Dati disponibili per {foodCostSalesDataCount} prodotti.
-          {lastCalculationDate && (
-            <span className="text-gray-500 ml-2">
-              (Ultimo calcolo: {new Date(lastCalculationDate).toLocaleString('it-IT')})
-            </span>
-          )}
+          ✓ Storico vendite disponibile.
+          <span className="text-gray-500 ml-2">
+            (Ultimo aggiornamento: {new Date(lastCalculationDate).toLocaleString('it-IT')})
+          </span>
         </div>
       )}
-      {foodCostSalesDataCount === 0 && !calculatingFoodCost && (
+      {!lastCalculationDate && !calculatingFoodCost && (
         <div className="mt-3 text-sm text-amber-600">
-          Dati non ancora calcolati per il periodo selezionato. Clicca su "Calcola Vendite" per generarli.
+          Lo storico delle vendite non è ancora stato calcolato. Clicca su "Calcola/Aggiorna" per generarlo.
         </div>
       )}
     </div>

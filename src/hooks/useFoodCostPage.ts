@@ -6,6 +6,8 @@ import { useFoodCostData } from "@/hooks/useFoodCostData";
 import { useFoodCostAnalysis } from "@/hooks/useFoodCostAnalysis";
 import { useCategories } from '@/hooks/useCategories';
 import type { Recipe } from "@/types/recipe";
+import { convertTimePeriodToParams } from "@/integrations/cassaInCloud/foodCostCalculationService";
+import { isWithinInterval } from 'date-fns';
 
 interface Dish {
   id: string;
@@ -81,8 +83,7 @@ export const useFoodCostPage = () => {
   const {
     dishes,
     recipes,
-    allSalesData,
-    foodCostSalesData,
+    detailedSalesData,
     lastCalculationDate,
     dateRange,
     setDateRange,
@@ -92,17 +93,48 @@ export const useFoodCostPage = () => {
     createDishFromRecipe,
     handleSalesImport,
     deleteDish,
-    calculateFoodCostForPeriod,
-    loadFoodCostSalesData
+    triggerSalesCalculation
   } = useFoodCostData();
 
-  // Transform foodCostSalesData
-  const transformedSalesData = useMemo(() => foodCostSalesData.map(sale => ({
-    dishName: sale.dish_name,
-    unitsSold: sale.total_quantity_sold,
-    revenue: sale.total_revenue,
-    period: selectedPeriod,
-  })), [foodCostSalesData, selectedPeriod]);
+  // Aggregate detailed sales data based on the selected period
+  const aggregatedSalesData = useMemo(() => {
+    if (!detailedSalesData || detailedSalesData.length === 0) {
+      return [];
+    }
+    
+    const { periodStart, periodEnd } = convertTimePeriodToParams(selectedPeriod, dateRange);
+    const startDate = new Date(periodStart);
+    const endDate = new Date(periodEnd);
+
+    const filteredSales = detailedSalesData.filter(sale => {
+      const saleDate = new Date(sale.sale_timestamp);
+      return isWithinInterval(saleDate, { start: startDate, end: endDate });
+    });
+
+    const salesByDish = filteredSales.reduce((acc, sale) => {
+      const key = sale.external_product_id;
+      if (!acc[key]) {
+        acc[key] = {
+          dishExternalId: key,
+          dishName: sale.unmapped_product_description || 'Prodotto sconosciuto',
+          unitsSold: 0,
+          revenue: 0,
+        };
+      }
+      acc[key].unitsSold += Number(sale.quantity_sold) || 0;
+      acc[key].revenue += Number(sale.total_amount_sold_for_row) || 0;
+      return acc;
+    }, {} as Record<string, { dishExternalId: string, dishName: string, unitsSold: number, revenue: number }>);
+    
+    // Find the dish name from the dishes list for better accuracy
+    const dishesByExternalId = new Map(dishes.map(d => [d.external_id, d.name]));
+    
+    return Object.values(salesByDish).map(sale => ({
+        ...sale,
+        dishName: dishesByExternalId.get(sale.dishExternalId) || sale.dishName,
+        period: selectedPeriod,
+    }));
+  }, [detailedSalesData, selectedPeriod, dateRange, dishes]);
 
   const {
     getTotalSalesForPeriod,
@@ -115,12 +147,12 @@ export const useFoodCostPage = () => {
     totalRevenue,
     criticalDishes,
     targetReached
-  } = useFoodCostAnalysis(dishes, recipes, transformedSalesData, selectedPeriod, settings);
+  } = useFoodCostAnalysis(dishes, recipes, aggregatedSalesData, selectedPeriod, settings);
 
-  // Load food cost data when period or date range changes
-  useEffect(() => {
-    loadFoodCostSalesData(selectedPeriod, dateRange);
-  }, [selectedPeriod, dateRange, loadFoodCostSalesData]);
+  // No longer need to fetch data on period change
+  // useEffect(() => {
+  //   loadFoodCostSalesData(selectedPeriod, dateRange);
+  // }, [selectedPeriod, dateRange, loadFoodCostSalesData]);
 
   // Reset page on filter change
   useEffect(() => {
@@ -178,18 +210,18 @@ export const useFoodCostPage = () => {
   }, [handleSalesImport]);
 
   const handleCalculateFoodCost = useCallback(() => {
-    calculateFoodCostForPeriod(selectedPeriod, dateRange, false);
-  }, [calculateFoodCostForPeriod, selectedPeriod, dateRange]);
+    triggerSalesCalculation(false);
+  }, [triggerSalesCalculation]);
 
   const handleRecalculateFoodCost = useCallback(() => {
-    calculateFoodCostForPeriod(selectedPeriod, dateRange, true);
-  }, [calculateFoodCostForPeriod, selectedPeriod, dateRange]);
+    triggerSalesCalculation(true);
+  }, [triggerSalesCalculation]);
 
   // Combine dishes and recipes for filtering
   const allItems = useMemo(() => [
     ...dishes.map(dish => {
-      const saleDataForDish = foodCostSalesData.find(sale => 
-        sale.dish_external_id === dish.external_id || sale.dish_id === dish.id
+      const saleDataForDish = aggregatedSalesData.find(sale => 
+        sale.dishExternalId === dish.external_id
       );
       
       return {
@@ -199,8 +231,8 @@ export const useFoodCostPage = () => {
         category: dish.category,
         analysis: getDishAnalysis(dish),
         menuCategory: getMenuEngineeringCategory(dish),
-        unitsSold: saleDataForDish?.total_quantity_sold ?? 0, 
-        revenue: saleDataForDish?.total_revenue ?? 0, 
+        unitsSold: saleDataForDish?.unitsSold ?? 0, 
+        revenue: saleDataForDish?.revenue ?? 0, 
       };
     }),
     ...recipes
@@ -215,7 +247,7 @@ export const useFoodCostPage = () => {
         unitsSold: 0,
         revenue: 0
       }))
-  ], [dishes, recipes, foodCostSalesData, getDishAnalysis, getMenuEngineeringCategory, getRecipeAnalysis]);
+  ], [dishes, recipes, aggregatedSalesData, getDishAnalysis, getMenuEngineeringCategory, getRecipeAnalysis]);
 
   // Enhanced filtering
   const filteredItems = useMemo(() => allItems.filter(({ name, category, analysis, menuCategory }) => {
@@ -309,7 +341,7 @@ export const useFoodCostPage = () => {
     // Data
     dishes,
     recipes,
-    foodCostSalesData,
+    foodCostSalesData: aggregatedSalesData, // Pass aggregated data to UI
     lastCalculationDate,
     categories,
     loading,

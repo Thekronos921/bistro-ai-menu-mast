@@ -1,47 +1,38 @@
-
 import { supabase } from '@/integrations/supabase/client';
 
 export interface FoodCostCalculationParams {
   restaurantId: string;
-  periodStart: string;
-  periodEnd: string;
-  periodType: 'daily' | 'weekly' | 'monthly' | 'custom' | 'all_time';
   forceRecalculate?: boolean;
 }
 
-export interface FoodCostSalesData {
+export interface ExternalSaleData {
   id: string;
   restaurant_id: string;
   dish_id: string | null;
-  dish_external_id: string;
-  dish_name: string;
-  period_start: string;
-  period_end: string;
-  period_type: string;
-  total_quantity_sold: number;
-  total_revenue: number;
-  average_unit_price: number;
-  calculation_date: string;
+  external_product_id: string;
+  unmapped_product_description: string | null;
+  quantity_sold: number;
+  total_amount_sold_for_row: number;
+  sale_timestamp: string;
   created_at: string;
-  updated_at: string;
 }
 
 export interface FoodCostCalculationResponse {
   success: boolean;
-  data: FoodCostSalesData[];
+  data: ExternalSaleData[];
   message: string;
   error?: string;
 }
 
 /**
- * Calcola i dati di vendita dei piatti per un periodo specificato
- * utilizzando la Edge Function che aggrega i dati dalle ricevute
+ * Avvia il calcolo dello storico di tutte le vendite
+ * utilizzando una Edge Function.
  */
 export async function calculateFoodCostSales(
   params: FoodCostCalculationParams
 ): Promise<FoodCostCalculationResponse> {
   try {
-    console.log('Calling calculate-foodcost-sales function with params:', params);
+    console.log('Calling calculate-foodcost-sales (full history) with params:', params);
 
     const { data, error } = await supabase.functions.invoke('calculate-foodcost-sales', {
       body: params
@@ -67,79 +58,35 @@ export async function calculateFoodCostSales(
 }
 
 /**
- * Recupera i dati di food cost già calcolati dalla tabella foodcost
+ * Recupera lo storico dettagliato delle vendite dalla tabella external_sales_data
  */
-export async function getFoodCostSalesData(
-  restaurantId: string,
-  periodStart?: string,
-  periodEnd?: string,
-  periodType?: string
-): Promise<FoodCostSalesData[]> {
+export async function getDetailedSalesData(
+  restaurantId: string
+): Promise<ExternalSaleData[]> {
   try {
     let query = supabase
-      .from('foodcost')
-      .select('*')
+      .from('external_sales_data')
+      .select('id, restaurant_id, dish_id, external_product_id, unmapped_product_description, quantity_sold, total_amount_sold_for_row, sale_timestamp, created_at')
       .eq('restaurant_id', restaurantId)
-      .order('total_revenue', { ascending: false });
-
-    if (periodStart) {
-      query = query.gte('period_start', periodStart);
-    }
-    if (periodEnd) {
-      query = query.lte('period_end', periodEnd);
-    }
-    if (periodType) {
-      query = query.eq('period_type', periodType);
-    }
+      .order('sale_timestamp', { ascending: false });
 
     const { data, error } = await query;
 
     if (error) {
-      console.error('Error fetching foodcost sales data:', error);
+      console.error('Error fetching detailed sales data:', error);
       throw error;
     }
 
-    return data || [];
+    return (data as ExternalSaleData[]) || [];
 
   } catch (error) {
-    console.error('Error in getFoodCostSalesData:', error);
+    console.error('Error in getDetailedSalesData:', error);
     return [];
   }
 }
 
 /**
- * Elimina i dati di food cost per un periodo specificato
- */
-export async function deleteFoodCostSalesData(
-  restaurantId: string,
-  periodStart: string,
-  periodEnd: string,
-  periodType: string
-): Promise<boolean> {
-  try {
-    const { error } = await supabase
-      .from('foodcost')
-      .delete()
-      .eq('restaurant_id', restaurantId)
-      .eq('period_start', periodStart)
-      .eq('period_end', periodEnd)
-      .eq('period_type', periodType);
-
-    if (error) {
-      console.error('Error deleting foodcost sales data:', error);
-      throw error;
-    }
-
-    return true;
-
-  } catch (error) {
-    console.error('Error in deleteFoodCostSalesData:', error);
-    return false;
-  }
-}
-
-/**
- * Utility per convertire TimePeriod in date range e period type
+ * Utility per convertire TimePeriod in date range. Rimane utile per il filtering sul client.
  */
 export function convertTimePeriodToParams(
   period: string,

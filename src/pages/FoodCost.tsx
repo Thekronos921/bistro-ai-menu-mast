@@ -39,7 +39,7 @@ const FoodCost = () => {
     saveSettings,
 
     // Data
-    foodCostSalesData,
+    foodCostSalesData, // This is now the aggregated data for the period
     lastCalculationDate,
     categories,
     loading,
@@ -95,7 +95,7 @@ const FoodCost = () => {
           onCalculate={handleCalculateFoodCost}
           onRecalculate={handleRecalculateFoodCost}
           calculatingFoodCost={calculatingFoodCost}
-          foodCostSalesDataCount={foodCostSalesData.length}
+          foodCostSalesDataCount={foodCostSalesData.length} // Length of aggregated items
           lastCalculationDate={lastCalculationDate}
         />
 

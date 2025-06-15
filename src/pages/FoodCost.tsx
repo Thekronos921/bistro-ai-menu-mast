@@ -54,6 +54,7 @@ const FoodCost = () => {
     criticalDishes,
     targetReached,
     getTotalSalesForPeriod,
+    getSalesMixPercentage,
 
     // Functions
     fetchData,
@@ -127,6 +128,7 @@ const FoodCost = () => {
           filteredItems={paginatedItems}
           totalItems={filteredItems.length}
           getTotalSalesForPeriod={getTotalSalesForPeriod}
+          getSalesMixPercentage={getSalesMixPercentage}
           settings={settings}
           onEditDish={setEditingDish}
           onEditRecipe={setEditingRecipe}

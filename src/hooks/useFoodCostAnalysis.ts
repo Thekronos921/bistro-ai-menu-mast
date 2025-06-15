@@ -1,3 +1,4 @@
+import { useMemo, useCallback } from "react";
 import { calculateTotalCost, calculateCostPerPortion } from "@/utils/recipeCalculations";
 import { MenuCategory } from "@/components/MenuEngineeringBadge";
 import type { Recipe } from "@/types/recipe";
@@ -32,63 +33,61 @@ export const useFoodCostAnalysis = (
   selectedPeriod: TimePeriod,
   settings: SettingsConfig
 ) => {
-  const getDishSalesData = (dishName: string) => {
+  const getDishSalesData = useCallback((dishName: string) => {
     return salesData.find(s => s.dishName.toLowerCase() === dishName.toLowerCase() && s.period === selectedPeriod);
-  };
+  }, [salesData, selectedPeriod]);
 
-  const getTotalSalesForPeriod = () => {
+  const getTotalSalesForPeriod = useCallback(() => {
     return salesData
       .filter(s => s.period === selectedPeriod)
       .reduce((total, s) => total + s.unitsSold, 0);
-  };
+  }, [salesData, selectedPeriod]);
 
-  const getSalesMixPercentage = (dishName: string) => {
+  const totalSalesForPeriod = useMemo(() => getTotalSalesForPeriod(), [getTotalSalesForPeriod]);
+
+  const getSalesMixPercentage = useCallback((dishName: string) => {
     const dishSales = getDishSalesData(dishName);
-    const totalSales = getTotalSalesForPeriod();
-    
-    if (!dishSales || totalSales === 0) return 0;
-    return (dishSales.unitsSold / totalSales) * 100;
-  };
+    if (!dishSales || totalSalesForPeriod === 0) return 0;
+    return (dishSales.unitsSold / totalSalesForPeriod) * 100;
+  }, [getDishSalesData, totalSalesForPeriod]);
 
-  const getPopularityScore = (dishName: string) => {
+  const getPopularityScore = useCallback((dishName: string) => {
     const salesMix = getSalesMixPercentage(dishName);
     // Normalizza in scala 1-100 per la visualizzazione
     return Math.min(100, Math.max(1, salesMix * 10));
-  };
+  }, [getSalesMixPercentage]);
 
-  const getDishAnalysis = (dish: Dish) => {
-    let foodCost = 0;
-    let costPerPortion = 0;
-    
-    console.log(`[ANALYSIS] Analyzing dish: "${dish.name}"`, JSON.parse(JSON.stringify(dish)));
-    
-    // Se il piatto ha una ricetta collegata, calcola i costi usando la ricetta
-    if (dish.recipes && dish.recipes.recipe_ingredients && dish.recipes.recipe_ingredients.length > 0) {
-      console.log(`[ANALYSIS] Dish "${dish.name}" has a recipe with ${dish.recipes.recipe_ingredients.length} ingredients.`);
-      foodCost = calculateTotalCost(dish.recipes.recipe_ingredients);
-      costPerPortion = calculateCostPerPortion(dish.recipes.recipe_ingredients, dish.recipes.portions);
-      console.log(`[ANALYSIS] Calculated cost for "${dish.name}": foodCost=${foodCost}, costPerPortion=${costPerPortion}`);
-    } else {
-      console.log(`[ANALYSIS] Dish "${dish.name}" has no recipe or no ingredients.`);
-    }
-    
-    const foodCostPercentage = dish.selling_price > 0 ? (costPerPortion / dish.selling_price) * 100 : 0;
-    const margin = dish.selling_price - costPerPortion;
-    
-    let status = "ottimo";
-    if (foodCostPercentage > settings.criticalThreshold) status = "critico";
-    else if (foodCostPercentage > 30) status = "buono";
+  const dishAnalysisMap = useMemo(() => {
+    const map = new Map<string, any>();
+    dishes.forEach(dish => {
+      let costPerPortion = 0;
+      if (dish.recipes && dish.recipes.recipe_ingredients && dish.recipes.recipe_ingredients.length > 0) {
+        costPerPortion = calculateCostPerPortion(dish.recipes.recipe_ingredients, dish.recipes.portions);
+      }
+      
+      const foodCostPercentage = dish.selling_price > 0 ? (costPerPortion / dish.selling_price) * 100 : 0;
+      const margin = dish.selling_price - costPerPortion;
+      
+      let status = "ottimo";
+      if (foodCostPercentage > settings.criticalThreshold) status = "critico";
+      else if (foodCostPercentage > 30) status = "buono";
 
-    const popularity = getPopularityScore(dish.name);
+      const popularity = getPopularityScore(dish.name);
 
-    return {
-      foodCost: costPerPortion,
-      foodCostPercentage,
-      margin,
-      status,
-      popularity
-    };
-  };
+      map.set(dish.id, {
+        foodCost: costPerPortion,
+        foodCostPercentage,
+        margin,
+        status,
+        popularity
+      });
+    });
+    return map;
+  }, [dishes, settings, getPopularityScore]);
+
+  const getDishAnalysis = useCallback((dish: Dish) => {
+    return dishAnalysisMap.get(dish.id) || { foodCost: 0, foodCostPercentage: 0, margin: dish.selling_price || 0, status: 'N/A', popularity: 0 };
+  }, [dishAnalysisMap]);
 
   const getRecipeAnalysis = (recipe: Recipe, assumedPrice: number = 25) => {
     const totalCost = calculateTotalCost(recipe.recipe_ingredients);
@@ -132,17 +131,24 @@ export const useFoodCostAnalysis = (
     return "dog";
   };
 
-  // Calcola statistiche aggregate
-  const allDishAnalyses = dishes.map(getDishAnalysis);
+  const allDishAnalyses = useMemo(() => Array.from(dishAnalysisMap.values()), [dishAnalysisMap]);
+
   const avgFoodCostPercentage = allDishAnalyses.length > 0 
     ? allDishAnalyses.reduce((sum, analysis) => sum + analysis.foodCostPercentage, 0) / allDishAnalyses.length 
     : 0;
 
-  const totalMargin = allDishAnalyses.reduce((sum, analysis) => {
-    const dishSales = getDishSalesData(dishes.find(d => getDishAnalysis(d) === analysis)?.name || "");
-    const soldUnits = dishSales?.unitsSold || 0;
-    return sum + (analysis.margin * soldUnits);
-  }, 0);
+  const totalMargin = useMemo(() => {
+    let margin = 0;
+    for (const dish of dishes) {
+        const analysis = getDishAnalysis(dish);
+        if (analysis) {
+            const dishSales = getDishSalesData(dish.name);
+            const soldUnits = dishSales?.unitsSold || 0;
+            margin += (analysis.margin * soldUnits);
+        }
+    }
+    return margin;
+  }, [dishes, getDishAnalysis, getDishSalesData]);
 
   const totalRevenue = salesData
     .filter(s => s.period === selectedPeriod)

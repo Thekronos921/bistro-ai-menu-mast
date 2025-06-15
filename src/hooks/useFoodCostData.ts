@@ -43,7 +43,14 @@ export const useFoodCostData = () => {
       console.log("Fetched dishes:", dishesData);
       console.log("Fetched recipes:", recipesData);
 
-      setDishes(dishesData);
+      const recipesById = new Map(recipesData.map(r => [r.id, r]));
+
+      const linkedDishes: Dish[] = dishesData.map(dish => ({
+        ...dish,
+        recipes: dish.recipe_id ? recipesById.get(dish.recipe_id) : undefined
+      }));
+
+      setDishes(linkedDishes);
       setRecipes(recipesData);
     } catch (error) {
       console.error("Fetch data error:", error);

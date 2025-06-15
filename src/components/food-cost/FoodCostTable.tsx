@@ -1,4 +1,3 @@
-
 import { DollarSign, Edit, Link2, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -47,6 +46,7 @@ interface FoodCostTableProps {
   filteredItems: FilteredItem[];
   totalItems: number;
   getTotalSalesForPeriod: () => number;
+  getSalesMixPercentage: (dishName: string) => number;
   settings: SettingsConfig;
   onEditDish: (dish: Dish) => void;
   onEditRecipe: (recipe: Recipe) => void;
@@ -59,6 +59,7 @@ const FoodCostTable = ({
   filteredItems,
   totalItems,
   getTotalSalesForPeriod,
+  getSalesMixPercentage,
   settings,
   onEditDish,
   onEditRecipe,
@@ -164,9 +165,7 @@ const FoodCostTable = ({
                 const dish = item as Dish;
                 const hasRecipe = type === 'dish' && dish.recipe_id && dish.recipes;
                 
-                // Calcolo Sales Mix % basato su unitsSold e getTotalSalesForPeriod
-                const totalSalesUnits = getTotalSalesForPeriod();
-                const salesMixPercentage = (type === 'dish' && totalSalesUnits > 0 && unitsSold) ? (unitsSold / totalSalesUnits) * 100 : 0;
+                const salesMixPercentage = type === 'dish' ? getSalesMixPercentage(item.name) : 0;
 
                 return (
                   <TableRow key={`${type}-${item.id}`}>

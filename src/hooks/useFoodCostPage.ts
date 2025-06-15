@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { FilterConfig } from "@/components/AdvancedFilters";
@@ -324,6 +323,7 @@ export const useFoodCostPage = () => {
     criticalDishes,
     targetReached,
     getTotalSalesForPeriod,
+    getSalesMixPercentage,
 
     // Functions
     fetchData,

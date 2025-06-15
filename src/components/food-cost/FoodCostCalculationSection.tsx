@@ -7,13 +7,15 @@ interface FoodCostCalculationSectionProps {
   onRecalculate: () => void;
   calculatingFoodCost: boolean;
   foodCostSalesDataCount: number;
+  lastCalculationDate: string | null;
 }
 
 const FoodCostCalculationSection = ({
   onCalculate,
   onRecalculate,
   calculatingFoodCost,
-  foodCostSalesDataCount
+  foodCostSalesDataCount,
+  lastCalculationDate,
 }: FoodCostCalculationSectionProps) => {
   return (
     <div className="mb-6 p-4 bg-white rounded-lg shadow-sm border">
@@ -50,7 +52,12 @@ const FoodCostCalculationSection = ({
       </div>
       {foodCostSalesDataCount > 0 && (
         <div className="mt-3 text-sm text-green-600">
-          ✓ Dati disponibili per {foodCostSalesDataCount} prodotti
+          ✓ Dati disponibili per {foodCostSalesDataCount} prodotti.
+          {lastCalculationDate && (
+            <span className="text-gray-500 ml-2">
+              (Ultimo calcolo: {new Date(lastCalculationDate).toLocaleString('it-IT')})
+            </span>
+          )}
         </div>
       )}
       {foodCostSalesDataCount === 0 && !calculatingFoodCost && (

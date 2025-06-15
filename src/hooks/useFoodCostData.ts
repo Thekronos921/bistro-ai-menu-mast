@@ -18,6 +18,7 @@ export const useFoodCostData = () => {
   const [recipes, setRecipes] = useState<Recipe[]>([]);
   const [salesData, setSalesData] = useState<FoodCostSalesData[]>([]);
   const [foodCostSalesData, setFoodCostSalesData] = useState<any[]>([]);
+  const [lastCalculationDate, setLastCalculationDate] = useState<string | null>(null);
   const [dateRange, setDateRange] = useState<DateRange>({ from: undefined, to: undefined });
   const [loading, setLoading] = useState(true);
   const [calculatingFoodCost, setCalculatingFoodCost] = useState(false);
@@ -127,7 +128,8 @@ export const useFoodCostData = () => {
     if (!restaurantId) return;
 
     try {
-      // Special handling for 'allTime'
+      let finalData: FoodCostSalesData[] = [];
+
       if (period === 'allTime') {
         const allData = await getFoodCostSalesData(restaurantId, undefined, undefined, undefined);
         
@@ -140,34 +142,45 @@ export const useFoodCostData = () => {
               } else {
                 acc[key].total_quantity_sold += Number(current.total_quantity_sold);
                 acc[key].total_revenue += Number(current.total_revenue);
+                // Keep the latest updated_at
+                if (new Date(current.updated_at) > new Date(acc[key].updated_at)) {
+                  acc[key].updated_at = current.updated_at;
+                }
               }
               return acc;
             }, {} as Record<string, any>)
           );
-          setFoodCostSalesData(aggregatedData);
-        } else {
-          setFoodCostSalesData([]);
+          finalData = aggregatedData;
         }
-        return;
+      } else {
+        let periodStart: string | undefined;
+        let periodEnd: string | undefined;
+        let periodType: string | undefined;
+
+        if (period) {
+          const dateRangeForConversion = customDateRange?.from && customDateRange?.to 
+            ? { from: customDateRange.from, to: customDateRange.to }
+            : undefined;
+          
+          const params = convertTimePeriodToParams(period, dateRangeForConversion);
+          periodStart = params.periodStart;
+          periodEnd = params.periodEnd;
+          periodType = params.periodType;
+        }
+        finalData = await getFoodCostSalesData(restaurantId, periodStart, periodEnd, periodType);
       }
 
-      let periodStart: string | undefined;
-      let periodEnd: string | undefined;
-      let periodType: string | undefined;
+      setFoodCostSalesData(finalData);
 
-      if (period) {
-        const dateRangeForConversion = customDateRange?.from && customDateRange?.to 
-          ? { from: customDateRange.from, to: customDateRange.to }
-          : undefined;
-        
-        const params = convertTimePeriodToParams(period, dateRangeForConversion);
-        periodStart = params.periodStart;
-        periodEnd = params.periodEnd;
-        periodType = params.periodType;
+      if (finalData.length > 0) {
+        const mostRecentDate = finalData.reduce((max, item) => {
+          const itemDate = new Date(item.updated_at);
+          return itemDate > max ? itemDate : max;
+        }, new Date(0));
+        setLastCalculationDate(mostRecentDate.toISOString());
+      } else {
+        setLastCalculationDate(null);
       }
-
-      const data = await getFoodCostSalesData(restaurantId, periodStart, periodEnd, periodType);
-      setFoodCostSalesData(data);
 
     } catch (error) {
       console.error("Load food cost sales data error:", error);
@@ -270,6 +283,7 @@ export const useFoodCostData = () => {
     salesData: filteredSalesData,
     allSalesData: salesData,
     foodCostSalesData,
+    lastCalculationDate,
     dateRange,
     setDateRange,
     loading,

@@ -40,6 +40,7 @@ const FoodCost = () => {
 
     // Data
     foodCostSalesData,
+    lastCalculationDate,
     categories,
     loading,
     calculatingFoodCost,
@@ -95,6 +96,7 @@ const FoodCost = () => {
           onRecalculate={handleRecalculateFoodCost}
           calculatingFoodCost={calculatingFoodCost}
           foodCostSalesDataCount={foodCostSalesData.length}
+          lastCalculationDate={lastCalculationDate}
         />
 
         <FoodCostKPIs

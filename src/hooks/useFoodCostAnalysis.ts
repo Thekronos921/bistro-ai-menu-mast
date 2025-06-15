@@ -1,3 +1,4 @@
+
 import { calculateTotalCost, calculateCostPerPortion } from "@/utils/recipeCalculations";
 import { MenuCategory } from "@/components/MenuEngineeringBadge";
 import type { Recipe } from "@/types/recipe";
@@ -57,8 +58,15 @@ export const useFoodCostAnalysis = (
   };
 
   const getDishAnalysis = (dish: Dish) => {
-    const foodCost = dish.recipes ? calculateTotalCost(dish.recipes.recipe_ingredients) : 0;
-    const costPerPortion = dish.recipes ? calculateCostPerPortion(dish.recipes.recipe_ingredients, dish.recipes.portions) : 0;
+    let foodCost = 0;
+    let costPerPortion = 0;
+    
+    // Se il piatto ha una ricetta collegata, calcola i costi usando la ricetta
+    if (dish.recipes && dish.recipes.recipe_ingredients) {
+      foodCost = calculateTotalCost(dish.recipes.recipe_ingredients);
+      costPerPortion = calculateCostPerPortion(dish.recipes.recipe_ingredients, dish.recipes.portions);
+    }
+    
     const foodCostPercentage = dish.selling_price > 0 ? (costPerPortion / dish.selling_price) * 100 : 0;
     const margin = dish.selling_price - costPerPortion;
     

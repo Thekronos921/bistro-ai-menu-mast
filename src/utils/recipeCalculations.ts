@@ -1,12 +1,13 @@
+
 import { convertUnit, convertCostPerUnit, areUnitsCompatible } from './unitConversion';
 
 interface RecipeIngredient {
   id: string;
   ingredient_id: string;
   quantity: number;
-  unit?: string; // Aggiungiamo l'unità specifica per questo ingrediente nella ricetta
+  unit?: string;
   is_semilavorato?: boolean;
-  recipe_yield_percentage?: number; // Resa specifica per questo ingrediente in questa ricetta
+  recipe_yield_percentage?: number;
   ingredients: {
     id: string;
     name: string;
@@ -17,11 +18,34 @@ interface RecipeIngredient {
   };
 }
 
-export const calculateTotalCost = (recipeIngredients: RecipeIngredient[]) => {
+// Interfaccia per il formato locale usato nei dialoghi
+interface LocalRecipeIngredient {
+  id: string;
+  ingredient_id: string;
+  quantity: number;
+  unit?: string;
+  is_semilavorato?: boolean;
+  recipe_yield_percentage?: number;
+  ingredient: {
+    id: string;
+    name: string;
+    unit: string;
+    cost_per_unit: number;
+    effective_cost_per_unit?: number;
+    yield_percentage?: number;
+  } | null;
+}
+
+export const calculateTotalCost = (recipeIngredients: RecipeIngredient[] | LocalRecipeIngredient[]) => {
   if (!recipeIngredients) return 0;
+  
   return recipeIngredients.reduce((total, ri) => {
+    // Normalizza i dati per supportare entrambi i formati
+    const ingredient = 'ingredients' in ri ? ri.ingredients : ri.ingredient;
+    if (!ingredient) return total;
+
     // Usa sempre effective_cost_per_unit se disponibile, altrimenti cost_per_unit
-    const baseCostPerUnit = ri.ingredients.effective_cost_per_unit ?? ri.ingredients.cost_per_unit;
+    const baseCostPerUnit = ingredient.effective_cost_per_unit ?? ingredient.cost_per_unit;
     
     // LOGICA CORRETTA: Evita doppi calcoli della resa
     let finalCostPerUnit = baseCostPerUnit;
@@ -30,25 +54,25 @@ export const calculateTotalCost = (recipeIngredients: RecipeIngredient[]) => {
     if (ri.recipe_yield_percentage !== null && ri.recipe_yield_percentage !== undefined) {
       // Se abbiamo effective_cost_per_unit, dobbiamo prima "rimuovere" la resa base
       let costToUse = baseCostPerUnit;
-      if (ri.ingredients.effective_cost_per_unit && ri.ingredients.yield_percentage && ri.ingredients.yield_percentage !== 100) {
-        costToUse = ri.ingredients.cost_per_unit;
+      if (ingredient.effective_cost_per_unit && ingredient.yield_percentage && ingredient.yield_percentage !== 100) {
+        costToUse = ingredient.cost_per_unit;
       }
       finalCostPerUnit = costToUse / (ri.recipe_yield_percentage / 100);
     }
     // 2. Altrimenti, se l'ingrediente ha una resa e non abbiamo già effective_cost_per_unit, applicala
-    else if (!ri.ingredients.effective_cost_per_unit && ri.ingredients.yield_percentage && ri.ingredients.yield_percentage !== 100) {
-      const yieldPercentage = ri.ingredients.yield_percentage;
+    else if (!ingredient.effective_cost_per_unit && ingredient.yield_percentage && ingredient.yield_percentage !== 100) {
+      const yieldPercentage = ingredient.yield_percentage;
       finalCostPerUnit = baseCostPerUnit / (yieldPercentage / 100);
     }
     
     // Gestione conversione unità
     let adjustedQuantity = ri.quantity;
-    if (ri.unit && ri.unit !== ri.ingredients.unit) {
-      if (areUnitsCompatible(ri.unit, ri.ingredients.unit)) {
-        adjustedQuantity = convertUnit(ri.quantity, ri.unit, ri.ingredients.unit);
-        console.log(`Convertendo ${ri.quantity} ${ri.unit} a ${adjustedQuantity} ${ri.ingredients.unit} per ${ri.ingredients.name}`);
+    if (ri.unit && ri.unit !== ingredient.unit) {
+      if (areUnitsCompatible(ri.unit, ingredient.unit)) {
+        adjustedQuantity = convertUnit(ri.quantity, ri.unit, ingredient.unit);
+        console.log(`Convertendo ${ri.quantity} ${ri.unit} a ${adjustedQuantity} ${ingredient.unit} per ${ingredient.name}`);
       } else {
-        console.warn(`Unità incompatibili per ${ri.ingredients.name}: ${ri.unit} vs ${ri.ingredients.unit}`);
+        console.warn(`Unità incompatibili per ${ingredient.name}: ${ri.unit} vs ${ingredient.unit}`);
       }
     }
     
@@ -56,13 +80,13 @@ export const calculateTotalCost = (recipeIngredients: RecipeIngredient[]) => {
   }, 0);
 };
 
-export const calculateCostPerPortion = (recipeIngredients: RecipeIngredient[], portions: number) => {
+export const calculateCostPerPortion = (recipeIngredients: RecipeIngredient[] | LocalRecipeIngredient[], portions: number) => {
   const totalCost = calculateTotalCost(recipeIngredients);
   return portions > 0 ? totalCost / portions : 0;
 };
 
 export const getFoodCostIndicator = (recipe: { 
-  recipe_ingredients: RecipeIngredient[];
+  recipe_ingredients: RecipeIngredient[] | LocalRecipeIngredient[];
   portions: number;
   selling_price?: number;
 }) => {

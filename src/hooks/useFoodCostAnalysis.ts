@@ -83,7 +83,7 @@ export const useFoodCostAnalysis = (
       });
     });
     return map;
-  }, [dishes, settings, getPopularityScore]);
+  }, [dishes, recipes, settings, getPopularityScore]);
 
   const getDishAnalysis = useCallback((dish: Dish) => {
     return dishAnalysisMap.get(dish.id) || { foodCost: 0, foodCostPercentage: 0, margin: dish.selling_price || 0, status: 'N/A', popularity: 0 };
@@ -137,23 +137,42 @@ export const useFoodCostAnalysis = (
     ? allDishAnalyses.reduce((sum, analysis) => sum + analysis.foodCostPercentage, 0) / allDishAnalyses.length 
     : 0;
 
-  const totalMargin = useMemo(() => {
-    let margin = 0;
-    for (const dish of dishes) {
+  const totalRevenue = useMemo(() => {
+    return salesData
+      .filter(s => s.period === selectedPeriod)
+      .reduce((total, s) => total + (s.revenue || 0), 0);
+  }, [salesData, selectedPeriod]);
+
+  const dishMapByName = useMemo(() => {
+    const map = new Map<string, Dish>();
+    dishes.forEach(dish => {
+      map.set(dish.name.toLowerCase(), dish);
+    });
+    return map;
+  }, [dishes]);
+
+  const totalCostOfGoodsSold = useMemo(() => {
+    let totalCost = 0;
+    salesData.forEach(sale => {
+      if (sale.period !== selectedPeriod) return;
+
+      const dish = dishMapByName.get(sale.dishName.toLowerCase());
+      if (dish) {
         const analysis = getDishAnalysis(dish);
         if (analysis) {
-            const dishSales = getDishSalesData(dish.name);
-            const soldUnits = dishSales?.unitsSold || 0;
-            margin += (analysis.margin * soldUnits);
+            totalCost += analysis.foodCost * sale.unitsSold;
         }
-    }
-    return margin;
-  }, [dishes, getDishAnalysis, getDishSalesData]);
+      }
+    });
+    return totalCost;
+  }, [salesData, selectedPeriod, dishMapByName, getDishAnalysis]);
 
-  const totalRevenue = salesData
-    .filter(s => s.period === selectedPeriod)
-    .reduce((total, s) => total + (s.revenue || 0), 0);
-
+  const totalMargin = useMemo(() => {
+    if (totalRevenue === 0 && totalCostOfGoodsSold === 0) return 0;
+    console.log(`[FoodCostAnalysis] Total Revenue: ${totalRevenue}, Total COGS: ${totalCostOfGoodsSold}, Margin: ${totalRevenue - totalCostOfGoodsSold}`);
+    return totalRevenue - totalCostOfGoodsSold;
+  }, [totalRevenue, totalCostOfGoodsSold]);
+    
   const criticalDishes = allDishAnalyses.filter(analysis => analysis.foodCostPercentage > settings.criticalThreshold).length;
   const targetReached = allDishAnalyses.length > 0 
     ? (allDishAnalyses.filter(analysis => analysis.foodCostPercentage < settings.targetThreshold).length / allDishAnalyses.length) * 100 

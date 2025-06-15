@@ -855,6 +855,7 @@ export type Database = {
           price_per_unit_sold: number
           quantity_sold: number
           raw_bill_data: Json | null
+          receipt_id: string | null
           restaurant_id: string
           sale_timestamp: string
           total_amount_sold_for_row: number
@@ -872,6 +873,7 @@ export type Database = {
           price_per_unit_sold: number
           quantity_sold: number
           raw_bill_data?: Json | null
+          receipt_id?: string | null
           restaurant_id: string
           sale_timestamp: string
           total_amount_sold_for_row: number
@@ -889,12 +891,20 @@ export type Database = {
           price_per_unit_sold?: number
           quantity_sold?: number
           raw_bill_data?: Json | null
+          receipt_id?: string | null
           restaurant_id?: string
           sale_timestamp?: string
           total_amount_sold_for_row?: number
           unmapped_product_description?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "fk_external_sales_data_receipt_id"
+            columns: ["receipt_id"]
+            isOneToOne: false
+            referencedRelation: "cassa_in_cloud_receipts"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "fk_external_sales_dish"
             columns: ["dish_id"]

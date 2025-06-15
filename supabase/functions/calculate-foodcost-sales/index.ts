@@ -1,3 +1,4 @@
+
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.49.8'
 
 const corsHeaders = {
@@ -122,7 +123,7 @@ Deno.serve(async (req) => {
     const receiptIds = receipts.map(r => r.id);
     console.log(`Processing ${receiptIds.length} receipt IDs`);
 
-    // 2. Recupera le righe delle ricevute con i prodotti
+    // 2. Recupera le righe delle ricevute con i prodotti E LE VARIAZIONI
     let allReceiptRows: any[] = [];
     const batchSize = 100;
     
@@ -140,17 +141,19 @@ Deno.serve(async (req) => {
           price,
           variation,
           product_description,
+          description,
           total_price_gross,
           unit_price_gross,
           amount,
           receipt_id,
           cassa_in_cloud_receipts!inner (
+            id,
             external_id,
             receipt_date
           )
         `)
-        .in('receipt_id', batchIds)
-        .not('id_product', 'is', null);
+        .in('receipt_id', batchIds);
+        // REMOVED: .not('id_product', 'is', null) to include discounts and other variations.
 
       if (batchError) {
         console.error('Error fetching receipt rows batch:', batchError);
@@ -162,7 +165,7 @@ Deno.serve(async (req) => {
       }
     }
 
-    console.log(`Found ${allReceiptRows.length} receipt rows with products across all batches`);
+    console.log(`Found ${allReceiptRows.length} total receipt rows (including variations) across all batches`);
 
     if (allReceiptRows.length === 0) {
       return new Response(
@@ -207,37 +210,42 @@ Deno.serve(async (req) => {
     // 8. Prepara e inserisce lo storico dettagliato in 'external_sales_data' con arrotondamenti corretti
     const salesHistoryData: any[] = [];
     for (const row of allReceiptRows) {
-        if (!row.id_product) continue;
-        
         const receiptInfo = row.cassa_in_cloud_receipts;
 
         if (!receiptInfo || !receiptInfo.external_id) {
-          console.warn(`Skipping sales history row due to missing receipt external ID (external_id). Product ID: ${row.id_product}, Internal Receipt ID: ${row.receipt_id}`);
+          console.warn(`Skipping sales history row due to missing receipt external ID. Row ID: ${row.cic_row_id}, Internal Receipt ID: ${row.receipt_id}`);
           continue;
         }
 
         if (!receiptInfo.receipt_date) {
-            console.warn(`Skipping sales history row due to missing receipt_date. Product ID: ${row.id_product}, Receipt External ID: ${receiptInfo.external_id}`);
+            console.warn(`Skipping sales history row due to missing receipt_date. Row ID: ${row.cic_row_id}, Receipt External ID: ${receiptInfo.external_id}`);
             continue;
         }
         
-        // Ottieni i valori grezzi
+        // Calcola il ricavo per la riga
         const rawRevenue = getRowRevenue(row);
-        const rawQuantity = Number(row.quantity) || 0;
 
+        // Salta le righe non-prodotto che non hanno valore monetario
+        if (!row.id_product && rawRevenue === 0) {
+          console.log(`Skipping zero-value non-product row: ${row.cic_row_id}`);
+          continue;
+        }
+        
         // Arrotonda i valori solo prima dell'inserimento
         const finalRevenue = roundToTwo(rawRevenue);
+        const rawQuantity = Number(row.quantity) || 0;
         const finalQuantity = roundQuantity(rawQuantity);
         const unitPrice = finalQuantity > 0 ? roundToTwo(finalRevenue / finalQuantity) : roundToTwo(Number(row.unit_price_gross) || Number(row.price) || 0);
-        const dishInfo = dishNamesMap.get(row.id_product);
+        const dishInfo = row.id_product ? dishNamesMap.get(row.id_product) : undefined;
 
         salesHistoryData.push({
+            receipt_id: receiptInfo.id, // Aggiunta FK alla ricevuta
             bill_id_external: receiptInfo.external_id,
             document_row_id_external: row.cic_row_id,
             restaurant_id: restaurantId,
             dish_id: dishInfo?.dishId || null,
-            external_product_id: row.id_product,
-            unmapped_product_description: dishInfo?.name || row.product_description || `Prodotto ${row.id_product}`,
+            external_product_id: row.id_product || null,
+            unmapped_product_description: dishInfo?.name || row.product_description || row.description || `Riga ${row.cic_row_id}`,
             quantity_sold: finalQuantity,
             price_per_unit_sold: unitPrice,
             total_amount_sold_for_row: finalRevenue,

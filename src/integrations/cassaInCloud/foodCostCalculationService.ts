@@ -1,4 +1,6 @@
 import { supabase } from '@/integrations/supabase/client';
+import { startOfDay, endOfDay, subDays, startOfMonth, endOfMonth, subMonths } from 'date-fns';
+import { toZonedTime } from 'date-fns-tz';
 
 export interface FoodCostCalculationParams {
   restaurantId: string;
@@ -86,69 +88,78 @@ export async function getDetailedSalesData(
 }
 
 /**
- * Utility per convertire TimePeriod in date range. Rimane utile per il filtering sul client.
+ * Utility per convertire TimePeriod in date range.
+ * Usa 'Europe/Rome' come timezone di riferimento per il ristorante.
  */
 export function convertTimePeriodToParams(
   period: string,
   customDateRange?: { from: Date; to: Date }
 ): { periodStart: string; periodEnd: string; periodType: 'daily' | 'weekly' | 'monthly' | 'custom' | 'all_time' } {
-  const today = new Date();
-  let startDate = new Date();
-  let endDate = new Date();
+  const timeZone = 'Europe/Rome';
+  const now = toZonedTime(new Date(), timeZone);
+  
+  let startDate: Date;
+  let endDate: Date;
   let periodType: 'daily' | 'weekly' | 'monthly' | 'custom' | 'all_time' = 'custom';
 
   switch (period) {
     case 'today':
-      startDate = new Date(today.getFullYear(), today.getMonth(), today.getDate());
-      endDate = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 23, 59, 59, 999);
+      startDate = startOfDay(now);
+      endDate = endOfDay(now);
       periodType = 'daily';
       break;
     case 'yesterday':
-      startDate = new Date(today.getFullYear(), today.getMonth(), today.getDate() - 1);
-      endDate = new Date(today.getFullYear(), today.getMonth(), today.getDate() - 1, 23, 59, 59, 999);
+      const yesterday = subDays(now, 1);
+      startDate = startOfDay(yesterday);
+      endDate = endOfDay(yesterday);
       periodType = 'daily';
       break;
     case 'last7days':
-      startDate = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
-      endDate = today;
+      startDate = startOfDay(subDays(now, 6)); // 6 giorni fa + oggi = 7 giorni
+      endDate = endOfDay(now);
       periodType = 'weekly';
       break;
     case 'last30days':
-      startDate = new Date(today.getTime() - 30 * 24 * 60 * 60 * 1000);
-      endDate = today;
+      startDate = startOfDay(subDays(now, 29));
+      endDate = endOfDay(now);
       periodType = 'monthly';
       break;
     case 'last90days':
-      startDate = new Date(today.getTime() - 90 * 24 * 60 * 60 * 1000);
-      endDate = today;
+      startDate = startOfDay(subDays(now, 89));
+      endDate = endOfDay(now);
       periodType = 'monthly';
       break;
     case 'currentMonth':
-      startDate = new Date(today.getFullYear(), today.getMonth(), 1);
-      endDate = today;
+      startDate = startOfMonth(now);
+      endDate = endOfDay(now);
       periodType = 'monthly';
       break;
     case 'lastMonth':
-      startDate = new Date(today.getFullYear(), today.getMonth() - 1, 1);
-      endDate = new Date(today.getFullYear(), today.getMonth(), 0);
+      const lastMonth = subMonths(now, 1);
+      startDate = startOfMonth(lastMonth);
+      endDate = endOfMonth(lastMonth);
       periodType = 'monthly';
       break;
     case 'allTime':
-      startDate = new Date('1970-01-01');
-      endDate = new Date();
+      startDate = new Date('1970-01-01T00:00:00.000Z');
+      endDate = new Date('2100-01-01T00:00:00.000Z'); // Data futura per includere tutto
       periodType = 'all_time';
       break;
     case 'custom':
       if (customDateRange?.from && customDateRange?.to) {
-        startDate = customDateRange.from;
-        endDate = customDateRange.to;
+        startDate = startOfDay(toZonedTime(customDateRange.from, timeZone));
+        endDate = endOfDay(toZonedTime(customDateRange.to, timeZone));
+      } else {
+        // Fallback per custom senza date
+        startDate = startOfDay(subDays(now, 29));
+        endDate = endOfDay(now);
       }
       periodType = 'custom';
       break;
     default:
       // Default to last 30 days
-      startDate = new Date(today.getTime() - 30 * 24 * 60 * 60 * 1000);
-      endDate = today;
+      startDate = startOfDay(subDays(now, 29));
+      endDate = endOfDay(now);
       periodType = 'monthly';
   }
 

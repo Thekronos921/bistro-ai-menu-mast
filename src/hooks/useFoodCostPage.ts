@@ -106,10 +106,17 @@ export const useFoodCostPage = () => {
     const startDate = new Date(periodStart);
     const endDate = new Date(periodEnd);
 
+    console.log(`[FoodCostDebug] Filtering for period: "${selectedPeriod}"`);
+    console.log(`[FoodCostDebug] Start: ${startDate.toISOString()} | End: ${endDate.toISOString()}`);
+    console.log(`[FoodCostDebug] Total sales before filter: ${detailedSalesData.length}`);
+
     const filteredSales = detailedSalesData.filter(sale => {
+      if (!sale.sale_timestamp) return false;
       const saleDate = new Date(sale.sale_timestamp);
       return isWithinInterval(saleDate, { start: startDate, end: endDate });
     });
+    
+    console.log(`[FoodCostDebug] Total sales after filter: ${filteredSales.length}`);
 
     const salesByDish = filteredSales.reduce((acc, sale) => {
       const key = sale.external_product_id;
@@ -125,6 +132,9 @@ export const useFoodCostPage = () => {
       acc[key].revenue += Number(sale.total_amount_sold_for_row) || 0;
       return acc;
     }, {} as Record<string, { dishExternalId: string, dishName: string, unitsSold: number, revenue: number }>);
+    
+    const totalRevenueAfterFilter = Object.values(salesByDish).reduce((sum, s) => sum + s.revenue, 0);
+    console.log(`[FoodCostDebug] Total revenue for period: €${totalRevenueAfterFilter.toFixed(2)}`);
     
     // Find the dish name from the dishes list for better accuracy
     const dishesByExternalId = new Map(dishes.map(d => [d.external_id, d.name]));

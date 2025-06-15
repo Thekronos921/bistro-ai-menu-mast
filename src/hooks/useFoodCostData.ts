@@ -4,7 +4,12 @@ import { useRestaurant } from "@/hooks/useRestaurant";
 import { fetchDishes, fetchRecipes } from "./food-cost/dataFetchers";
 import { createDishFromRecipe, deleteDish } from "./food-cost/dishOperations";
 import { filterSalesDataByDateRange, mergeSalesData } from "./food-cost/salesDataUtils";
-import { calculateFoodCostSales, getFoodCostSalesData, convertTimePeriodToParams } from "@/integrations/cassaInCloud/foodCostCalculationService";
+import { 
+  calculateFoodCostSales, 
+  getFoodCostSalesData, 
+  convertTimePeriodToParams,
+  FoodCostSalesData as FoodCostDbRow
+} from "@/integrations/cassaInCloud/foodCostCalculationService";
 import type { 
   Dish, 
   FoodCostSalesData, 
@@ -17,7 +22,7 @@ export const useFoodCostData = () => {
   const [dishes, setDishes] = useState<Dish[]>([]);
   const [recipes, setRecipes] = useState<Recipe[]>([]);
   const [salesData, setSalesData] = useState<FoodCostSalesData[]>([]);
-  const [foodCostSalesData, setFoodCostSalesData] = useState<any[]>([]);
+  const [foodCostSalesData, setFoodCostSalesData] = useState<FoodCostDbRow[]>([]);
   const [lastCalculationDate, setLastCalculationDate] = useState<string | null>(null);
   const [dateRange, setDateRange] = useState<DateRange>({ from: undefined, to: undefined });
   const [loading, setLoading] = useState(true);
@@ -128,7 +133,7 @@ export const useFoodCostData = () => {
     if (!restaurantId) return;
 
     try {
-      let finalData: FoodCostSalesData[] = [];
+      let finalData: FoodCostDbRow[] = [];
 
       if (period === 'allTime') {
         const allData = await getFoodCostSalesData(restaurantId, undefined, undefined, undefined);
@@ -148,7 +153,7 @@ export const useFoodCostData = () => {
                 }
               }
               return acc;
-            }, {} as Record<string, any>)
+            }, {} as Record<string, FoodCostDbRow>)
           );
           finalData = aggregatedData;
         }

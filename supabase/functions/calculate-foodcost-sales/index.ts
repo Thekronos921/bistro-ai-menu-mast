@@ -121,7 +121,7 @@ Deno.serve(async (req) => {
     const receiptIds = receipts.map(r => r.id);
     console.log(`Processing ${receiptIds.length} receipt IDs`);
 
-    // 2. Recupera le righe delle ricevute con i prodotti (logica invariata)
+    // 2. Recupera le righe delle ricevute con i prodotti
     let allReceiptRows: any[] = [];
     const batchSize = 100;
     
@@ -143,8 +143,7 @@ Deno.serve(async (req) => {
           amount,
           receipt_id,
           cassa_in_cloud_receipts!inner (
-            cic_id,
-            datetime,
+            external_id,
             receipt_date
           )
         `)
@@ -210,9 +209,14 @@ Deno.serve(async (req) => {
         
         const receiptInfo = row.cassa_in_cloud_receipts;
 
-        if (!receiptInfo || !receiptInfo.cic_id) {
-          console.warn(`Skipping sales history row due to missing receipt external ID (cic_id). Product ID: ${row.id_product}`);
+        if (!receiptInfo || !receiptInfo.external_id) {
+          console.warn(`Skipping sales history row due to missing receipt external ID (external_id). Product ID: ${row.id_product}, Internal Receipt ID: ${row.receipt_id}`);
           continue;
+        }
+
+        if (!receiptInfo.receipt_date) {
+            console.warn(`Skipping sales history row due to missing receipt_date. Product ID: ${row.id_product}, Receipt External ID: ${receiptInfo.external_id}`);
+            continue;
         }
         
         // Ottieni i valori grezzi
@@ -226,7 +230,7 @@ Deno.serve(async (req) => {
         const dishInfo = dishNamesMap.get(row.id_product);
 
         salesHistoryData.push({
-            bill_id_external: receiptInfo.cic_id,
+            bill_id_external: receiptInfo.external_id,
             document_row_id_external: row.cic_row_id,
             restaurant_id: restaurantId,
             dish_id: dishInfo?.dishId || null,
@@ -235,7 +239,7 @@ Deno.serve(async (req) => {
             quantity_sold: finalQuantity,
             price_per_unit_sold: unitPrice,
             total_amount_sold_for_row: finalRevenue,
-            sale_timestamp: receiptInfo.datetime || receiptInfo.receipt_date,
+            sale_timestamp: receiptInfo.receipt_date,
             raw_bill_data: row,
             operator_id_external: null, // Campo da popolare se disponibile
             operator_name: null, // Campo da popolare se disponibile

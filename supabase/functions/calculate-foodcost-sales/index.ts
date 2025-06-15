@@ -291,13 +291,21 @@ Deno.serve(async (req) => {
     // 8. Prepara e inserisce lo storico dettagliato in 'external_sales_data'
     const salesHistoryData: any[] = [];
     for (const row of allReceiptRows) {
-        if (!row.id_product || !row.cassa_in_cloud_receipts) continue;
+        if (!row.id_product) continue;
+        
+        const receiptInfo = row.cassa_in_cloud_receipts;
+
+        // FIX: Aggiungo un controllo per assicurarmi che l'ID esterno della ricevuta (cic_id) esista.
+        // La colonna `bill_id_external` nella tabella di destinazione non accetta valori null e questo causava un errore.
+        if (!receiptInfo || !receiptInfo.cic_id) {
+          console.warn(`Skipping sales history row due to missing receipt external ID (cic_id). Product ID: ${row.id_product}`);
+          continue;
+        }
         
         const revenue = getRowRevenue(row);
         const quantity = Number(row.quantity) || 0;
         const unitPrice = quantity > 0 ? revenue / quantity : (Number(row.unit_price_gross) || Number(row.price) || 0);
         const dishInfo = dishNamesMap.get(row.id_product);
-        const receiptInfo = row.cassa_in_cloud_receipts;
 
         salesHistoryData.push({
             bill_id_external: receiptInfo.cic_id,

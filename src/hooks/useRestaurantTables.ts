@@ -1,5 +1,5 @@
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { RestaurantTable, RestaurantRoom } from '@/types/reservation';
 import { useToast } from '@/hooks/use-toast';
@@ -11,7 +11,7 @@ export const useRestaurantTables = (restaurantId?: string) => {
   const [error, setError] = useState<string | null>(null);
   const { toast } = useToast();
 
-  const fetchRooms = async () => {
+  const fetchRooms = useCallback(async () => {
     if (!restaurantId) return [];
 
     try {
@@ -27,9 +27,9 @@ export const useRestaurantTables = (restaurantId?: string) => {
       console.error('Error fetching rooms:', err);
       throw err;
     }
-  };
+  }, [restaurantId]);
 
-  const fetchTables = async () => {
+  const fetchTables = useCallback(async () => {
     if (!restaurantId) return [];
 
     try {
@@ -55,18 +55,17 @@ export const useRestaurantTables = (restaurantId?: string) => {
       console.error('Error fetching tables:', err);
       throw err;
     }
-  };
+  }, [restaurantId]);
 
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     if (!restaurantId) {
       setLoading(false);
       return;
     }
 
+    setLoading(true);
+    setError(null);
     try {
-      setLoading(true);
-      setError(null);
-
       const [roomsData, tablesData] = await Promise.all([
         fetchRooms(),
         fetchTables()
@@ -85,11 +84,11 @@ export const useRestaurantTables = (restaurantId?: string) => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [restaurantId, fetchRooms, fetchTables, toast]);
 
   useEffect(() => {
     fetchData();
-  }, [restaurantId]);
+  }, [fetchData]);
 
   return {
     tables,

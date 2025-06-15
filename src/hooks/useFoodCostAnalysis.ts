@@ -1,4 +1,3 @@
-
 import { calculateTotalCost, calculateCostPerPortion } from "@/utils/recipeCalculations";
 import { MenuCategory } from "@/components/MenuEngineeringBadge";
 import type { Recipe } from "@/types/recipe";
@@ -61,10 +60,16 @@ export const useFoodCostAnalysis = (
     let foodCost = 0;
     let costPerPortion = 0;
     
+    console.log(`[ANALYSIS] Analyzing dish: "${dish.name}"`, JSON.parse(JSON.stringify(dish)));
+    
     // Se il piatto ha una ricetta collegata, calcola i costi usando la ricetta
-    if (dish.recipes && dish.recipes.recipe_ingredients) {
+    if (dish.recipes && dish.recipes.recipe_ingredients && dish.recipes.recipe_ingredients.length > 0) {
+      console.log(`[ANALYSIS] Dish "${dish.name}" has a recipe with ${dish.recipes.recipe_ingredients.length} ingredients.`);
       foodCost = calculateTotalCost(dish.recipes.recipe_ingredients);
       costPerPortion = calculateCostPerPortion(dish.recipes.recipe_ingredients, dish.recipes.portions);
+      console.log(`[ANALYSIS] Calculated cost for "${dish.name}": foodCost=${foodCost}, costPerPortion=${costPerPortion}`);
+    } else {
+      console.log(`[ANALYSIS] Dish "${dish.name}" has no recipe or no ingredients.`);
     }
     
     const foodCostPercentage = dish.selling_price > 0 ? (costPerPortion / dish.selling_price) * 100 : 0;

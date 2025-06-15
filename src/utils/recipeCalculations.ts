@@ -1,4 +1,3 @@
-
 import { convertUnit, convertCostPerUnit, areUnitsCompatible } from './unitConversion';
 
 interface RecipeIngredient {
@@ -39,13 +38,23 @@ interface LocalRecipeIngredient {
 export const calculateTotalCost = (recipeIngredients: RecipeIngredient[] | LocalRecipeIngredient[]) => {
   if (!recipeIngredients) return 0;
   
+  console.log('[calculateTotalCost] Received ingredients:', JSON.parse(JSON.stringify(recipeIngredients)));
+
   return recipeIngredients.reduce((total, ri) => {
     // Normalizza i dati per supportare entrambi i formati
     const ingredient = 'ingredients' in ri ? ri.ingredients : ri.ingredient;
-    if (!ingredient) return total;
+    if (!ingredient) {
+      console.warn('[calculateTotalCost] Skipping item, ingredient data is missing:', ri);
+      return total;
+    }
 
     // Usa sempre effective_cost_per_unit se disponibile, altrimenti cost_per_unit
     const baseCostPerUnit = ingredient.effective_cost_per_unit ?? ingredient.cost_per_unit;
+    
+    if (typeof baseCostPerUnit !== 'number' || isNaN(baseCostPerUnit)) {
+      console.warn(`[calculateTotalCost] Invalid baseCostPerUnit for ingredient "${ingredient.name}". Skipping.`, { baseCostPerUnit });
+      return total;
+    }
     
     // LOGICA CORRETTA: Evita doppi calcoli della resa
     let finalCostPerUnit = baseCostPerUnit;
@@ -76,7 +85,10 @@ export const calculateTotalCost = (recipeIngredients: RecipeIngredient[] | Local
       }
     }
     
-    return total + (finalCostPerUnit * adjustedQuantity);
+    const ingredientCost = finalCostPerUnit * adjustedQuantity;
+    console.log(`[calculateTotalCost] Cost for "${ingredient.name}": ${ingredientCost.toFixed(4)}`);
+
+    return total + ingredientCost;
   }, 0);
 };
 

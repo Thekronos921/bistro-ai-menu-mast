@@ -92,8 +92,10 @@ export const fetchDishes = async (restaurantId: string): Promise<Dish[]> => {
 
     // Gestione ricetta annidata robusta
     let recipe: Recipe | undefined = undefined;
-    if (Array.isArray(dish.recipes) && dish.recipes.length > 0) {
-      const r = dish.recipes[0];
+    const recipeData = Array.isArray(dish.recipes) ? dish.recipes[0] : dish.recipes;
+
+    if (recipeData) {
+      const r = recipeData as any; // Use any to avoid deep type issues
       recipe = {
         id: r.id,
         name: r.name,
@@ -110,7 +112,7 @@ export const fetchDishes = async (restaurantId: string): Promise<Dish[]> => {
         selling_price: r.selling_price,
         is_semilavorato: r.is_semilavorato,
         notes_chef: r.notes_chef,
-        recipe_ingredients: (r.recipe_ingredients || []).map(ri => ({
+        recipe_ingredients: (r.recipe_ingredients || []).map((ri: any) => ({
           id: ri.id,
           ingredient_id: ri.ingredient_id,
           quantity: ri.quantity,

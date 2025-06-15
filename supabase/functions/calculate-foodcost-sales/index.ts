@@ -1,3 +1,4 @@
+
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.49.8'
 
 const corsHeaders = {
@@ -8,6 +9,13 @@ const corsHeaders = {
 const roundToTwo = (num: number): number => {
   if (isNaN(num)) return 0;
   return Math.round((num + Number.EPSILON) * 100) / 100;
+}
+
+// Nuova funzione per arrotondare anche le quantità a un numero ragionevole di decimali
+const roundQuantity = (num: number): number => {
+  if (isNaN(num)) return 0;
+  // Per le quantità, usiamo 3 decimali massimo (es. 2.492 invece di 2.4920000000000004)
+  return Math.round((num + Number.EPSILON) * 1000) / 1000;
 }
 
 interface CalculateRequest {
@@ -65,7 +73,7 @@ Deno.serve(async (req) => {
 
     const { restaurantId, periodStart, periodEnd, periodType, forceRecalculate = false }: CalculateRequest = await req.json();
 
-    console.log('Calculating foodcost sales for:', { restaurantId, periodStart, periodEnd, periodType });
+    console.log('Calculating foodcost sales for:', { restaurantId, periodStart, periodEnd, periodType, forceRecalculate });
 
     // Verifica se esistono già dati per questo periodo
     if (!forceRecalculate) {
@@ -189,13 +197,14 @@ Deno.serve(async (req) => {
       );
     }
 
-    // 3. Aggrega i dati per prodotto per la tabella 'foodcost'
+    // 3. Aggrega i dati per prodotto per la tabella 'foodcost' CON ARROTONDAMENTI CORRETTI
     const salesMap = new Map<string, { quantity: number; revenue: number; productName: string }>();
 
     for (const row of allReceiptRows) {
       if (!row.id_product) continue;
 
-      const revenue = getRowRevenue(row); // Utilizza la nuova funzione di calcolo prioritaria
+      const revenue = getRowRevenue(row); // Già arrotondato a 2 decimali
+      const quantity = roundQuantity(Number(row.quantity) || 0); // Arrotonda anche la quantità
 
       const existing = salesMap.get(row.id_product) || { 
         quantity: 0, 
@@ -203,8 +212,8 @@ Deno.serve(async (req) => {
         productName: row.product_description || `Prodotto ${row.id_product}`
       };
       
-      existing.quantity += (Number(row.quantity) || 0);
-      existing.revenue += revenue;
+      existing.quantity = roundQuantity(existing.quantity + quantity); // Arrotonda la somma
+      existing.revenue = roundToTwo(existing.revenue + revenue); // Arrotonda la somma
       
       salesMap.set(row.id_product, existing);
     }
@@ -231,12 +240,13 @@ Deno.serve(async (req) => {
       });
     }
 
-    // 5. Prepara i dati aggregati per la tabella 'foodcost'
+    // 5. Prepara i dati aggregati per la tabella 'foodcost' CON ARROTONDAMENTI FINALI
     const foodcostData: any[] = [];
     salesMap.forEach((sale, productId) => {
       const dishInfo = dishNamesMap.get(productId);
       const totalRevenue = roundToTwo(sale.revenue);
-      const averageUnitPrice = sale.quantity > 0 ? totalRevenue / sale.quantity : 0;
+      const totalQuantity = roundQuantity(sale.quantity);
+      const averageUnitPrice = totalQuantity > 0 ? roundToTwo(totalRevenue / totalQuantity) : 0;
       
       foodcostData.push({
         restaurant_id: restaurantId,
@@ -246,9 +256,9 @@ Deno.serve(async (req) => {
         period_start: periodStart,
         period_end: periodEnd,
         period_type: periodType,
-        total_quantity_sold: sale.quantity,
+        total_quantity_sold: totalQuantity,
         total_revenue: totalRevenue,
-        average_unit_price: roundToTwo(averageUnitPrice),
+        average_unit_price: averageUnitPrice,
       });
     });
 
@@ -256,6 +266,8 @@ Deno.serve(async (req) => {
 
     // 6. Se forceRecalculate è true, elimina i dati esistenti prima di inserire i nuovi
     if (forceRecalculate) {
+      console.log('Force recalculate enabled - deleting existing data');
+      
       // Elimina da foodcost (aggregati)
       const { error: deleteError } = await supabase
         .from('foodcost')
@@ -267,6 +279,8 @@ Deno.serve(async (req) => {
 
       if (deleteError) {
         console.error('Error deleting existing data:', deleteError);
+      } else {
+        console.log('Successfully deleted existing foodcost data for the period.');
       }
 
       // Elimina da external_sales_data (storico dettagliato)
@@ -314,9 +328,9 @@ Deno.serve(async (req) => {
           continue;
         }
         
-        const revenue = getRowRevenue(row);
-        const quantity = Number(row.quantity) || 0;
-        const unitPrice = quantity > 0 ? revenue / quantity : (Number(row.unit_price_gross) || Number(row.price) || 0);
+        const revenue = getRowRevenue(row); // Già arrotondato
+        const quantity = roundQuantity(Number(row.quantity) || 0); // Arrotonda quantità
+        const unitPrice = quantity > 0 ? roundToTwo(revenue / quantity) : roundToTwo(Number(row.unit_price_gross) || Number(row.price) || 0);
         const dishInfo = dishNamesMap.get(row.id_product);
 
         salesHistoryData.push({
@@ -326,9 +340,9 @@ Deno.serve(async (req) => {
             dish_id: dishInfo?.dishId || null,
             external_product_id: row.id_product,
             unmapped_product_description: row.product_description || `Prodotto ${row.id_product}`,
-            quantity_sold: quantity,
-            price_per_unit_sold: roundToTwo(unitPrice),
-            total_amount_sold_for_row: revenue,
+            quantity_sold: quantity, // Già arrotondato
+            price_per_unit_sold: unitPrice, // Già arrotondato
+            total_amount_sold_for_row: revenue, // Già arrotondato
             sale_timestamp: receiptInfo.datetime || receiptInfo.receipt_date,
             raw_bill_data: row,
             operator_id_external: null, // Campo da popolare se disponibile
@@ -354,7 +368,7 @@ Deno.serve(async (req) => {
       JSON.stringify({ 
         success: true, 
         data: insertedData,
-        message: `Successfully calculated sales data for ${foodcostData.length} products`
+        message: `Successfully calculated sales data for ${foodcostData.length} products with improved precision`
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );

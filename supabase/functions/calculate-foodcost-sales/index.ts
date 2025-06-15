@@ -47,7 +47,8 @@ const getRowRevenue = (row: any): number => {
   
   // Ultima risorsa: calcolo manuale.
   const price = Number(row.price) || 0;
-  return price * quantity;
+  const variation = Number(row.variation) || 0;
+  return (price * quantity) + variation;
 }
 
 Deno.serve(async (req) => {
@@ -137,6 +138,7 @@ Deno.serve(async (req) => {
           quantity,
           total,
           price,
+          variation,
           product_description,
           total_price_gross,
           unit_price_gross,

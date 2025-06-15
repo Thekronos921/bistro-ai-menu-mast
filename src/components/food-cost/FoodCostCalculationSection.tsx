@@ -53,6 +53,11 @@ const FoodCostCalculationSection = ({
           ✓ Dati disponibili per {foodCostSalesDataCount} prodotti
         </div>
       )}
+      {foodCostSalesDataCount === 0 && !calculatingFoodCost && (
+        <div className="mt-3 text-sm text-amber-600">
+          Dati non ancora calcolati per il periodo selezionato. Clicca su "Calcola Vendite" per generarli.
+        </div>
+      )}
     </div>
   );
 };

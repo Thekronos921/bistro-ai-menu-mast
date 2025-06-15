@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { useRestaurant } from "@/hooks/useRestaurant";
@@ -128,6 +127,30 @@ export const useFoodCostData = () => {
     if (!restaurantId) return;
 
     try {
+      // Special handling for 'allTime'
+      if (period === 'allTime') {
+        const allData = await getFoodCostSalesData(restaurantId, undefined, undefined, undefined);
+        
+        if (allData.length > 0) {
+          const aggregatedData = Object.values(
+            allData.reduce((acc, current) => {
+              const key = current.dish_id || current.dish_external_id || current.dish_name;
+              if (!acc[key]) {
+                acc[key] = { ...current, period_type: 'allTime', total_quantity_sold: Number(current.total_quantity_sold), total_revenue: Number(current.total_revenue) };
+              } else {
+                acc[key].total_quantity_sold += Number(current.total_quantity_sold);
+                acc[key].total_revenue += Number(current.total_revenue);
+              }
+              return acc;
+            }, {} as Record<string, any>)
+          );
+          setFoodCostSalesData(aggregatedData);
+        } else {
+          setFoodCostSalesData([]);
+        }
+        return;
+      }
+
       let periodStart: string | undefined;
       let periodEnd: string | undefined;
       let periodType: string | undefined;

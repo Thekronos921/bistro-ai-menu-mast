@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useRestaurant } from '@/hooks/useRestaurant';
@@ -19,11 +18,8 @@ export const useReservations = (selectedDate: string, statusFilter?: Reservation
       setLoading(true);
       setError(null);
 
-      const startOfDay = new Date(selectedDate);
-      startOfDay.setHours(0, 0, 0, 0);
-      
-      const endOfDay = new Date(selectedDate);
-      endOfDay.setHours(23, 59, 59, 999);
+      const startOfDay = new Date(`${selectedDate}T00:00:00.000Z`);
+      const endOfDay = new Date(`${selectedDate}T23:59:59.999Z`);
 
       let query = supabase
         .from('reservations')

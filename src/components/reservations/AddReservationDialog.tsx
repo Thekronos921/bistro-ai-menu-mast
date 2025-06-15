@@ -170,7 +170,7 @@ const AddReservationDialog: React.FC<AddReservationDialogProps> = ({ onReservati
 
     setLoading(true);
     try {
-      const reservationDateTime = new Date(selectedDate);
+      const reservationDateTime = new Date(selectedDate!);
       const [hours, minutes] = formData.time.split(':');
       reservationDateTime.setHours(parseInt(hours), parseInt(minutes), 0, 0);
 
@@ -185,7 +185,7 @@ const AddReservationDialog: React.FC<AddReservationDialogProps> = ({ onReservati
         customer_notes: formData.customer_notes || null,
         internal_notes: formData.internal_notes || null,
         table_id: formData.table_id,
-        status: 'nuova',
+        status: 'in_attesa', // Changed from 'nuova' to 'in_attesa'
         calculated_score: 0,
         social_score: 0,
       });

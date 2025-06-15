@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { format } from 'date-fns';
 import { it } from 'date-fns/locale';
@@ -67,15 +66,12 @@ const Reservations = () => {
     return {
       totalReservations: reservations.length,
       totalGuests: reservations.reduce((sum, r) => sum + r.number_of_guests, 0),
-      newReservations: reservations.filter(r => r.status === 'nuova').length,
+      newReservations: reservations.filter(r => r.status === 'nuova' || r.status === 'in_attesa').length,
       approvedReservations: reservations.filter(r => r.status === 'approvata').length,
       averageScore: reservations.length > 0 
         ? Math.round(reservations.reduce((sum, r) => sum + r.final_score, 0) / reservations.length)
         : 0,
       totalCapacity: totalCapacityToday,
-      // availableCapacity calcolato sopra è già al netto delle prenotazioni approvate, grazie al trigger.
-      // Se volessimo mostrare i posti disponibili *prima* delle prenotazioni del giorno, sarebbe totalCapacityToday.
-      // Ma l'utente vuole vedere i posti *rimanenti*.
       availableCapacity: availableCapacityToday 
     };
   };
@@ -224,7 +220,7 @@ const Reservations = () => {
 
             <Card className="bg-gradient-to-br from-yellow-50 to-yellow-100 border-yellow-200">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium text-yellow-700">Nuove</CardTitle>
+                <CardTitle className="text-sm font-medium text-yellow-700">Nuove / In Attesa</CardTitle>
                 <Clock className="h-4 w-4 text-yellow-600" />
               </CardHeader>
               <CardContent>

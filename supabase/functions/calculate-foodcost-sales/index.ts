@@ -1,4 +1,3 @@
-
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.49.8'
 
 const corsHeaders = {
@@ -11,10 +10,8 @@ const roundToTwo = (num: number): number => {
   return Math.round((num + Number.EPSILON) * 100) / 100;
 }
 
-// Nuova funzione per arrotondare anche le quantità a un numero ragionevole di decimali
 const roundQuantity = (num: number): number => {
   if (isNaN(num)) return 0;
-  // Per le quantità, usiamo 3 decimali massimo (es. 2.492 invece di 2.4920000000000004)
   return Math.round((num + Number.EPSILON) * 1000) / 1000;
 }
 
@@ -38,18 +35,18 @@ const getRowRevenue = (row: any): number => {
   const quantity = Number(row.quantity) || 0;
   // Cascata di priorità per il calcolo del ricavo, dal più affidabile al meno.
   if (row.total_price_gross !== null && !isNaN(Number(row.total_price_gross))) {
-    return roundToTwo(Number(row.total_price_gross));
+    return Number(row.total_price_gross);
   }
   if (row.total !== null && !isNaN(Number(row.total))) {
-    return roundToTwo(Number(row.total));
+    return Number(row.total);
   }
   if (row.amount !== null && !isNaN(Number(row.amount))) {
-    return roundToTwo(Number(row.amount));
+    return Number(row.amount);
   }
   
   // Ultima risorsa: calcolo manuale.
   const price = Number(row.price) || 0;
-  return roundToTwo(price * quantity);
+  return price * quantity;
 }
 
 Deno.serve(async (req) => {
@@ -73,7 +70,7 @@ Deno.serve(async (req) => {
 
     const { restaurantId, periodStart, periodEnd, periodType, forceRecalculate = false }: CalculateRequest = await req.json();
 
-    console.log('Calculating foodcost sales for:', { restaurantId, periodStart, periodEnd, periodType, forceRecalculate });
+    console.log('Calculating foodcost sales with new rounding logic for:', { restaurantId, periodStart, periodEnd, periodType, forceRecalculate });
 
     // Verifica se esistono già dati per questo periodo
     if (!forceRecalculate) {
@@ -144,7 +141,7 @@ Deno.serve(async (req) => {
     const receiptIds = receipts.map(r => r.id);
     console.log(`Processing ${receiptIds.length} receipt IDs`);
 
-    // 2. Recupera le righe delle ricevute con i prodotti, i prezzi e i dati della ricevuta associata
+    // 2. Recupera le righe delle ricevute con i prodotti
     let allReceiptRows: any[] = [];
     const batchSize = 100;
     
@@ -197,14 +194,16 @@ Deno.serve(async (req) => {
       );
     }
 
-    // 3. Aggrega i dati per prodotto per la tabella 'foodcost' CON ARROTONDAMENTI CORRETTI
+    // 3. Aggrega i dati per prodotto. I calcoli vengono fatti sui valori grezzi per massima precisione.
+    console.log('Aggregating sales data. Rounding will be applied only at the final step.');
     const salesMap = new Map<string, { quantity: number; revenue: number; productName: string }>();
 
     for (const row of allReceiptRows) {
       if (!row.id_product) continue;
 
-      const revenue = getRowRevenue(row); // Già arrotondato a 2 decimali
-      const quantity = roundQuantity(Number(row.quantity) || 0); // Arrotonda anche la quantità
+      // Usa i valori grezzi, non arrotondati, per i calcoli
+      const revenue = getRowRevenue(row); 
+      const quantity = Number(row.quantity) || 0;
 
       const existing = salesMap.get(row.id_product) || { 
         quantity: 0, 
@@ -212,13 +211,19 @@ Deno.serve(async (req) => {
         productName: row.product_description || `Prodotto ${row.id_product}`
       };
       
-      existing.quantity = roundQuantity(existing.quantity + quantity); // Arrotonda la somma
-      existing.revenue = roundToTwo(existing.revenue + revenue); // Arrotonda la somma
+      // Somma i valori grezzi senza arrotondare
+      existing.quantity += quantity;
+      existing.revenue += revenue;
       
       salesMap.set(row.id_product, existing);
     }
 
-    console.log(`Aggregated data for ${salesMap.size} unique products`);
+    console.log(`Aggregated data for ${salesMap.size} unique products.`);
+    // Log di esempio per un prodotto prima dell'arrotondamento
+    if (salesMap.size > 0) {
+      const firstKey = salesMap.keys().next().value;
+      console.log('Sample raw aggregated data before rounding:', salesMap.get(firstKey));
+    }
 
     // 4. Recupera i nomi dei piatti dalla tabella dishes (invariato)
     const productIds = Array.from(salesMap.keys());
@@ -240,10 +245,12 @@ Deno.serve(async (req) => {
       });
     }
 
-    // 5. Prepara i dati aggregati per la tabella 'foodcost' CON ARROTONDAMENTI FINALI
+    // 5. Prepara i dati aggregati per la tabella 'foodcost' APPLICANDO GLI ARROTONDAMENTI FINALI
     const foodcostData: any[] = [];
     salesMap.forEach((sale, productId) => {
       const dishInfo = dishNamesMap.get(productId);
+
+      // Applica gli arrotondamenti qui, una sola volta, prima di salvare.
       const totalRevenue = roundToTwo(sale.revenue);
       const totalQuantity = roundQuantity(sale.quantity);
       const averageUnitPrice = totalQuantity > 0 ? roundToTwo(totalRevenue / totalQuantity) : 0;
@@ -262,7 +269,7 @@ Deno.serve(async (req) => {
       });
     });
 
-    console.log(`Prepared ${foodcostData.length} foodcost records`);
+    console.log(`Prepared ${foodcostData.length} foodcost records to be inserted/updated.`);
 
     // 6. Se forceRecalculate è true, elimina i dati esistenti prima di inserire i nuovi
     if (forceRecalculate) {
@@ -314,23 +321,26 @@ Deno.serve(async (req) => {
 
     console.log(`Successfully inserted/updated ${insertedData?.length || 0} foodcost records`);
 
-    // 8. Prepara e inserisce lo storico dettagliato in 'external_sales_data'
+    // 8. Prepara e inserisce lo storico dettagliato in 'external_sales_data' con arrotondamenti corretti
     const salesHistoryData: any[] = [];
     for (const row of allReceiptRows) {
         if (!row.id_product) continue;
         
         const receiptInfo = row.cassa_in_cloud_receipts;
 
-        // FIX: Aggiungo un controllo per assicurarmi che l'ID esterno della ricevuta (cic_id) esista.
-        // La colonna `bill_id_external` nella tabella di destinazione non accetta valori null e questo causava un errore.
         if (!receiptInfo || !receiptInfo.cic_id) {
           console.warn(`Skipping sales history row due to missing receipt external ID (cic_id). Product ID: ${row.id_product}`);
           continue;
         }
         
-        const revenue = getRowRevenue(row); // Già arrotondato
-        const quantity = roundQuantity(Number(row.quantity) || 0); // Arrotonda quantità
-        const unitPrice = quantity > 0 ? roundToTwo(revenue / quantity) : roundToTwo(Number(row.unit_price_gross) || Number(row.price) || 0);
+        // Ottieni i valori grezzi
+        const rawRevenue = getRowRevenue(row);
+        const rawQuantity = Number(row.quantity) || 0;
+
+        // Arrotonda i valori solo prima dell'inserimento
+        const finalRevenue = roundToTwo(rawRevenue);
+        const finalQuantity = roundQuantity(rawQuantity);
+        const unitPrice = finalQuantity > 0 ? roundToTwo(finalRevenue / finalQuantity) : roundToTwo(Number(row.unit_price_gross) || Number(row.price) || 0);
         const dishInfo = dishNamesMap.get(row.id_product);
 
         salesHistoryData.push({
@@ -340,9 +350,9 @@ Deno.serve(async (req) => {
             dish_id: dishInfo?.dishId || null,
             external_product_id: row.id_product,
             unmapped_product_description: row.product_description || `Prodotto ${row.id_product}`,
-            quantity_sold: quantity, // Già arrotondato
-            price_per_unit_sold: unitPrice, // Già arrotondato
-            total_amount_sold_for_row: revenue, // Già arrotondato
+            quantity_sold: finalQuantity,
+            price_per_unit_sold: unitPrice,
+            total_amount_sold_for_row: finalRevenue,
             sale_timestamp: receiptInfo.datetime || receiptInfo.receipt_date,
             raw_bill_data: row,
             operator_id_external: null, // Campo da popolare se disponibile

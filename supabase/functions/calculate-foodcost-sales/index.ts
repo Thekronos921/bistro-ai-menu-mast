@@ -1,4 +1,3 @@
-
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.49.8'
 
 const corsHeaders = {
@@ -20,6 +19,18 @@ interface DishSalesData {
   totalQuantitySold: number;
   totalRevenue: number;
   averageUnitPrice: number;
+}
+
+const getRowRevenue = (row: any): number => {
+  const quantity = Number(row.quantity) || 0;
+  // Cascata di priorità per il calcolo del ricavo, dal più affidabile al meno.
+  if (row.total_price_gross !== null && !isNaN(Number(row.total_price_gross))) return Number(row.total_price_gross);
+  if (row.total !== null && !isNaN(Number(row.total))) return Number(row.total);
+  if (row.amount !== null && !isNaN(Number(row.amount))) return Number(row.amount);
+  
+  // Ultima risorsa: calcolo manuale.
+  const price = Number(row.price) || 0;
+  return price * quantity;
 }
 
 Deno.serve(async (req) => {
@@ -85,10 +96,10 @@ Deno.serve(async (req) => {
       }
     }
 
-    // 1. Recupera le ricevute per il periodo specificato usando receipt_date invece di datetime
+    // 1. Recupera gli ID delle ricevute per il periodo specificato
     const { data: receipts, error: receiptsError } = await supabase
       .from('cassa_in_cloud_receipts')
-      .select('id, receipt_date, restaurant_id')
+      .select('id') // Seleziono solo l'ID, il resto dei dati lo recupero con la join dopo
       .eq('restaurant_id', restaurantId)
       .gte('receipt_date', periodStart)
       .lte('receipt_date', periodEnd);
@@ -114,9 +125,9 @@ Deno.serve(async (req) => {
     const receiptIds = receipts.map(r => r.id);
     console.log(`Processing ${receiptIds.length} receipt IDs`);
 
-    // 2. Recupera le righe delle ricevute con i prodotti - gestisci lotti per evitare errori con troppe ricevute
+    // 2. Recupera le righe delle ricevute con i prodotti, i prezzi e i dati della ricevuta associata
     let allReceiptRows: any[] = [];
-    const batchSize = 100; // Processa 100 ricevute per volta
+    const batchSize = 100;
     
     for (let i = 0; i < receiptIds.length; i += batchSize) {
       const batchIds = receiptIds.slice(i, i + batchSize);
@@ -124,7 +135,23 @@ Deno.serve(async (req) => {
       
       const { data: batchRows, error: batchError } = await supabase
         .from('cassa_in_cloud_receipt_rows')
-        .select('id_product, quantity, total, price, product_description')
+        .select(`
+          cic_row_id,
+          id_product,
+          quantity,
+          total,
+          price,
+          product_description,
+          total_price_gross,
+          unit_price_gross,
+          amount,
+          receipt_id,
+          cassa_in_cloud_receipts!inner (
+            cic_id,
+            datetime,
+            receipt_date
+          )
+        `)
         .in('receipt_id', batchIds)
         .not('id_product', 'is', null);
 
@@ -151,16 +178,13 @@ Deno.serve(async (req) => {
       );
     }
 
-    // 3. Aggrega i dati per prodotto
+    // 3. Aggrega i dati per prodotto per la tabella 'foodcost'
     const salesMap = new Map<string, { quantity: number; revenue: number; productName: string }>();
 
     for (const row of allReceiptRows) {
       if (!row.id_product) continue;
 
-      const quantity = Number(row.quantity) || 0;
-      const total = Number(row.total) || 0;
-      const price = Number(row.price) || 0;
-      const revenue = total || (price * quantity);
+      const revenue = getRowRevenue(row); // Utilizza la nuova funzione di calcolo prioritaria
 
       const existing = salesMap.get(row.id_product) || { 
         quantity: 0, 
@@ -168,7 +192,7 @@ Deno.serve(async (req) => {
         productName: row.product_description || `Prodotto ${row.id_product}`
       };
       
-      existing.quantity += quantity;
+      existing.quantity += (Number(row.quantity) || 0);
       existing.revenue += revenue;
       
       salesMap.set(row.id_product, existing);
@@ -176,7 +200,7 @@ Deno.serve(async (req) => {
 
     console.log(`Aggregated data for ${salesMap.size} unique products`);
 
-    // 4. Recupera i nomi dei piatti dalla tabella dishes
+    // 4. Recupera i nomi dei piatti dalla tabella dishes (invariato)
     const productIds = Array.from(salesMap.keys());
     const { data: dishes, error: dishesError } = await supabase
       .from('dishes')
@@ -187,7 +211,6 @@ Deno.serve(async (req) => {
       console.warn('Error fetching dish names:', dishesError);
     }
 
-    // Crea una mappa per i nomi dei piatti
     const dishNamesMap = new Map<string, { name: string; dishId: string }>();
     if (dishes) {
       dishes.forEach(dish => {
@@ -197,9 +220,8 @@ Deno.serve(async (req) => {
       });
     }
 
-    // 5. Prepara i dati per l'inserimento nella tabella foodcost
+    // 5. Prepara i dati aggregati per la tabella 'foodcost' (invariato)
     const foodcostData: any[] = [];
-    
     salesMap.forEach((sale, productId) => {
       const dishInfo = dishNamesMap.get(productId);
       const averageUnitPrice = sale.quantity > 0 ? sale.revenue / sale.quantity : 0;
@@ -222,6 +244,7 @@ Deno.serve(async (req) => {
 
     // 6. Se forceRecalculate è true, elimina i dati esistenti prima di inserire i nuovi
     if (forceRecalculate) {
+      // Elimina da foodcost (aggregati)
       const { error: deleteError } = await supabase
         .from('foodcost')
         .delete()
@@ -232,11 +255,24 @@ Deno.serve(async (req) => {
 
       if (deleteError) {
         console.error('Error deleting existing data:', deleteError);
-        // Non interrompiamo il processo, continuiamo con l'inserimento
+      }
+
+      // Elimina da external_sales_data (storico dettagliato)
+      const { error: deleteSalesHistoryError } = await supabase
+        .from('external_sales_data')
+        .delete()
+        .eq('restaurant_id', restaurantId)
+        .gte('sale_timestamp', periodStart)
+        .lte('sale_timestamp', periodEnd);
+      
+      if (deleteSalesHistoryError) {
+        console.error('Error deleting existing sales history data:', deleteSalesHistoryError);
+      } else {
+        console.log('Successfully deleted existing sales history data for the period.');
       }
     }
 
-    // 7. Inserisci i dati nella tabella foodcost
+    // 7. Inserisci i dati aggregati nella tabella 'foodcost'
     const { data: insertedData, error: insertError } = await supabase
       .from('foodcost')
       .upsert(foodcostData, { 
@@ -251,6 +287,48 @@ Deno.serve(async (req) => {
     }
 
     console.log(`Successfully inserted/updated ${insertedData?.length || 0} foodcost records`);
+
+    // 8. Prepara e inserisce lo storico dettagliato in 'external_sales_data'
+    const salesHistoryData: any[] = [];
+    for (const row of allReceiptRows) {
+        if (!row.id_product || !row.cassa_in_cloud_receipts) continue;
+        
+        const revenue = getRowRevenue(row);
+        const quantity = Number(row.quantity) || 0;
+        const unitPrice = quantity > 0 ? revenue / quantity : (Number(row.unit_price_gross) || Number(row.price) || 0);
+        const dishInfo = dishNamesMap.get(row.id_product);
+        const receiptInfo = row.cassa_in_cloud_receipts;
+
+        salesHistoryData.push({
+            bill_id_external: receiptInfo.cic_id,
+            document_row_id_external: row.cic_row_id,
+            restaurant_id: restaurantId,
+            dish_id: dishInfo?.dishId || null,
+            external_product_id: row.id_product,
+            unmapped_product_description: row.product_description || `Prodotto ${row.id_product}`,
+            quantity_sold: quantity,
+            price_per_unit_sold: unitPrice,
+            total_amount_sold_for_row: revenue,
+            sale_timestamp: receiptInfo.datetime || receiptInfo.receipt_date,
+            raw_bill_data: row,
+            operator_id_external: null, // Campo da popolare se disponibile
+            operator_name: null, // Campo da popolare se disponibile
+        });
+    }
+
+    if (salesHistoryData.length > 0) {
+      console.log(`Preparing to insert ${salesHistoryData.length} sales history records.`);
+      const { error: salesHistoryError } = await supabase
+        .from('external_sales_data')
+        .insert(salesHistoryData); // Uso 'insert' dopo aver pulito con forceRecalculate
+
+      if (salesHistoryError) {
+        console.error('Error inserting sales history data:', salesHistoryError);
+        // Non bloccante, ma loggo l'errore
+      } else {
+        console.log(`Successfully inserted ${salesHistoryData.length} sales history records.`);
+      }
+    }
 
     return new Response(
       JSON.stringify({ 

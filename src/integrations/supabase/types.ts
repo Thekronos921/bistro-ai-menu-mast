@@ -848,6 +848,7 @@ export type Database = {
           created_at: string
           dish_id: string | null
           document_row_id_external: string | null
+          external_product_id: string | null
           id: string
           operator_id_external: string | null
           operator_name: string | null
@@ -864,6 +865,7 @@ export type Database = {
           created_at?: string
           dish_id?: string | null
           document_row_id_external?: string | null
+          external_product_id?: string | null
           id?: string
           operator_id_external?: string | null
           operator_name?: string | null
@@ -880,6 +882,7 @@ export type Database = {
           created_at?: string
           dish_id?: string | null
           document_row_id_external?: string | null
+          external_product_id?: string | null
           id?: string
           operator_id_external?: string | null
           operator_name?: string | null

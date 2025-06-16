@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -9,27 +9,18 @@ import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
-import { getSalesPoints } from '@/integrations/cassaInCloud/cassaInCloudService';
+import { getSalesPoints as fetchSalesPoints } from "@/integrations/cassaInCloud/cassaInCloudService";
 import { 
   importRestaurantCategoriesFromCassaInCloud,
   importRestaurantProductsFromCassaInCloud,
-  importSalesFromCassaInCloud, // Aggiungiamo l'import della nuova funzione
-  importCustomersFromCassaInCloud, // Aggiunto per importazione clienti
-  importReceiptsFromCassaInCloud, // Aggiunto per importazione ricevute
-  importRoomsFromCassaInCloud, // Aggiunto per importazione sale
-  importTablesFromCassaInCloud // Aggiunto per importazione tavoli
+  importSalesFromCassaInCloud,
+  importCustomersFromCassaInCloud,
+  importReceiptsFromCassaInCloud,
+  importRoomsFromCassaInCloud,
+  importTablesFromCassaInCloud
 } from '@/integrations/cassaInCloud/cassaInCloudImportService';
 import { supabase } from '@/integrations/supabase/client';
 import { useRestaurant } from "@/hooks/useRestaurant";
-import { getSalesPoints as fetchSalesPoints } from "@/integrations/cassaInCloud/cassaInCloudService";
-
-const useCassaInCloudApi = () => {
-  return {
-    getSalesPoints: async (apiKeyOverride?: string) => {
-      return fetchSalesPoints(apiKeyOverride);
-    },
-  };
-};
 import { 
   Cloud, 
   Key, 
@@ -38,7 +29,6 @@ import {
   XCircle, 
   AlertCircle,
   Download,
-  Upload,
   Calendar,
   Database
 } from "lucide-react";
@@ -54,29 +44,36 @@ interface SyncStatus {
   isLoading: boolean;
   recordsImported?: number;
   error?: string;
-  message?: string; // Aggiunto per coerenza con l'uso in startSync (simulazione)
+  message?: string;
 }
+
+const useCassaInCloudApi = () => {
+  return {
+    getSalesPoints: async (apiKeyOverride?: string) => {
+      return fetchSalesPoints(apiKeyOverride);
+    },
+  };
+};
 
 const CassaInCloudIntegration = () => {
   const [isMounted, setIsMounted] = useState(false);
   const [apiKey, setApiKey] = useState("");
   const [effectiveApiKey, setEffectiveApiKey] = useState<string | null>(null);
-  const [savedApiKeyExists, setSavedApiKeyExists] = useState(false); // Nuovo stato per tracciare se esiste una chiave salvata
+  const [savedApiKeyExists, setSavedApiKeyExists] = useState(false);
   const [connectionStatus, setConnectionStatus] = useState<ConnectionStatus>({ isConnected: false });
   const [syncStatus, setSyncStatus] = useState<SyncStatus>({ isLoading: false });
   const [autoSyncEnabled, setAutoSyncEnabled] = useState(false);
   const [selectedSyncType, setSelectedSyncType] = useState("");
-  const { toast, dismiss } = useToast(); // Estrarre dismiss qui
+  const { toast, dismiss } = useToast();
   const { restaurantId } = useRestaurant();
-  const { getSalesPoints } = useCassaInCloudApi(); // Hook per le API CassaInCloud
-  
-  // Aggiungiamo stati per la sincronizzazione delle vendite
-  const [salesPointId, setSalesPointId] = useState<string>(""); // Stato per il punto vendita
-  const [dateFrom, setDateFrom] = useState<string>(""); // Stato per la data di inizio
-  const [dateTo, setDateTo] = useState<string>(""); // Stato per la data di fine
+  const { getSalesPoints } = useCassaInCloudApi();
+
+  const [salesPointId, setSalesPointId] = useState<string>("");
+  const [dateFrom, setDateFrom] = useState<string>("");
+  const [dateTo, setDateTo] = useState<string>("");
   const [receiptsDateFrom, setReceiptsDateFrom] = useState<string>("");
   const [receiptsDateTo, setReceiptsDateTo] = useState<string>("");
-  const [manualSalesPointId, setManualSalesPointId] = useState<string>(""); // Stato per idsSalesPoint manuale per sale e tavoli
+  const [manualSalesPointId, setManualSalesPointId] = useState<string>("");
 
   const syncTypes = [
     { value: "categories", label: "Categorie" },
@@ -84,19 +81,18 @@ const CassaInCloudIntegration = () => {
     { value: "stock", label: "Giacenze" },
     { value: "customers", label: "Clienti" },
     { value: "sales", label: "Vendite" },
-    { value: "receipts", label: "Ricevute" }, // Aggiunta opzione Ricevute
-    { value: "rooms-tables", label: "Sale e Tavoli" }, // Aggiunta opzione Sale e Tavoli
+    { value: "receipts", label: "Ricevute" },
+    { value: "rooms-tables", label: "Sale e Tavoli" },
     { value: "all", label: "Tutti i Dati" }
   ];
 
-  // Carica le impostazioni salvate e imposta isMounted
   useEffect(() => {
     setIsMounted(true);
     loadSavedSettings();
     return () => {
       setIsMounted(false);
     };
-  }, [restaurantId]); // restaurantId incluso nelle dipendenze
+  }, [restaurantId]);
 
   const loadSavedSettings = async () => {
     if (!restaurantId || !isMounted) return;
@@ -107,15 +103,13 @@ const CassaInCloudIntegration = () => {
         .select('*')
         .eq('restaurant_id', restaurantId)
         .eq('integration_type', 'cassaincloud')
-        .single();
+        .maybeSingle();
 
       if (data && !error) {
         setAutoSyncEnabled(data.auto_sync_enabled || false);
         if (data.api_key) {
           setEffectiveApiKey(data.api_key);
-          setSavedApiKeyExists(true); // Indica che esiste una chiave salvata
-          // Set connection status as connected if we have a saved key
-          // We'll assume it's valid unless proven otherwise
+          setSavedApiKeyExists(true);
           if (isMounted) {
             setConnectionStatus({ 
               isConnected: true, 
@@ -125,22 +119,25 @@ const CassaInCloudIntegration = () => {
           }
         } else {
           setSavedApiKeyExists(false);
+          setEffectiveApiKey(null);
         }
-      } else if (error && error.code !== 'PGRST116') { // PGRST116: single row not found (nessuna impostazione salvata)
+      } else if (error) {
         console.error('Errore nel caricamento impostazioni:', error);
         setSavedApiKeyExists(false);
+        setEffectiveApiKey(null);
         toast({
           title: "Errore Caricamento Impostazioni",
           description: "Impossibile caricare le impostazioni di integrazione.",
           variant: "destructive"
         });
       } else {
-        // Nessuna impostazione salvata
         setSavedApiKeyExists(false);
+        setEffectiveApiKey(null);
       }
     } catch (error) {
       console.error('Eccezione nel caricamento impostazioni:', error);
       setSavedApiKeyExists(false);
+      setEffectiveApiKey(null);
       toast({
         title: "Errore Critico",
         description: "Si è verificato un errore imprevisto durante il caricamento delle impostazioni.",
@@ -169,35 +166,51 @@ const CassaInCloudIntegration = () => {
       return;
     }
 
-    // Testa la connessione con la chiave API fornita prima di salvare
     const isConnectionValid = await testConnection(keyToSave);
     if (!isConnectionValid) {
-      // testConnection mostrerà già un toast di errore
       return;
     }
     
     try {
-      const { error } = await supabase
+      const { data: existingRecord } = await supabase
         .from('integration_settings')
-        .upsert({
-          restaurant_id: restaurantId,
-          integration_type: 'cassaincloud',
-          api_key: keyToSave, // Salva la chiave testata e valida
-          auto_sync_enabled: autoSyncEnabled,
-          updated_at: new Date().toISOString()
-        });
+        .select('id')
+        .eq('restaurant_id', restaurantId)
+        .eq('integration_type', 'cassaincloud')
+        .maybeSingle();
 
-      if (error) throw error;
+      let result;
+      if (existingRecord) {
+        result = await supabase
+          .from('integration_settings')
+          .update({
+            api_key: keyToSave,
+            auto_sync_enabled: autoSyncEnabled,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', existingRecord.id);
+      } else {
+        result = await supabase
+          .from('integration_settings')
+          .insert({
+            restaurant_id: restaurantId,
+            integration_type: 'cassaincloud',
+            api_key: keyToSave,
+            auto_sync_enabled: autoSyncEnabled,
+            updated_at: new Date().toISOString()
+          });
+      }
+
+      if (result.error) throw result.error;
 
       toast({
         title: "Successo",
         description: "Credenziali salvate con successo"
       });
 
-      setEffectiveApiKey(keyToSave); // La chiave salvata è ora quella effettiva
-      setSavedApiKeyExists(true); // Aggiorna lo stato per indicare che la chiave è salvata
-      setApiKey(""); // Pulisce il campo input per sicurezza
-      // connectionStatus è già stato aggiornato da testConnection se ha avuto successo
+      setEffectiveApiKey(keyToSave);
+      setSavedApiKeyExists(true);
+      setApiKey("");
     } catch (error) {
       console.error('Errore nel salvataggio:', error);
       toast({
@@ -242,7 +255,7 @@ const CassaInCloudIntegration = () => {
             lastChecked: new Date(),
             error: undefined
           });
-          setEffectiveApiKey(keyToEvaluate); // Chiave testata con successo diventa effettiva
+          setEffectiveApiKey(keyToEvaluate);
         }
         if (!silentMode) {
           toast({
@@ -250,7 +263,7 @@ const CassaInCloudIntegration = () => {
             description: "La connessione a CassaInCloud è attiva."
           });
         }
-        if (loadingToastId) dismiss(loadingToastId); // Usare dismiss direttamente
+        if (loadingToastId) dismiss(loadingToastId);
         return true;
       } else {
         throw new Error("Nessun punto vendita restituito o risposta non valida.");
@@ -263,10 +276,6 @@ const CassaInCloudIntegration = () => {
           lastChecked: new Date(),
           error: error.message || "Errore di connessione sconosciuto"
         });
-        // Reset effectiveApiKey only if this was testing a new key
-        if (apiKeyToTest && apiKeyToTest !== effectiveApiKey) {
-          // Don't reset effectiveApiKey, keep the saved one
-        }
       }
       if (!silentMode) {
         toast({
@@ -275,12 +284,11 @@ const CassaInCloudIntegration = () => {
           variant: "destructive"
         });
       }
-      if (loadingToastId) dismiss(loadingToastId); // Usare dismiss direttamente
+      if (loadingToastId) dismiss(loadingToastId);
       return false;
     }
   };
 
-  // Aggiungiamo un componente per selezionare il punto vendita e le date quando è selezionato il tipo 'sales'
   const renderSyncOptions = () => {
     if (selectedSyncType === 'sales') {
       return (
@@ -380,7 +388,6 @@ const CassaInCloudIntegration = () => {
       return;
     }
 
-    // If connection status shows an error, test the connection before proceeding
     if (connectionStatus.error && effectiveApiKey) {
       const connectionValid = await testConnection(effectiveApiKey, true);
       if (!connectionValid) {
@@ -419,19 +426,18 @@ const CassaInCloudIntegration = () => {
           console.error('Errore imprevisto in startSync:', err);
         });
 
-    } else if (selectedSyncType === 'products') { // <-- NUOVA LOGICA PER PRODOTTI
+    } else if (selectedSyncType === 'products') {
       if (!restaurantId) {
         toast({ title: 'Errore', description: 'ID Ristorante non trovato.', variant: 'destructive' });
         if (isMounted) setSyncStatus({ isLoading: false, error: 'ID Ristorante non trovato.' });
         return;
       }
 
-      // TODO: Recuperare idSalesPointForPricing e filterParams, ad esempio da un selettore nell'UI o da impostazioni
-      const idSalesPointForPricing = undefined; // Esempio, da sostituire con valore reale
-      const filterParams = undefined; // Esempio, da sostituire con valore reale
+      const idSalesPointForPricing = undefined;
+      const filterParams = undefined;
 
       importRestaurantProductsFromCassaInCloud(restaurantId, idSalesPointForPricing, filterParams, keyForSync)
-        .then(({ count, error, message }) => { // Aggiunto 'message' per feedback più dettagliato
+        .then(({ count, error, message }) => {
           if (!isMounted) return;
           if (error) {
             toast({ title: 'Errore Sincronizzazione Prodotti', description: error.message, variant: 'destructive' });
@@ -473,31 +479,29 @@ const CassaInCloudIntegration = () => {
           setSyncStatus({ isLoading: false, error: 'Errore imprevisto durante la sincronizzazione dei clienti.', lastSync: syncStatus.lastSync });
           console.error('Errore imprevisto in startSync per clienti:', err);
         });
-    } else if (selectedSyncType === 'sales') { // <-- NUOVA LOGICA PER VENDITE
+    } else if (selectedSyncType === 'sales') {
       if (!restaurantId) {
         toast({ title: 'Errore', description: 'ID Ristorante non trovato.', variant: 'destructive' });
         if (isMounted) setSyncStatus({ isLoading: false, error: 'ID Ristorante non trovato.' });
         return;
       }
       
-      // Validazione dei campi richiesti per la sincronizzazione delle vendite
       if (!dateFrom || !dateTo) {
         toast({ title: 'Errore', description: 'Seleziona un intervallo di date per la sincronizzazione delle vendite.', variant: 'destructive' });
         if (isMounted) setSyncStatus({ isLoading: false, error: 'Date non specificate.' });
         return;
       }
       
-      // Preparazione dei parametri per la richiesta del report vendite
       const params = {
         start: 0,
-        limit: 100, // Limite ragionevole per il numero di prodotti venduti da recuperare
+        limit: 100,
         datetimeFrom: dateFrom,
         datetimeTo: dateTo,
         idsSalesPoint: salesPointId ? [salesPointId] : undefined
       };
       
       importSalesFromCassaInCloud(restaurantId, params, keyForSync)
-        .then(({ count, error, message, data }) => {
+        .then(({ count, error, message }) => {
           if (!isMounted) return;
           if (error) {
             toast({ title: 'Errore Sincronizzazione Vendite', description: error.message, variant: 'destructive' });
@@ -547,7 +551,7 @@ const CassaInCloudIntegration = () => {
         }
 
         let currentEndDate = new Date(currentStartDate);
-        currentEndDate.setDate(currentEndDate.getDate() + 2); // Blocchi di 3 giorni (0, 1, 2)
+        currentEndDate.setDate(currentEndDate.getDate() + 2);
         if (currentEndDate > endDate) {
           currentEndDate = new Date(endDate);
         }
@@ -555,9 +559,8 @@ const CassaInCloudIntegration = () => {
         const params = {
           datetimeFrom: currentStartDate.toISOString().split('T')[0] + 'T00:00:00',
           datetimeTo: currentEndDate.toISOString().split('T')[0] + 'T23:59:59',
-          start: 0, // Aggiunto parametro obbligatorio
-          limit: 1000, // Aggiunto parametro obbligatorio (o un valore appropriato)
-          // Altri parametri possono essere aggiunti qui se necessario
+          start: 0,
+          limit: 1000,
         };
 
         toast({ title: 'Importazione Ricevute', description: `Importazione blocco dal ${params.datetimeFrom.split('T')[0]} al ${params.datetimeTo.split('T')[0]}...` });
@@ -570,18 +573,16 @@ const CassaInCloudIntegration = () => {
             toast({ title: 'Errore Sincronizzazione Blocco Ricevute', description: error.message, variant: 'destructive' });
             console.error('Errore importazione blocco ricevute:', error, message);
             hasErrors = true;
-            // Non continuiamo con altri blocchi se uno fallisce
             if (isMounted) setSyncStatus({ isLoading: false, error: `Errore importazione blocco: ${error.message}`, lastSync: syncStatus.lastSync });
-            return; // Interrompi l'importazione a blocchi
+            return;
           }
           
           totalImportedCount += count;
           const successMessage = message || `${count} ricevute importate in questo blocco.`;
-          console.log(successMessage); // Log per tracciare i blocchi
+          console.log(successMessage);
 
-          // Prepara per il prossimo blocco
           currentStartDate.setDate(currentEndDate.getDate() + 1);
-          importNextChunk(); // Chiama ricorsivamente per il prossimo blocco
+          importNextChunk();
 
         } catch (err: any) {
           if (!isMounted) return;
@@ -592,7 +593,7 @@ const CassaInCloudIntegration = () => {
         }
       };
 
-      importNextChunk(); // Avvia l'importazione del primo blocco
+      importNextChunk();
 
     } else if (selectedSyncType === 'rooms-tables') {
       if (!restaurantId) {
@@ -602,7 +603,6 @@ const CassaInCloudIntegration = () => {
       }
 
       try {
-        // Prima importa le sale
         const effectiveSalesPointId = manualSalesPointId || salesPointId;
         const roomsParams = {
           start: 0,
@@ -619,7 +619,6 @@ const CassaInCloudIntegration = () => {
           return;
         }
 
-        // Poi importa i tavoli
         const tablesParams = {
           start: 0,
           limit: 100,
@@ -647,7 +646,6 @@ const CassaInCloudIntegration = () => {
         console.error('Errore imprevisto in startSync per sale e tavoli:', err);
       }
     } else {
-      // Simula un ritardo per la sincronizzazione per altri tipi
       setTimeout(() => {
         if (isMounted) setSyncStatus({ isLoading: false, lastSync: new Date(), message: 'Sincronizzazione (simulata) completata.', error: undefined });
         toast({ title: 'Sincronizzazione Simulata', description: `La sincronizzazione per ${selectedSyncType} è stata simulata.`});
@@ -665,9 +663,7 @@ const CassaInCloudIntegration = () => {
     return <Badge variant="secondary"><AlertCircle className="w-3 h-3 mr-1" />Non Connesso</Badge>;
   };
 
-  // Check if sync should be enabled
   const isSyncEnabled = () => {
-    // Enable if we have a saved API key (regardless of connection status) OR if there's an effective API key
     return savedApiKeyExists && !syncStatus.isLoading;
   };
 
@@ -689,7 +685,6 @@ const CassaInCloudIntegration = () => {
         </TabsList>
 
         <TabsContent value="connection" className="space-y-6">
-          {/* Sezione Connessione */}
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center space-x-2">
@@ -749,7 +744,6 @@ const CassaInCloudIntegration = () => {
         </TabsContent>
 
         <TabsContent value="sync" className="space-y-6">
-          {/* Sezione Sincronizzazione */}
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center space-x-2">
@@ -800,7 +794,6 @@ const CassaInCloudIntegration = () => {
                 </div>
               </div>
               
-              {/* Display warning only if no API key is configured */}
               {!savedApiKeyExists && (
                 <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
                   <p className="text-sm text-yellow-700">
@@ -809,12 +802,10 @@ const CassaInCloudIntegration = () => {
                 </div>
               )}
               
-              {/* Aggiungiamo il rendering delle opzioni di sincronizzazione */}
               {renderSyncOptions()}
               
               <Separator />
               
-              {/* Stato ultima sincronizzazione */}
               <div className="space-y-3">
                 <h4 className="font-medium">Stato Sincronizzazione</h4>
                 
@@ -823,10 +814,10 @@ const CassaInCloudIntegration = () => {
                     <div>
                       <p className="text-sm font-medium">Ultima sincronizzazione</p>
                       <p className="text-xs text-muted-foreground">
-                        {new Date(syncStatus.lastSync).toLocaleString()} {/* Assicura che sia un oggetto Date */}
+                        {new Date(syncStatus.lastSync).toLocaleString()}
                       </p>
                     </div>
-                    {typeof syncStatus.recordsImported === 'number' && ( // Verifica che sia un numero
+                    {typeof syncStatus.recordsImported === 'number' && (
                       <Badge variant="outline">
                         {syncStatus.recordsImported} record importati
                       </Badge>
@@ -859,7 +850,6 @@ const CassaInCloudIntegration = () => {
         </TabsContent>
 
         <TabsContent value="settings" className="space-y-6">
-          {/* Sezione Impostazioni */}
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center space-x-2">

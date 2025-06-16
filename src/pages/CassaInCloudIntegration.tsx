@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useRef } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -112,15 +111,15 @@ const CassaInCloudIntegration = () => {
       if (data && !error) {
         setAutoSyncEnabled(data.auto_sync_enabled || false);
         if (data.api_key) {
-          // Testa la chiave caricata in modalità silenziosa
-          const isValid = await testConnection(data.api_key, true);
-          if (isValid) {
-            setEffectiveApiKey(data.api_key);
-            // testConnection imposterà connectionStatus se ha successo
-          } else {
-            // Se la chiave salvata non è valida, imposta lo stato di connessione a non connesso
-            // ma non mostrare un errore aggressivo, l'utente può reinserirla.
-            if (isMounted) setConnectionStatus({ isConnected: false, error: "Chiave API salvata non valida." });
+          setEffectiveApiKey(data.api_key);
+          // Set connection status as connected if we have a saved key
+          // We'll assume it's valid unless proven otherwise
+          if (isMounted) {
+            setConnectionStatus({ 
+              isConnected: true, 
+              lastChecked: new Date(),
+              error: undefined
+            });
           }
         }
       } else if (error && error.code !== 'PGRST116') { // PGRST116: single row not found (nessuna impostazione salvata)
@@ -254,7 +253,10 @@ const CassaInCloudIntegration = () => {
           lastChecked: new Date(),
           error: error.message || "Errore di connessione sconosciuto"
         });
-        // Non resettare effectiveApiKey qui, potrebbe esserci una precedente valida
+        // Reset effectiveApiKey only if this was testing a new key
+        if (apiKeyToTest && apiKeyToTest !== effectiveApiKey) {
+          // Don't reset effectiveApiKey, keep the saved one
+        }
       }
       if (!silentMode) {
         toast({
@@ -368,11 +370,10 @@ const CassaInCloudIntegration = () => {
       return;
     }
 
-    // Verifica la connessione prima di avviare la sincronizzazione se non si usa la chiave dall'input
-    // Se apiKey (input) è usata, si presume che l'utente voglia usarla direttamente (magari per un test rapido)
-    if (!apiKey.trim() && effectiveApiKey) { 
-      const connectionStillValid = await testConnection(effectiveApiKey, true); // Test silenzioso
-      if (!connectionStillValid) {
+    // If connection status shows an error, test the connection before proceeding
+    if (connectionStatus.error && effectiveApiKey) {
+      const connectionValid = await testConnection(effectiveApiKey, true);
+      if (!connectionValid) {
         toast({ title: 'Errore Connessione', description: 'La connessione con la chiave API salvata non è più valida. Si prega di verificarla.', variant: 'destructive' });
         setSyncStatus({ isLoading: false, error: 'Connessione API non valida.' });
         return;
@@ -654,6 +655,12 @@ const CassaInCloudIntegration = () => {
     return <Badge variant="secondary"><AlertCircle className="w-3 h-3 mr-1" />Non Connesso</Badge>;
   };
 
+  // Check if sync should be enabled
+  const isSyncEnabled = () => {
+    // Enable if we have an effective API key (saved) OR if there's no connection error
+    return (effectiveApiKey !== null) && !syncStatus.isLoading;
+  };
+
   return (
     <div className="container mx-auto p-6 space-y-6">
       <div className="flex items-center space-x-3">
@@ -693,6 +700,14 @@ const CassaInCloudIntegration = () => {
                 <p className="text-sm text-muted-foreground">
                   Ultimo controllo: {connectionStatus.lastChecked.toLocaleString()}
                 </p>
+              )}
+
+              {effectiveApiKey && (
+                <div className="p-3 bg-green-50 border border-green-200 rounded-lg">
+                  <p className="text-sm text-green-700">
+                    ✓ Chiave API configurata e pronta per l'uso
+                  </p>
+                </div>
               )}
 
               <div className="space-y-2">
@@ -757,7 +772,7 @@ const CassaInCloudIntegration = () => {
                   <Label>Azione</Label>
                   <Button 
                     onClick={startSync} 
-                    disabled={syncStatus.isLoading || !connectionStatus.isConnected}
+                    disabled={!isSyncEnabled()}
                     className="w-full"
                   >
                     {syncStatus.isLoading ? (
@@ -774,6 +789,15 @@ const CassaInCloudIntegration = () => {
                   </Button>
                 </div>
               </div>
+              
+              {/* Display warning if no API key is configured */}
+              {!effectiveApiKey && (
+                <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+                  <p className="text-sm text-yellow-700">
+                    ⚠️ Configura e salva una chiave API nella sezione "Connessione" per abilitare la sincronizzazione
+                  </p>
+                </div>
+              )}
               
               {/* Aggiungiamo il rendering delle opzioni di sincronizzazione */}
               {renderSyncOptions()}

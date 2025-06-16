@@ -61,6 +61,7 @@ const CassaInCloudIntegration = () => {
   const [isMounted, setIsMounted] = useState(false);
   const [apiKey, setApiKey] = useState("");
   const [effectiveApiKey, setEffectiveApiKey] = useState<string | null>(null);
+  const [savedApiKeyExists, setSavedApiKeyExists] = useState(false); // Nuovo stato per tracciare se esiste una chiave salvata
   const [connectionStatus, setConnectionStatus] = useState<ConnectionStatus>({ isConnected: false });
   const [syncStatus, setSyncStatus] = useState<SyncStatus>({ isLoading: false });
   const [autoSyncEnabled, setAutoSyncEnabled] = useState(false);
@@ -112,6 +113,7 @@ const CassaInCloudIntegration = () => {
         setAutoSyncEnabled(data.auto_sync_enabled || false);
         if (data.api_key) {
           setEffectiveApiKey(data.api_key);
+          setSavedApiKeyExists(true); // Indica che esiste una chiave salvata
           // Set connection status as connected if we have a saved key
           // We'll assume it's valid unless proven otherwise
           if (isMounted) {
@@ -121,17 +123,24 @@ const CassaInCloudIntegration = () => {
               error: undefined
             });
           }
+        } else {
+          setSavedApiKeyExists(false);
         }
       } else if (error && error.code !== 'PGRST116') { // PGRST116: single row not found (nessuna impostazione salvata)
         console.error('Errore nel caricamento impostazioni:', error);
+        setSavedApiKeyExists(false);
         toast({
           title: "Errore Caricamento Impostazioni",
           description: "Impossibile caricare le impostazioni di integrazione.",
           variant: "destructive"
         });
+      } else {
+        // Nessuna impostazione salvata
+        setSavedApiKeyExists(false);
       }
     } catch (error) {
       console.error('Eccezione nel caricamento impostazioni:', error);
+      setSavedApiKeyExists(false);
       toast({
         title: "Errore Critico",
         description: "Si è verificato un errore imprevisto durante il caricamento delle impostazioni.",
@@ -186,6 +195,7 @@ const CassaInCloudIntegration = () => {
       });
 
       setEffectiveApiKey(keyToSave); // La chiave salvata è ora quella effettiva
+      setSavedApiKeyExists(true); // Aggiorna lo stato per indicare che la chiave è salvata
       setApiKey(""); // Pulisce il campo input per sicurezza
       // connectionStatus è già stato aggiornato da testConnection se ha avuto successo
     } catch (error) {
@@ -657,8 +667,8 @@ const CassaInCloudIntegration = () => {
 
   // Check if sync should be enabled
   const isSyncEnabled = () => {
-    // Enable if we have an effective API key (saved) OR if there's no connection error
-    return (effectiveApiKey !== null) && !syncStatus.isLoading;
+    // Enable if we have a saved API key (regardless of connection status) OR if there's an effective API key
+    return savedApiKeyExists && !syncStatus.isLoading;
   };
 
   return (
@@ -702,7 +712,7 @@ const CassaInCloudIntegration = () => {
                 </p>
               )}
 
-              {effectiveApiKey && (
+              {savedApiKeyExists && (
                 <div className="p-3 bg-green-50 border border-green-200 rounded-lg">
                   <p className="text-sm text-green-700">
                     ✓ Chiave API configurata e pronta per l'uso
@@ -790,8 +800,8 @@ const CassaInCloudIntegration = () => {
                 </div>
               </div>
               
-              {/* Display warning if no API key is configured */}
-              {!effectiveApiKey && (
+              {/* Display warning only if no API key is configured */}
+              {!savedApiKeyExists && (
                 <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
                   <p className="text-sm text-yellow-700">
                     ⚠️ Configura e salva una chiave API nella sezione "Connessione" per abilitare la sincronizzazione

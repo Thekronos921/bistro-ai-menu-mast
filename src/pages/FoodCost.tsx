@@ -1,4 +1,3 @@
-
 import EditRecipeDialog from "@/components/EditRecipeDialog";
 import EditDishDialog from "@/components/EditDishDialog";
 import AssociateRecipeDialog from "@/components/AssociateRecipeDialog";
@@ -9,7 +8,6 @@ import FoodCostTable from "@/components/food-cost/FoodCostTable";
 import FoodCostCalculationSection from "@/components/food-cost/FoodCostCalculationSection";
 import FoodCostPagination from "@/components/food-cost/FoodCostPagination";
 import { useFoodCostPage } from "@/hooks/useFoodCostPage";
-
 const FoodCost = () => {
   const {
     // State
@@ -37,14 +35,13 @@ const FoodCost = () => {
     setDateRange,
     settings,
     saveSettings,
-
     // Data
-    foodCostSalesData, // This is now the aggregated data for the period
+    foodCostSalesData,
+    // This is now the aggregated data for the period
     lastCalculationDate,
     categories,
     loading,
     calculatingFoodCost,
-    
     // Computed values
     paginatedItems,
     filteredItems,
@@ -56,7 +53,6 @@ const FoodCost = () => {
     targetReached,
     getTotalSalesForPeriod,
     getSalesMixPercentage,
-
     // Functions
     fetchData,
     createDishFromRecipe,
@@ -67,129 +63,51 @@ const FoodCost = () => {
     exportToCSV,
     handleDeleteDish
   } = useFoodCostPage();
-
   if (loading) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-stone-50 flex items-center justify-center">
+    return <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-stone-50 flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-emerald-600 mx-auto mb-4"></div>
           <p className="text-slate-600">Caricamento analisi food cost...</p>
         </div>
-      </div>
-    );
+      </div>;
   }
+  return <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-stone-50">
+      <FoodCostHeader selectedPeriod={selectedPeriod} onPeriodChange={setSelectedPeriod} settings={settings} onSaveSettings={saveSettings} onAddDish={fetchData} onEditRecipe={handleEditRecipeFromDialog} />
 
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-stone-50">
-      <FoodCostHeader
-        selectedPeriod={selectedPeriod}
-        onPeriodChange={setSelectedPeriod}
-        settings={settings}
-        onSaveSettings={saveSettings}
-        onAddDish={fetchData}
-        onEditRecipe={handleEditRecipeFromDialog}
-      />
+      <main className="max-w-7xl mx-auto px-0 py-[24px]">
+        <FoodCostCalculationSection onCalculate={handleCalculateFoodCost} onRecalculate={handleRecalculateFoodCost} calculatingFoodCost={calculatingFoodCost} foodCostSalesDataCount={foodCostSalesData.length} // Length of aggregated items
+      lastCalculationDate={lastCalculationDate} />
 
-      <main className="max-w-7xl mx-auto px-6 py-8">
-        <FoodCostCalculationSection
-          onCalculate={handleCalculateFoodCost}
-          onRecalculate={handleRecalculateFoodCost}
-          calculatingFoodCost={calculatingFoodCost}
-          foodCostSalesDataCount={foodCostSalesData.length} // Length of aggregated items
-          lastCalculationDate={lastCalculationDate}
-        />
+        <FoodCostKPIs avgFoodCostPercentage={avgFoodCostPercentage} totalMargin={totalMargin} totalRevenue={totalRevenue} criticalDishes={criticalDishes} targetReached={targetReached} selectedPeriod={selectedPeriod} settings={settings} />
 
-        <FoodCostKPIs
-          avgFoodCostPercentage={avgFoodCostPercentage}
-          totalMargin={totalMargin}
-          totalRevenue={totalRevenue}
-          criticalDishes={criticalDishes}
-          targetReached={targetReached}
-          selectedPeriod={selectedPeriod}
-          settings={settings}
-        />
+        <FoodCostFilters searchTerm={searchTerm} onSearchChange={setSearchTerm} selectedCategory={selectedCategory} onCategoryChange={setSelectedCategory} categories={categories} advancedFilters={advancedFilters} onAdvancedFiltersChange={setAdvancedFilters} showAdvancedFilters={showAdvancedFilters} onToggleAdvancedFilters={() => setShowAdvancedFilters(!showAdvancedFilters)} onImportSales={handleSalesImportWrapper} onExportCSV={exportToCSV} onRefresh={fetchData} dateRange={dateRange} onDateRangeChange={setDateRange} />
 
-        <FoodCostFilters
-          searchTerm={searchTerm}
-          onSearchChange={setSearchTerm}
-          selectedCategory={selectedCategory}
-          onCategoryChange={setSelectedCategory}
-          categories={categories}
-          advancedFilters={advancedFilters}
-          onAdvancedFiltersChange={setAdvancedFilters}
-          showAdvancedFilters={showAdvancedFilters}
-          onToggleAdvancedFilters={() => setShowAdvancedFilters(!showAdvancedFilters)}
-          onImportSales={handleSalesImportWrapper}
-          onExportCSV={exportToCSV}
-          onRefresh={fetchData}
-          dateRange={dateRange}
-          onDateRangeChange={setDateRange}
-        />
+        <FoodCostTable filteredItems={paginatedItems} totalItems={filteredItems.length} getTotalSalesForPeriod={getTotalSalesForPeriod} getSalesMixPercentage={getSalesMixPercentage} settings={settings} onEditDish={setEditingDish} onEditRecipe={setEditingRecipe} onCreateDishFromRecipe={createDishFromRecipe} onAssociateRecipe={setAssociatingDish} onDeleteDish={handleDeleteDish} />
 
-        <FoodCostTable
-          filteredItems={paginatedItems}
-          totalItems={filteredItems.length}
-          getTotalSalesForPeriod={getTotalSalesForPeriod}
-          getSalesMixPercentage={getSalesMixPercentage}
-          settings={settings}
-          onEditDish={setEditingDish}
-          onEditRecipe={setEditingRecipe}
-          onCreateDishFromRecipe={createDishFromRecipe}
-          onAssociateRecipe={setAssociatingDish}
-          onDeleteDish={handleDeleteDish}
-        />
-
-        <FoodCostPagination
-          currentPage={currentPage}
-          totalPages={totalPages}
-          itemsPerPage={itemsPerPage}
-          totalItems={filteredItems.length}
-          paginatedItemsLength={paginatedItems.length}
-          onPageChange={setCurrentPage}
-          onItemsPerPageChange={setItemsPerPage}
-        />
+        <FoodCostPagination currentPage={currentPage} totalPages={totalPages} itemsPerPage={itemsPerPage} totalItems={filteredItems.length} paginatedItemsLength={paginatedItems.length} onPageChange={setCurrentPage} onItemsPerPageChange={setItemsPerPage} />
       </main>
 
       {/* Edit Recipe Dialog */}
-      {editingRecipe && (
-        <EditRecipeDialog
-          recipe={{
-            ...editingRecipe,
-            preparation_time: editingRecipe.preparation_time || 0,
-            difficulty: editingRecipe.difficulty || 'Facile',
-            portions: editingRecipe.portions || 1,
-            description: editingRecipe.description || '',
-            allergens: editingRecipe.allergens || '',
-            calories: editingRecipe.calories || 0,
-            protein: editingRecipe.protein || 0,
-            carbs: editingRecipe.carbs || 0,
-            fat: editingRecipe.fat || 0,
-            is_semilavorato: editingRecipe.is_semilavorato || false,
-            recipe_instructions: editingRecipe.recipe_instructions || []
-          }}
-          onClose={() => setEditingRecipe(null)}
-          onRecipeUpdated={fetchData}
-        />
-      )}
+      {editingRecipe && <EditRecipeDialog recipe={{
+      ...editingRecipe,
+      preparation_time: editingRecipe.preparation_time || 0,
+      difficulty: editingRecipe.difficulty || 'Facile',
+      portions: editingRecipe.portions || 1,
+      description: editingRecipe.description || '',
+      allergens: editingRecipe.allergens || '',
+      calories: editingRecipe.calories || 0,
+      protein: editingRecipe.protein || 0,
+      carbs: editingRecipe.carbs || 0,
+      fat: editingRecipe.fat || 0,
+      is_semilavorato: editingRecipe.is_semilavorato || false,
+      recipe_instructions: editingRecipe.recipe_instructions || []
+    }} onClose={() => setEditingRecipe(null)} onRecipeUpdated={fetchData} />}
 
       {/* Edit Dish Dialog */}
-      {editingDish && (
-        <EditDishDialog
-          dish={editingDish}
-          onClose={() => setEditingDish(null)}
-          onDishUpdated={fetchData}
-          onEditRecipe={handleEditRecipeFromDialog}
-        />
-      )}
+      {editingDish && <EditDishDialog dish={editingDish} onClose={() => setEditingDish(null)} onDishUpdated={fetchData} onEditRecipe={handleEditRecipeFromDialog} />}
 
       {/* Associate Recipe Dialog */}
-      <AssociateRecipeDialog
-        dish={associatingDish}
-        onClose={() => setAssociatingDish(null)}
-        onAssociated={fetchData}
-      />
-    </div>
-  );
+      <AssociateRecipeDialog dish={associatingDish} onClose={() => setAssociatingDish(null)} onAssociated={fetchData} />
+    </div>;
 };
-
 export default FoodCost;

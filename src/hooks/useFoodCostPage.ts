@@ -116,7 +116,12 @@ export const useFoodCostPage = () => {
     
     console.log(`[FoodCostDebug] Total sales after filter: ${filteredSales.length}`);
 
-    const salesByDish = filteredSales.reduce((acc, sale) => {
+    // Separate products and variations for proper aggregation
+    const productSales = filteredSales.filter(sale => sale.external_product_id);
+    const variations = filteredSales.filter(sale => !sale.external_product_id);
+
+    // Aggregate product sales by dish
+    const salesByDish = productSales.reduce((acc, sale) => {
       const key = sale.external_product_id;
       if (!acc[key]) {
         acc[key] = {
@@ -130,9 +135,15 @@ export const useFoodCostPage = () => {
       acc[key].revenue += Number(sale.total_amount_sold_for_row) || 0;
       return acc;
     }, {} as Record<string, { dishExternalId: string, dishName: string, unitsSold: number, revenue: number }>);
+
+    // Calculate total revenue including variations
+    const productRevenue = Object.values(salesByDish).reduce((sum, s) => sum + s.revenue, 0);
+    const variationsRevenue = variations.reduce((sum, v) => sum + (Number(v.total_amount_sold_for_row) || 0), 0);
+    const totalRevenueAfterFilter = productRevenue + variationsRevenue;
     
-    const totalRevenueAfterFilter = Object.values(salesByDish).reduce((sum, s) => sum + s.revenue, 0);
-    console.log(`[FoodCostDebug] Total revenue for period: €${totalRevenueAfterFilter.toFixed(2)}`);
+    console.log(`[FoodCostDebug] Product revenue: €${productRevenue.toFixed(2)}`);
+    console.log(`[FoodCostDebug] Variations revenue: €${variationsRevenue.toFixed(2)}`);
+    console.log(`[FoodCostDebug] Total revenue for period (products + variations): €${totalRevenueAfterFilter.toFixed(2)}`);
     
     // Find the dish name from the dishes list for better accuracy
     const dishesByExternalId = new Map(dishes.map(d => [d.external_id, d.name]));
@@ -155,7 +166,7 @@ export const useFoodCostPage = () => {
     totalRevenue,
     criticalDishes,
     targetReached
-  } = useFoodCostAnalysis(dishes, recipes, aggregatedSalesData, selectedPeriod, settings);
+  } = useFoodCostAnalysis(dishes, recipes, aggregatedSalesData, selectedPeriod, settings, detailedSalesData, dateRange);
 
   // No longer need to fetch data on period change
   // useEffect(() => {

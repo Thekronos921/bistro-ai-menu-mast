@@ -1,8 +1,10 @@
+
 import { useMemo, useCallback } from "react";
 import { calculateTotalCost, calculateCostPerPortion } from "@/utils/recipeCalculations";
 import { MenuCategory } from "@/components/MenuEngineeringBadge";
 import type { Recipe } from "@/types/recipe";
 import { TimePeriod } from "@/components/PeriodSelector";
+import { convertTimePeriodToParams } from "@/integrations/cassaInCloud/foodCostCalculationService";
 
 interface Dish {
   id: string;
@@ -26,12 +28,27 @@ interface SettingsConfig {
   targetPercentage: number;
 }
 
+interface ExternalSaleData {
+  id: string;
+  restaurant_id: string;
+  dish_id: string | null;
+  external_product_id: string | null;
+  unmapped_product_description: string | null;
+  quantity_sold: number;
+  total_amount_sold_for_row: number;
+  sale_timestamp: string;
+  sale_date_local: string;
+  created_at: string;
+}
+
 export const useFoodCostAnalysis = (
   dishes: Dish[],
   recipes: Recipe[],
   salesData: SalesData[],
   selectedPeriod: TimePeriod,
-  settings: SettingsConfig
+  settings: SettingsConfig,
+  detailedSalesData?: ExternalSaleData[],
+  dateRange?: { from: Date | undefined; to: Date | undefined }
 ) => {
   const getDishSalesData = useCallback((dishName: string) => {
     return salesData.find(s => s.dishName.toLowerCase() === dishName.toLowerCase() && s.period === selectedPeriod);
@@ -137,11 +154,30 @@ export const useFoodCostAnalysis = (
     ? allDishAnalyses.reduce((sum, analysis) => sum + analysis.foodCostPercentage, 0) / allDishAnalyses.length 
     : 0;
 
+  // Calculate total revenue including variations from detailed sales data
   const totalRevenue = useMemo(() => {
+    if (detailedSalesData && dateRange) {
+      const { periodStartLocal, periodEndLocal } = convertTimePeriodToParams(selectedPeriod, dateRange);
+      
+      const filteredSales = detailedSalesData.filter(sale => {
+        if (!sale.sale_date_local) return false;
+        return sale.sale_date_local >= periodStartLocal && sale.sale_date_local <= periodEndLocal;
+      });
+      
+      // Include ALL revenue: products + variations
+      const totalRevenueIncludingVariations = filteredSales.reduce((total, sale) => {
+        return total + (Number(sale.total_amount_sold_for_row) || 0);
+      }, 0);
+      
+      console.log(`[FoodCostAnalysis] Total revenue including variations: €${totalRevenueIncludingVariations.toFixed(2)}`);
+      return totalRevenueIncludingVariations;
+    }
+    
+    // Fallback to aggregated sales data
     return salesData
       .filter(s => s.period === selectedPeriod)
       .reduce((total, s) => total + (s.revenue || 0), 0);
-  }, [salesData, selectedPeriod]);
+  }, [detailedSalesData, dateRange, selectedPeriod, salesData]);
 
   const dishMapByName = useMemo(() => {
     const map = new Map<string, Dish>();

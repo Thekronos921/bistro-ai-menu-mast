@@ -1,10 +1,11 @@
 
 import { useState } from "react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Settings } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/contexts/AuthContext";
+import { supabase } from "@/integrations/supabase/client";
 
 interface SettingsConfig {
   criticalThreshold: number;
@@ -13,16 +14,20 @@ interface SettingsConfig {
 }
 
 interface SettingsDialogProps {
-  settings: SettingsConfig;
-  onSaveSettings: (settings: SettingsConfig) => void;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
 }
 
-const SettingsDialog = ({ settings, onSaveSettings }: SettingsDialogProps) => {
-  const [open, setOpen] = useState(false);
-  const [formData, setFormData] = useState(settings);
+const SettingsDialog = ({ open, onOpenChange }: SettingsDialogProps) => {
+  const [formData, setFormData] = useState<SettingsConfig>({
+    criticalThreshold: 40,
+    targetThreshold: 35,
+    targetPercentage: 80
+  });
   const { toast } = useToast();
+  const { user } = useAuth();
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (formData.criticalThreshold <= 0 || formData.targetThreshold <= 0 || formData.targetPercentage <= 0 || formData.targetPercentage > 100) {
       toast({
         title: "Errore",
@@ -32,26 +37,38 @@ const SettingsDialog = ({ settings, onSaveSettings }: SettingsDialogProps) => {
       return;
     }
 
-    onSaveSettings(formData);
-    setOpen(false);
-    
-    toast({
-      title: "Successo",
-      description: "Impostazioni salvate con successo"
-    });
+    try {
+      // Save settings to user profile or a settings table
+      const { error } = await supabase
+        .from('user_profiles')
+        .update({
+          settings: formData
+        })
+        .eq('id', user?.id);
+
+      if (error) throw error;
+
+      onOpenChange(false);
+      
+      toast({
+        title: "Successo",
+        description: "Impostazioni salvate con successo"
+      });
+    } catch (error) {
+      console.error('Error saving settings:', error);
+      toast({
+        title: "Errore",
+        description: "Errore nel salvare le impostazioni",
+        variant: "destructive"
+      });
+    }
   };
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        <Button variant="outline" size="sm">
-          <Settings className="w-4 h-4 mr-2" />
-          Impostazioni
-        </Button>
-      </DialogTrigger>
+    <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-md">
         <DialogHeader>
-          <DialogTitle>Impostazioni Food Cost</DialogTitle>
+          <DialogTitle>Impostazioni Utente</DialogTitle>
         </DialogHeader>
         
         <div className="space-y-4">
@@ -111,7 +128,7 @@ const SettingsDialog = ({ settings, onSaveSettings }: SettingsDialogProps) => {
         </div>
 
         <div className="flex justify-end space-x-2 pt-4 border-t">
-          <Button variant="outline" onClick={() => setOpen(false)}>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>
             Annulla
           </Button>
           <Button onClick={handleSave}>

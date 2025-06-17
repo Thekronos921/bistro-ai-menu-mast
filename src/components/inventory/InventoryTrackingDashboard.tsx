@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -7,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
 import { Calendar, Package, Clock, AlertTriangle, Filter, Search, MapPin, Hash, Refrigerator, Snowflake, Archive, Home, Wine } from 'lucide-react';
+import { useIsMobile } from '@/hooks/use-mobile';
 import { useLabels } from '@/hooks/useLabels';
 import { useStorageLocations } from '@/hooks/useStorageLocations';
 import { useInventoryTracking } from '@/hooks/useInventoryTracking';
@@ -43,6 +43,7 @@ interface EnrichedLabel {
 }
 
 const InventoryTrackingDashboard = () => {
+  const isMobile = useIsMobile();
   const { fetchLabels, updateLabelStatus, loading: labelsLoading } = useLabels();
   const { storageLocations } = useStorageLocations();
   const { consumeOrDiscardLabel } = useInventoryTracking();
@@ -233,35 +234,35 @@ const InventoryTrackingDashboard = () => {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6">
       <Tabs defaultValue="labels" className="w-full">
         <TabsList className="grid w-full grid-cols-2">
-          <TabsTrigger value="labels">Etichette Tracciate</TabsTrigger>
-          <TabsTrigger value="storage">Posizioni Storage</TabsTrigger>
+          <TabsTrigger value="labels" className="text-xs sm:text-sm">Etichette Tracciate</TabsTrigger>
+          <TabsTrigger value="storage" className="text-xs sm:text-sm">Posizioni Storage</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="labels" className="space-y-6">
+        <TabsContent value="labels" className="space-y-4 sm:space-y-6">
           {/* Filters */}
           <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Filter className="w-5 h-5" />
-                Filtri
+            <CardHeader className="pb-3 sm:pb-4">
+              <CardTitle className="flex items-center gap-2 text-lg">
+                <Filter className="w-4 h-4 sm:w-5 sm:h-5" />
+                <span className="text-sm sm:text-base">Filtri</span>
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+              <div className={`grid gap-3 ${isMobile ? 'grid-cols-1' : 'grid-cols-1 md:grid-cols-4'}`}>
                 <div>
                   <Input
                     placeholder="Cerca per titolo o lotto..."
                     value={filters.search}
                     onChange={(e) => setFilters(prev => ({ ...prev, search: e.target.value }))}
-                    className="w-full"
+                    className="w-full text-sm"
                   />
                 </div>
                 
                 <Select onValueChange={(value) => setFilters(prev => ({ ...prev, label_type: value }))}>
-                  <SelectTrigger>
+                  <SelectTrigger className="text-sm">
                     <SelectValue placeholder="Tipo etichetta" />
                   </SelectTrigger>
                   <SelectContent>
@@ -275,7 +276,7 @@ const InventoryTrackingDashboard = () => {
                 </Select>
 
                 <Select onValueChange={(value) => setFilters(prev => ({ ...prev, status: value }))}>
-                  <SelectTrigger>
+                  <SelectTrigger className="text-sm">
                     <SelectValue placeholder="Stato" />
                   </SelectTrigger>
                   <SelectContent>
@@ -288,7 +289,7 @@ const InventoryTrackingDashboard = () => {
                 </Select>
 
                 <Select onValueChange={(value) => setFilters(prev => ({ ...prev, storage_location_id: value }))}>
-                  <SelectTrigger>
+                  <SelectTrigger className="text-sm">
                     <SelectValue placeholder="Posizione" />
                   </SelectTrigger>
                   <SelectContent>
@@ -312,7 +313,7 @@ const InventoryTrackingDashboard = () => {
               <CardContent className="text-center py-8">
                 <Package className="w-12 h-12 mx-auto text-gray-400 mb-4" />
                 <h3 className="text-lg font-medium text-gray-900 mb-2">Nessuna etichetta trovata</h3>
-                <p className="text-gray-500">
+                <p className="text-gray-500 text-sm">
                   {labels.length === 0 
                     ? "Non ci sono etichette create. Vai alla sezione Gestione Etichette per crearne una."
                     : "Nessuna etichetta corrisponde ai filtri selezionati."
@@ -321,15 +322,15 @@ const InventoryTrackingDashboard = () => {
               </CardContent>
             </Card>
           ) : (
-            <div className="space-y-6">
+            <div className="space-y-4 sm:space-y-6">
               {Object.entries(groupedLabels).map(([locationName, locationLabels]) => (
-                <div key={locationName} className="space-y-4">
-                  <h3 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
-                    <MapPin className="w-5 h-5" />
-                    {locationName} ({locationLabels.length} etichette)
+                <div key={locationName} className="space-y-3 sm:space-y-4">
+                  <h3 className="text-base sm:text-lg font-semibold text-gray-800 flex items-center gap-2">
+                    <MapPin className="w-4 h-4 sm:w-5 sm:h-5" />
+                    <span className="text-sm sm:text-base">{locationName} ({locationLabels.length} etichette)</span>
                   </h3>
                   
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  <div className={`grid gap-3 sm:gap-4 ${isMobile ? 'grid-cols-1' : 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3'}`}>
                     {locationLabels.map((label) => {
                       const StorageIcon = getStorageLocationIcon(label.storage_location_id);
                       return (
@@ -337,57 +338,57 @@ const InventoryTrackingDashboard = () => {
                           key={label.id} 
                           className={`hover:shadow-md transition-shadow border-l-4 ${getStorageLocationBorderColor(label.storage_location_id)}`}
                         >
-                          <CardHeader className="pb-3">
+                          <CardHeader className="pb-2 sm:pb-3">
                             <div className="flex items-start justify-between">
-                              <div className="flex-1">
-                                <h3 className="font-semibold text-lg text-gray-900">{label.title}</h3>
+                              <div className="flex-1 min-w-0">
+                                <h3 className="font-semibold text-base sm:text-lg text-gray-900 truncate">{label.title}</h3>
                                 {label.batch_number && (
-                                  <div className="flex items-center gap-1 text-sm text-gray-600 mt-1">
+                                  <div className="flex items-center gap-1 text-xs sm:text-sm text-gray-600 mt-1">
                                     <Hash className="w-3 h-3" />
                                     <span>Lotto: {label.batch_number}</span>
                                   </div>
                                 )}
                               </div>
-                              <div className="flex flex-col gap-1">
+                              <div className="flex flex-col gap-1 ml-2">
                                 {getTypeBadge(label.label_type)}
                                 {getStatusBadge(label.status || 'active')}
                               </div>
                             </div>
 
-                            {/* Storage Location Badge - Prominente */}
-                            <div className="mt-3">
+                            {/* Storage Location Badge */}
+                            <div className="mt-2 sm:mt-3">
                               <Badge 
-                                className={`flex items-center gap-2 w-fit px-3 py-1 text-sm font-medium border ${getStorageLocationBadgeColor(label.storage_location_id)}`}
+                                className={`flex items-center gap-2 w-fit px-2 sm:px-3 py-1 text-xs sm:text-sm font-medium border ${getStorageLocationBadgeColor(label.storage_location_id)}`}
                               >
-                                <StorageIcon className="w-4 h-4" />
-                                <span>{label.storage_locations?.name || 'Posizione non specificata'}</span>
+                                <StorageIcon className="w-3 h-3 sm:w-4 sm:h-4" />
+                                <span className="truncate">{label.storage_locations?.name || 'Posizione non specificata'}</span>
                               </Badge>
                             </div>
                           </CardHeader>
                           
-                          <CardContent className="space-y-4">
+                          <CardContent className="space-y-3 sm:space-y-4">
                             {/* Quantity Display */}
                             {formatQuantity(label) && (
-                              <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                              <div className="bg-blue-50 border border-blue-200 rounded-lg p-2 sm:p-3">
                                 <div className="flex items-center justify-between">
-                                  <span className="text-sm font-medium text-blue-700">Quantità:</span>
-                                  <span className="text-lg font-bold text-blue-900">{formatQuantity(label)}</span>
+                                  <span className="text-xs sm:text-sm font-medium text-blue-700">Quantità:</span>
+                                  <span className="text-sm sm:text-lg font-bold text-blue-900">{formatQuantity(label)}</span>
                                 </div>
                               </div>
                             )}
 
                             {/* Ingredient or Recipe info */}
                             {label.ingredient_name && (
-                              <div className="text-sm border-l-2 border-green-300 pl-3">
+                              <div className="text-xs sm:text-sm border-l-2 border-green-300 pl-2 sm:pl-3">
                                 <div className="font-medium text-gray-700">Ingrediente:</div>
-                                <div className="text-gray-900">{label.ingredient_name}</div>
+                                <div className="text-gray-900 truncate">{label.ingredient_name}</div>
                               </div>
                             )}
                             
                             {label.recipe_name && (
-                              <div className="text-sm border-l-2 border-purple-300 pl-3">
+                              <div className="text-xs sm:text-sm border-l-2 border-purple-300 pl-2 sm:pl-3">
                                 <div className="font-medium text-gray-700">Ricetta:</div>
-                                <div className="text-gray-900">{label.recipe_name}</div>
+                                <div className="text-gray-900 truncate">{label.recipe_name}</div>
                                 {label.recipe_portions && (
                                   <div className="text-gray-600">{label.recipe_portions} porzioni</div>
                                 )}
@@ -395,10 +396,10 @@ const InventoryTrackingDashboard = () => {
                             )}
 
                             {/* Dates */}
-                            <div className="space-y-2 text-sm">
+                            <div className="space-y-1 sm:space-y-2 text-xs sm:text-sm">
                               {label.production_date && (
                                 <div className="flex items-center gap-2">
-                                  <Calendar className="w-4 h-4 text-green-600" />
+                                  <Calendar className="w-3 h-3 sm:w-4 sm:h-4 text-green-600 flex-shrink-0" />
                                   <span className="text-gray-600">Prodotto:</span>
                                   <span className="font-medium">{new Date(label.production_date).toLocaleDateString('it-IT')}</span>
                                 </div>
@@ -406,26 +407,26 @@ const InventoryTrackingDashboard = () => {
                               
                               {label.expiry_date && (
                                 <div className="flex items-center gap-2">
-                                  <Clock className="w-4 h-4 text-orange-600" />
+                                  <Clock className="w-3 h-3 sm:w-4 sm:h-4 text-orange-600 flex-shrink-0" />
                                   <span className="text-gray-600">Scade:</span>
                                   <span className="font-medium">{new Date(label.expiry_date).toLocaleDateString('it-IT')}</span>
                                   {isExpiring(label.expiry_date) && (
-                                    <AlertTriangle className="w-4 h-4 text-orange-500" />
+                                    <AlertTriangle className="w-3 h-3 sm:w-4 sm:h-4 text-orange-500 flex-shrink-0" />
                                   )}
                                 </div>
                               )}
                               
                               {getExpiryWarning(label.expiry_date || '') && (
-                                <div className="mt-2">
+                                <div className="mt-1 sm:mt-2">
                                   {getExpiryWarning(label.expiry_date || '')}
                                 </div>
                               )}
                             </div>
 
                             {/* Action Buttons */}
-                            <div className="space-y-2 pt-3 border-t">
+                            <div className="space-y-2 pt-2 sm:pt-3 border-t">
                               {/* Action buttons for QR, Print, Edit */}
-                              <div className="flex gap-2">
+                              <div className="flex gap-1 sm:gap-2">
                                 {label.qr_data && (
                                   <LabelQRDialog qrData={label.qr_data} title={label.title} />
                                 )}
@@ -435,12 +436,12 @@ const InventoryTrackingDashboard = () => {
 
                               {/* Status action buttons */}
                               {label.status === 'active' && (
-                                <div className="flex gap-2">
+                                <div className="flex gap-1 sm:gap-2">
                                   <Button 
                                     size="sm" 
                                     variant="outline"
                                     onClick={() => handleStatusUpdate(label.id, 'consumed')}
-                                    className="flex-1 text-green-700 border-green-200 hover:bg-green-50"
+                                    className="flex-1 text-xs sm:text-sm text-green-700 border-green-200 hover:bg-green-50"
                                   >
                                     Consuma
                                   </Button>
@@ -448,7 +449,7 @@ const InventoryTrackingDashboard = () => {
                                     size="sm" 
                                     variant="outline"
                                     onClick={() => handleStatusUpdate(label.id, 'discarded')}
-                                    className="flex-1 text-red-700 border-red-200 hover:bg-red-50"
+                                    className="flex-1 text-xs sm:text-sm text-red-700 border-red-200 hover:bg-red-50"
                                   >
                                     Scarta
                                   </Button>

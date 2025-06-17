@@ -1,181 +1,137 @@
 
-import { Link, useLocation } from "react-router-dom";
-import {
-  ChefHat,
-  Package,
-  Calculator,
-  PieChart,
-  TrendingUp,
-  Users,
-  Calendar,
-  Utensils,
-  Clock,
-  Target,
-  Settings,
-  Building2,
-  Zap,
-  Home
-} from "lucide-react";
+import { useState } from 'react'
+import { Calendar, Home, Users, Package, ChefHat, BarChart3, ClipboardList, TrendingUp, Activity, UserCheck, Settings, Cloud, Building2 } from "lucide-react"
+import { Link, useLocation } from "react-router-dom"
+
 import {
   Sidebar,
   SidebarContent,
-  SidebarFooter,
   SidebarGroup,
   SidebarGroupContent,
   SidebarGroupLabel,
-  SidebarHeader,
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
-} from "@/components/ui/sidebar";
-import { useAuth } from "@/contexts/AuthContext";
+  SidebarHeader,
+  SidebarFooter,
+  SidebarRail,
+} from "@/components/ui/sidebar"
+import { Button } from "@/components/ui/button"
+import { Avatar, AvatarFallback } from "@/components/ui/avatar"
+import { SettingsDialog } from "./SettingsDialog"
+import { useAuth } from "@/contexts/AuthContext"
 
-const navigationItems = [
+// Menu items.
+const items = [
   {
     title: "Dashboard",
     url: "/",
     icon: Home,
-    category: "main"
   },
   {
-    title: "Gestione Operativa",
-    category: "operational",
-    items: [
-      {
-        title: "Mapping Ricette",
-        url: "/recipes",
-        icon: ChefHat,
-      },
-      {
-        title: "Inventario Ingredienti",
-        url: "/inventory",
-        icon: Package,
-      },
-      {
-        title: "Planning Produzione",
-        url: "/production-planning",
-        icon: Calendar,
-      },
-    ]
+    title: "Ricette",
+    url: "/recipes",
+    icon: ChefHat,
   },
   {
-    title: "Analisi & Performance",
-    category: "analytics",
-    items: [
-      {
-        title: "Food Cost Analysis",
-        url: "/food-cost",
-        icon: Calculator,
-      },
-      {
-        title: "Menu Engineering",
-        url: "/menu-engineering",
-        icon: PieChart,
-      },
-      {
-        title: "Analisi Clienti",
-        url: "/customer-analysis",
-        icon: Users,
-      },
-    ]
+    title: "Menu Engineering",
+    url: "/menu-engineering",
+    icon: BarChart3,
   },
   {
-    title: "Previsioni & Eventi",
-    category: "forecasting",
-    items: [
-      {
-        title: "Previsione Domanda",
-        url: "/demand-forecast",
-        icon: TrendingUp,
-      },
-      {
-        title: "Calendario Eventi",
-        url: "/events",
-        icon: Calendar,
-      },
-    ]
+    title: "Gestione Inventario",
+    url: "/inventory",
+    icon: Package,
   },
   {
-    title: "Staff & Servizio",
-    category: "service",
-    items: [
-      {
-        title: "Dashboard Staff",
-        url: "/staff",
-        icon: Utensils,
-      },
-      {
-        title: "Gestione Turni",
-        url: "/gestione-turni",
-        icon: Clock,
-      },
-      {
-        title: "Prenotazioni",
-        url: "/reservations",
-        icon: Target,
-      },
-    ]
+    title: "Food Cost",
+    url: "/food-cost",
+    icon: TrendingUp,
   },
   {
-    title: "Integrazioni",
-    category: "integrations",
-    items: [
-      {
-        title: "CassaInCloud",
-        url: "/cassa-in-cloud",
-        icon: Zap,
-      },
-    ]
+    title: "Pianificazione Produzione",
+    url: "/production-planning",
+    icon: ClipboardList,
   },
-];
+]
+
+const customerItems = [
+  {
+    title: "Prenotazioni",
+    url: "/reservations",
+    icon: Calendar,
+  },
+  {
+    title: "Analisi Clienti",
+    url: "/customers",
+    icon: Users,
+  },
+  {
+    title: "Previsioni Domanda",
+    url: "/demand-forecast",
+    icon: Activity,
+  },
+  {
+    title: "Calendario Eventi",
+    url: "/events",
+    icon: Calendar,
+  },
+]
+
+const staffItems = [
+  {
+    title: "Gestione Staff",
+    url: "/staff",
+    icon: UserCheck,
+  },
+]
+
+const configItems = [
+  {
+    title: "Configura Ristorante",
+    url: "/restaurant-config",
+    icon: Building2,
+  },
+  {
+    title: "CassaInCloud",
+    url: "/cassa-in-cloud",
+    icon: Cloud,
+  },
+]
 
 export function AppSidebar() {
-  const location = useLocation();
-  const { userProfile } = useAuth();
+  const location = useLocation()
+  const [showSettings, setShowSettings] = useState(false)
+  const { user, userProfile } = useAuth()
 
   const isActive = (url: string) => {
     if (url === "/") {
-      return location.pathname === "/";
+      return location.pathname === "/"
     }
-    return location.pathname.startsWith(url);
-  };
+    return location.pathname.startsWith(url)
+  }
 
   return (
-    <Sidebar collapsible="icon">
-      <SidebarHeader className="border-b border-sidebar-border">
-        <div className="flex items-center gap-2 px-2 py-1">
-          <ChefHat className="h-6 w-6 text-orange-600" />
-          <span className="font-bold text-lg">Bistro AI</span>
-        </div>
-        {userProfile?.restaurant && (
-          <div className="px-2 py-1 text-xs text-sidebar-foreground/70">
-            {userProfile.restaurant.name}
+    <>
+      <Sidebar>
+        <SidebarHeader className="border-b border-sidebar-border">
+          <div className="flex items-center gap-2 px-2 py-2">
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-sidebar-primary text-sidebar-primary-foreground">
+              <ChefHat className="h-4 w-4" />
+            </div>
+            <div className="flex flex-col gap-0.5 leading-none">
+              <span className="font-semibold">RestaurantOS</span>
+              <span className="text-xs text-sidebar-muted-foreground">Management Suite</span>
+            </div>
           </div>
-        )}
-      </SidebarHeader>
-
-      <SidebarContent>
-        {/* Dashboard */}
-        <SidebarGroup>
-          <SidebarMenu>
-            <SidebarMenuItem>
-              <SidebarMenuButton asChild isActive={isActive("/")}>
-                <Link to="/">
-                  <Home />
-                  <span>Dashboard</span>
-                </Link>
-              </SidebarMenuButton>
-            </SidebarMenuItem>
-          </SidebarMenu>
-        </SidebarGroup>
-
-        {/* Grouped Navigation */}
-        {navigationItems.slice(1).map((group) => (
-          <SidebarGroup key={group.category}>
-            <SidebarGroupLabel>{group.title}</SidebarGroupLabel>
+        </SidebarHeader>
+        
+        <SidebarContent>
+          <SidebarGroup>
+            <SidebarGroupLabel>Gestione Operativa</SidebarGroupLabel>
             <SidebarGroupContent>
               <SidebarMenu>
-                {group.items?.map((item) => (
+                {items.map((item) => (
                   <SidebarMenuItem key={item.title}>
                     <SidebarMenuButton asChild isActive={isActive(item.url)}>
                       <Link to={item.url}>
@@ -188,21 +144,90 @@ export function AppSidebar() {
               </SidebarMenu>
             </SidebarGroupContent>
           </SidebarGroup>
-        ))}
-      </SidebarContent>
 
-      <SidebarFooter className="border-t border-sidebar-border">
-        <SidebarMenu>
-          <SidebarMenuItem>
-            <SidebarMenuButton asChild isActive={isActive("/profile")}>
-              <Link to="/profile">
-                <Settings />
-                <span>Profilo & Impostazioni</span>
-              </Link>
-            </SidebarMenuButton>
-          </SidebarMenuItem>
-        </SidebarMenu>
-      </SidebarFooter>
-    </Sidebar>
-  );
+          <SidebarGroup>
+            <SidebarGroupLabel>Customer Experience</SidebarGroupLabel>
+            <SidebarGroupContent>
+              <SidebarMenu>
+                {customerItems.map((item) => (
+                  <SidebarMenuItem key={item.title}>
+                    <SidebarMenuButton asChild isActive={isActive(item.url)}>
+                      <Link to={item.url}>
+                        <item.icon />
+                        <span>{item.title}</span>
+                      </Link>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                ))}
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+
+          <SidebarGroup>
+            <SidebarGroupLabel>Risorse Umane</SidebarGroupLabel>
+            <SidebarGroupContent>
+              <SidebarMenu>
+                {staffItems.map((item) => (
+                  <SidebarMenuItem key={item.title}>
+                    <SidebarMenuButton asChild isActive={isActive(item.url)}>
+                      <Link to={item.url}>
+                        <item.icon />
+                        <span>{item.title}</span>
+                      </Link>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                ))}
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+
+          <SidebarGroup>
+            <SidebarGroupLabel>Configurazione</SidebarGroupLabel>
+            <SidebarGroupContent>
+              <SidebarMenu>
+                {configItems.map((item) => (
+                  <SidebarMenuItem key={item.title}>
+                    <SidebarMenuButton asChild isActive={isActive(item.url)}>
+                      <Link to={item.url}>
+                        <item.icon />
+                        <span>{item.title}</span>
+                      </Link>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                ))}
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+        </SidebarContent>
+
+        <SidebarFooter className="border-t border-sidebar-border">
+          <div className="flex items-center justify-between p-2">
+            <div className="flex items-center gap-2">
+              <Avatar className="h-8 w-8">
+                <AvatarFallback className="text-xs bg-sidebar-accent text-sidebar-accent-foreground">
+                  {user?.email?.slice(0, 2).toUpperCase() || 'U'}
+                </AvatarFallback>
+              </Avatar>
+              <div className="flex flex-col gap-0.5 leading-none">
+                <span className="text-sm font-medium">{userProfile?.full_name || user?.email}</span>
+                <span className="text-xs text-sidebar-muted-foreground">{userProfile?.role || 'User'}</span>
+              </div>
+            </div>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setShowSettings(true)}
+              className="h-8 w-8 p-0"
+            >
+              <Settings className="h-4 w-4" />
+              <span className="sr-only">Impostazioni</span>
+            </Button>
+          </div>
+        </SidebarFooter>
+        <SidebarRail />
+      </Sidebar>
+
+      <SettingsDialog open={showSettings} onOpenChange={setShowSettings} />
+    </>
+  )
 }

@@ -22,7 +22,6 @@ import { printRecipe } from "@/components/recipes/RecipesPrintUtility";
 import { useRecipeActions } from "@/components/recipes/useRecipeActions";
 import type { Recipe } from '@/types/recipe';
 import { useCategories } from '@/hooks/useCategories';
-import Layout from '@/components/Layout';
 
 const Recipes = () => {
   const { categories } = useCategories();
@@ -140,105 +139,99 @@ const Recipes = () => {
 
   if (loading) {
     return (
-      <Layout>
-        <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-stone-50 flex items-center justify-center">
-          <div className="text-center">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600 mx-auto mb-4"></div>
-            <p className="text-slate-600">Caricamento ricette...</p>
-          </div>
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-stone-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600 mx-auto mb-4"></div>
+          <p className="text-slate-600">Caricamento ricette...</p>
         </div>
-      </Layout>
+      </div>
     );
   }
 
   if (!restaurantId) {
     return (
-      <Layout>
-        <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-stone-50 flex items-center justify-center">
-          <div className="text-center">
-            <p className="text-slate-600">Errore: Nessun ristorante associato</p>
-          </div>
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-stone-50 flex items-center justify-center">
+        <div className="text-center">
+          <p className="text-slate-600">Errore: Nessun ristorante associato</p>
         </div>
-      </Layout>
+      </div>
     );
   }
 
   return (
-    <Layout>
-      <TooltipProvider>
-        <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-stone-50">
-          <RecipeHeader onAddRecipe={fetchRecipes} />
+    <TooltipProvider>
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-stone-50">
+        <RecipeHeader onAddRecipe={fetchRecipes} />
 
-          <main className="max-w-7xl mx-auto px-6 py-8">
-            <RecipeFilters
+        <main className="max-w-7xl mx-auto px-6 py-8">
+          <RecipeFilters
+            searchTerm={searchTerm}
+            onSearchChange={setSearchTerm}
+            selectedCategory={selectedCategory}
+            onCategoryChange={setSelectedCategory}
+            categories={categories}
+          />
+
+          {filteredRecipes.length === 0 ? (
+            <EmptyRecipeState
+              onAddRecipe={fetchRecipes}
               searchTerm={searchTerm}
-              onSearchChange={setSearchTerm}
               selectedCategory={selectedCategory}
-              onCategoryChange={setSelectedCategory}
-              categories={categories}
             />
-
-            {filteredRecipes.length === 0 ? (
-              <EmptyRecipeState
-                onAddRecipe={fetchRecipes}
-                searchTerm={searchTerm}
-                selectedCategory={selectedCategory}
-              />
-            ) : (
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                {filteredRecipes.map((recipe) => (
-                  <RecipeCard
-                    key={recipe.id}
-                    recipe={recipe}
-                    onEdit={setEditingRecipe}
-                    onDuplicate={duplicateRecipe}
-                    onDelete={setDeleteRecipeId}
-                    onPrint={printRecipe}
-                  />
-                ))}
-              </div>
-            )}
-          </main>
-
-          {/* Edit Recipe Dialog */}
-          {editingRecipe && (
-            <EditRecipeDialog
-              recipe={editingRecipe}
-              onClose={() => setEditingRecipe(null)}
-              onRecipeUpdated={() => {
-                fetchRecipes();
-                setEditingRecipe(null);
-              }}
-            />
+          ) : (
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {filteredRecipes.map((recipe) => (
+                <RecipeCard
+                  key={recipe.id}
+                  recipe={recipe}
+                  onEdit={setEditingRecipe}
+                  onDuplicate={duplicateRecipe}
+                  onDelete={setDeleteRecipeId}
+                  onPrint={printRecipe}
+                />
+              ))}
+            </div>
           )}
+        </main>
 
-          {/* Delete Confirmation Dialog */}
-          <AlertDialog open={!!deleteRecipeId} onOpenChange={() => setDeleteRecipeId(null)}>
-            <AlertDialogContent>
-              <AlertDialogHeader>
-                <AlertDialogTitle>Conferma eliminazione</AlertDialogTitle>
-                <AlertDialogDescription>
-                  Sei sicuro di voler eliminare questa ricetta? Questa azione non può essere annullata.
-                </AlertDialogDescription>
-              </AlertDialogHeader>
-              <AlertDialogFooter>
-                <AlertDialogCancel>Annulla</AlertDialogCancel>
-                <AlertDialogAction
-                  onClick={() => {
-                    if (deleteRecipeId) {
-                      handleDeleteRecipe(deleteRecipeId);
-                    }
-                  }}
-                  className="bg-red-600 hover:bg-red-700"
-                >
-                  Elimina
-                </AlertDialogAction>
-              </AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
-        </div>
-      </TooltipProvider>
-    </Layout>
+        {/* Edit Recipe Dialog */}
+        {editingRecipe && (
+          <EditRecipeDialog
+            recipe={editingRecipe}
+            onClose={() => setEditingRecipe(null)}
+            onRecipeUpdated={() => {
+              fetchRecipes();
+              setEditingRecipe(null);
+            }}
+          />
+        )}
+
+        {/* Delete Confirmation Dialog */}
+        <AlertDialog open={!!deleteRecipeId} onOpenChange={() => setDeleteRecipeId(null)}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Conferma eliminazione</AlertDialogTitle>
+              <AlertDialogDescription>
+                Sei sicuro di voler eliminare questa ricetta? Questa azione non può essere annullata.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Annulla</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={() => {
+                  if (deleteRecipeId) {
+                    handleDeleteRecipe(deleteRecipeId);
+                  }
+                }}
+                className="bg-red-600 hover:bg-red-700"
+              >
+                Elimina
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      </div>
+    </TooltipProvider>
   );
 };
 

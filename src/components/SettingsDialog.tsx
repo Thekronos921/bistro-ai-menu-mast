@@ -1,10 +1,10 @@
-import { useState, useEffect } from "react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+
+import { useState } from "react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Settings } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { useAuth } from "@/contexts/AuthContext";
-import { supabase } from "@/integrations/supabase/client";
 
 interface SettingsConfig {
   criticalThreshold: number;
@@ -13,29 +13,16 @@ interface SettingsConfig {
 }
 
 interface SettingsDialogProps {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  settings?: SettingsConfig;
-  onSaveSettings?: (settings: SettingsConfig) => void;
+  settings: SettingsConfig;
+  onSaveSettings: (settings: SettingsConfig) => void;
 }
 
-const SettingsDialog = ({ open, onOpenChange, settings, onSaveSettings }: SettingsDialogProps) => {
-  const [formData, setFormData] = useState<SettingsConfig>({
-    criticalThreshold: 40,
-    targetThreshold: 35,
-    targetPercentage: 80
-  });
+const SettingsDialog = ({ settings, onSaveSettings }: SettingsDialogProps) => {
+  const [open, setOpen] = useState(false);
+  const [formData, setFormData] = useState(settings);
   const { toast } = useToast();
-  const { user } = useAuth();
 
-  // Update form data when external settings change
-  useEffect(() => {
-    if (settings) {
-      setFormData(settings);
-    }
-  }, [settings]);
-
-  const handleSave = async () => {
+  const handleSave = () => {
     if (formData.criticalThreshold <= 0 || formData.targetThreshold <= 0 || formData.targetPercentage <= 0 || formData.targetPercentage > 100) {
       toast({
         title: "Errore",
@@ -45,43 +32,26 @@ const SettingsDialog = ({ open, onOpenChange, settings, onSaveSettings }: Settin
       return;
     }
 
-    try {
-      // If external save handler is provided, use it
-      if (onSaveSettings) {
-        onSaveSettings(formData);
-      } else {
-        // Otherwise, save to user profile
-        const { error } = await supabase
-          .from('user_profiles')
-          .update({
-            settings: formData
-          })
-          .eq('id', user?.id);
-
-        if (error) throw error;
-      }
-
-      onOpenChange(false);
-      
-      toast({
-        title: "Successo",
-        description: "Impostazioni salvate con successo"
-      });
-    } catch (error) {
-      console.error('Error saving settings:', error);
-      toast({
-        title: "Errore",
-        description: "Errore nel salvare le impostazioni",
-        variant: "destructive"
-      });
-    }
+    onSaveSettings(formData);
+    setOpen(false);
+    
+    toast({
+      title: "Successo",
+      description: "Impostazioni salvate con successo"
+    });
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
+        <Button variant="outline" size="sm">
+          <Settings className="w-4 h-4 mr-2" />
+          Impostazioni
+        </Button>
+      </DialogTrigger>
       <DialogContent className="max-w-md">
         <DialogHeader>
-          <DialogTitle>Impostazioni Utente</DialogTitle>
+          <DialogTitle>Impostazioni Food Cost</DialogTitle>
         </DialogHeader>
         
         <div className="space-y-4">
@@ -141,7 +111,7 @@ const SettingsDialog = ({ open, onOpenChange, settings, onSaveSettings }: Settin
         </div>
 
         <div className="flex justify-end space-x-2 pt-4 border-t">
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
+          <Button variant="outline" onClick={() => setOpen(false)}>
             Annulla
           </Button>
           <Button onClick={handleSave}>

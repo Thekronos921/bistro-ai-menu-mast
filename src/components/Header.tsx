@@ -42,7 +42,7 @@ const Header = () => {
   }
 
   return (
-    <header className="bg-white shadow-sm border-b">
+    <header className="bg-white shadow-sm border-b sticky top-0 z-40">
       <div className="flex items-center justify-between h-14 px-4">
         {/* Left side - Sidebar trigger + Brand (mobile) */}
         <div className="flex items-center gap-3">

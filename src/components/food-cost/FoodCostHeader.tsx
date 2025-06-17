@@ -29,8 +29,34 @@ const FoodCostHeader = ({
 }: FoodCostHeaderProps) => {
   return (
     <header className="bg-white/80 backdrop-blur-sm border-b border-stone-200 sticky top-14 z-40">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 py-4">
-        <div className="flex items-center justify-between">
+      <div className="max-w-7xl mx-auto px-3 sm:px-6 py-3 sm:py-4">
+        {/* Mobile Layout */}
+        <div className="flex flex-col space-y-3 sm:hidden">
+          {/* Title Row */}
+          <div className="flex items-center space-x-2">
+            <div className="w-8 h-8 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-xl flex items-center justify-center flex-shrink-0">
+              <DollarSign className="w-4 h-4 text-white" />
+            </div>
+            <div className="min-w-0 flex-1">
+              <h1 className="text-lg font-bold text-slate-800 truncate">Food Cost & Menu Engineering</h1>
+              <p className="text-xs text-slate-500">Analisi costi e performance</p>
+            </div>
+          </div>
+          
+          {/* Controls Row */}
+          <div className="flex items-center justify-between space-x-2">
+            <div className="flex-1 min-w-0">
+              <PeriodSelector selectedPeriod={selectedPeriod} onPeriodChange={onPeriodChange} />
+            </div>
+            <div className="flex items-center space-x-1 flex-shrink-0">
+              <SettingsDialog settings={settings} onSaveSettings={onSaveSettings} />
+              <AddDishDialog onAddDish={onAddDish} onEditRecipe={onEditRecipe} />
+            </div>
+          </div>
+        </div>
+
+        {/* Desktop Layout */}
+        <div className="hidden sm:flex items-center justify-between">
           <div className="flex items-center space-x-3">
             <div className="w-10 h-10 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-xl flex items-center justify-center">
               <DollarSign className="w-6 h-6 text-white" />

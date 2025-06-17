@@ -8,6 +8,7 @@ import FoodCostTable from "@/components/food-cost/FoodCostTable";
 import FoodCostCalculationSection from "@/components/food-cost/FoodCostCalculationSection";
 import FoodCostPagination from "@/components/food-cost/FoodCostPagination";
 import { useFoodCostPage } from "@/hooks/useFoodCostPage";
+
 const FoodCost = () => {
   const {
     // State
@@ -72,19 +73,73 @@ const FoodCost = () => {
       </div>;
   }
   return <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-stone-50">
-      <FoodCostHeader selectedPeriod={selectedPeriod} onPeriodChange={setSelectedPeriod} settings={settings} onSaveSettings={saveSettings} onAddDish={fetchData} onEditRecipe={handleEditRecipeFromDialog} />
+      <FoodCostHeader 
+        selectedPeriod={selectedPeriod} 
+        onPeriodChange={setSelectedPeriod} 
+        settings={settings} 
+        onSaveSettings={saveSettings} 
+        onAddDish={fetchData} 
+        onEditRecipe={handleEditRecipeFromDialog} 
+      />
 
-      <main className="max-w-7xl mx-auto px-0 py-[24px]">
-        <FoodCostCalculationSection onCalculate={handleCalculateFoodCost} onRecalculate={handleRecalculateFoodCost} calculatingFoodCost={calculatingFoodCost} foodCostSalesDataCount={foodCostSalesData.length} // Length of aggregated items
-      lastCalculationDate={lastCalculationDate} />
+      <main className="max-w-7xl mx-auto px-3 sm:px-6 py-4 sm:py-6">
+        <FoodCostCalculationSection 
+          onCalculate={handleCalculateFoodCost} 
+          onRecalculate={handleRecalculateFoodCost} 
+          calculatingFoodCost={calculatingFoodCost} 
+          foodCostSalesDataCount={foodCostSalesData.length}
+          lastCalculationDate={lastCalculationDate} 
+        />
 
-        <FoodCostKPIs avgFoodCostPercentage={avgFoodCostPercentage} totalMargin={totalMargin} totalRevenue={totalRevenue} criticalDishes={criticalDishes} targetReached={targetReached} selectedPeriod={selectedPeriod} settings={settings} />
+        <FoodCostKPIs 
+          avgFoodCostPercentage={avgFoodCostPercentage} 
+          totalMargin={totalMargin} 
+          totalRevenue={totalRevenue} 
+          criticalDishes={criticalDishes} 
+          targetReached={targetReached} 
+          selectedPeriod={selectedPeriod} 
+          settings={settings} 
+        />
 
-        <FoodCostFilters searchTerm={searchTerm} onSearchChange={setSearchTerm} selectedCategory={selectedCategory} onCategoryChange={setSelectedCategory} categories={categories} advancedFilters={advancedFilters} onAdvancedFiltersChange={setAdvancedFilters} showAdvancedFilters={showAdvancedFilters} onToggleAdvancedFilters={() => setShowAdvancedFilters(!showAdvancedFilters)} onImportSales={handleSalesImportWrapper} onExportCSV={exportToCSV} onRefresh={fetchData} dateRange={dateRange} onDateRangeChange={setDateRange} />
+        <FoodCostFilters 
+          searchTerm={searchTerm} 
+          onSearchChange={setSearchTerm} 
+          selectedCategory={selectedCategory} 
+          onCategoryChange={setSelectedCategory} 
+          categories={categories} 
+          advancedFilters={advancedFilters} 
+          onAdvancedFiltersChange={setAdvancedFilters} 
+          showAdvancedFilters={showAdvancedFilters} 
+          onToggleAdvancedFilters={() => setShowAdvancedFilters(!showAdvancedFilters)} 
+          onImportSales={handleSalesImportWrapper} 
+          onExportCSV={exportToCSV} 
+          onRefresh={fetchData} 
+          dateRange={dateRange} 
+          onDateRangeChange={setDateRange} 
+        />
 
-        <FoodCostTable filteredItems={paginatedItems} totalItems={filteredItems.length} getTotalSalesForPeriod={getTotalSalesForPeriod} getSalesMixPercentage={getSalesMixPercentage} settings={settings} onEditDish={setEditingDish} onEditRecipe={setEditingRecipe} onCreateDishFromRecipe={createDishFromRecipe} onAssociateRecipe={setAssociatingDish} onDeleteDish={handleDeleteDish} />
+        <FoodCostTable 
+          filteredItems={paginatedItems} 
+          totalItems={filteredItems.length} 
+          getTotalSalesForPeriod={getTotalSalesForPeriod} 
+          getSalesMixPercentage={getSalesMixPercentage} 
+          settings={settings} 
+          onEditDish={setEditingDish} 
+          onEditRecipe={setEditingRecipe} 
+          onCreateDishFromRecipe={createDishFromRecipe} 
+          onAssociateRecipe={setAssociatingDish} 
+          onDeleteDish={handleDeleteDish} 
+        />
 
-        <FoodCostPagination currentPage={currentPage} totalPages={totalPages} itemsPerPage={itemsPerPage} totalItems={filteredItems.length} paginatedItemsLength={paginatedItems.length} onPageChange={setCurrentPage} onItemsPerPageChange={setItemsPerPage} />
+        <FoodCostPagination 
+          currentPage={currentPage} 
+          totalPages={totalPages} 
+          itemsPerPage={itemsPerPage} 
+          totalItems={filteredItems.length} 
+          paginatedItemsLength={paginatedItems.length} 
+          onPageChange={setCurrentPage} 
+          onItemsPerPageChange={setItemsPerPage} 
+        />
       </main>
 
       {/* Edit Recipe Dialog */}
@@ -110,4 +165,5 @@ const FoodCost = () => {
       <AssociateRecipeDialog dish={associatingDish} onClose={() => setAssociatingDish(null)} onAssociated={fetchData} />
     </div>;
 };
+
 export default FoodCost;

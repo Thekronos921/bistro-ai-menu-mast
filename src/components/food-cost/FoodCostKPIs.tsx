@@ -1,3 +1,4 @@
+
 import { TrendingDown, DollarSign, AlertTriangle, Target } from "lucide-react";
 import KPICard from "@/components/KPICard";
 import { TimePeriod } from "@/components/PeriodSelector";
@@ -28,7 +29,7 @@ const FoodCostKPIs = ({
   settings
 }: FoodCostKPIsProps) => {
   return (
-    <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+    <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6 mb-6 sm:mb-8">
       <KPICard
         title="Food Cost Medio"
         value={`${avgFoodCostPercentage.toFixed(1)}%`}
@@ -40,7 +41,7 @@ const FoodCostKPIs = ({
       <KPICard
         title={`Margine Totale (${selectedPeriod})`}
         value={`€${totalMargin.toFixed(0)}`}
-        subtitle={`Venduto Totale: €${totalRevenue.toFixed(0)}`}
+        subtitle={`Venduto: €${totalRevenue.toFixed(0)}`}
         icon={DollarSign}
         trend="up"
       />
@@ -56,7 +57,7 @@ const FoodCostKPIs = ({
       <KPICard
         title="Target Raggiunto"
         value={`${targetReached.toFixed(0)}%`}
-        subtitle={`dei piatti sotto il ${settings.targetThreshold}%`}
+        subtitle={`piatti sotto il ${settings.targetThreshold}%`}
         icon={Target}
         progress={targetReached}
       />

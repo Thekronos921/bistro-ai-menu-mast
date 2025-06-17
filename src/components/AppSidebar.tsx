@@ -117,6 +117,17 @@ const navigationItems = [
     ]
   },
   {
+    title: "Configurazione",
+    category: "configuration",
+    items: [
+      {
+        title: "Configurazione",
+        url: "/configuration",
+        icon: Settings,
+      },
+    ]
+  },
+  {
     title: "Integrazioni",
     category: "integrations",
     items: [

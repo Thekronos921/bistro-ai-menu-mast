@@ -1,4 +1,3 @@
-
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -28,6 +27,7 @@ import LabelView from "./pages/LabelView";
 import Reservations from "./pages/Reservations";
 import ShiftManagementPage from "./components/shifts/ShiftManagementPage";
 import NotFound from "./pages/NotFound";
+import Configuration from "./pages/Configuration";
 
 const queryClient = new QueryClient();
 
@@ -52,6 +52,14 @@ const App = () => (
                 <PostRegistrationSetup />
                 <Layout>
                   <Index />
+                </Layout>
+              </ProtectedRoute>
+            } />
+            <Route path="/configuration" element={
+              <ProtectedRoute>
+                <PostRegistrationSetup />
+                <Layout>
+                  <Configuration />
                 </Layout>
               </ProtectedRoute>
             } />

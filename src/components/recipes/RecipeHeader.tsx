@@ -9,7 +9,7 @@ interface RecipeHeaderProps {
 
 const RecipeHeader: React.FC<RecipeHeaderProps> = ({ onAddRecipe }) => {
   return (
-    <header className="bg-white/80 backdrop-blur-sm border-b border-stone-200 sticky top-14 z-40">
+    <header className="bg-white/80 backdrop-blur-sm border-b border-stone-200">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 py-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-3">

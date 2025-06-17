@@ -32,7 +32,7 @@ const FoodCostHeader = ({
 
   return (
     <>
-      <header className="bg-white/80 backdrop-blur-sm border-b border-stone-200 sticky top-14 z-40">
+      <header className="bg-white/80 backdrop-blur-sm border-b border-stone-200">
         <div className="max-w-7xl mx-auto px-3 sm:px-6 py-3 sm:py-4">
           {/* Mobile Layout */}
           <div className="flex flex-col space-y-3 sm:hidden">

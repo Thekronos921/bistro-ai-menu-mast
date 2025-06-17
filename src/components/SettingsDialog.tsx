@@ -1,5 +1,4 @@
-
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -16,9 +15,11 @@ interface SettingsConfig {
 interface SettingsDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  settings?: SettingsConfig;
+  onSaveSettings?: (settings: SettingsConfig) => void;
 }
 
-const SettingsDialog = ({ open, onOpenChange }: SettingsDialogProps) => {
+const SettingsDialog = ({ open, onOpenChange, settings, onSaveSettings }: SettingsDialogProps) => {
   const [formData, setFormData] = useState<SettingsConfig>({
     criticalThreshold: 40,
     targetThreshold: 35,
@@ -26,6 +27,13 @@ const SettingsDialog = ({ open, onOpenChange }: SettingsDialogProps) => {
   });
   const { toast } = useToast();
   const { user } = useAuth();
+
+  // Update form data when external settings change
+  useEffect(() => {
+    if (settings) {
+      setFormData(settings);
+    }
+  }, [settings]);
 
   const handleSave = async () => {
     if (formData.criticalThreshold <= 0 || formData.targetThreshold <= 0 || formData.targetPercentage <= 0 || formData.targetPercentage > 100) {
@@ -38,15 +46,20 @@ const SettingsDialog = ({ open, onOpenChange }: SettingsDialogProps) => {
     }
 
     try {
-      // Save settings to user profile or a settings table
-      const { error } = await supabase
-        .from('user_profiles')
-        .update({
-          settings: formData
-        })
-        .eq('id', user?.id);
+      // If external save handler is provided, use it
+      if (onSaveSettings) {
+        onSaveSettings(formData);
+      } else {
+        // Otherwise, save to user profile
+        const { error } = await supabase
+          .from('user_profiles')
+          .update({
+            settings: formData
+          })
+          .eq('id', user?.id);
 
-      if (error) throw error;
+        if (error) throw error;
+      }
 
       onOpenChange(false);
       

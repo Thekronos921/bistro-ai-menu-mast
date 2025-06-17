@@ -48,9 +48,6 @@ const AddDishDialog = ({ onAddDish, onEditRecipe }: AddDishDialogProps) => {
     is_active: true
   });
 
-  // Remove the hardcoded categories array
-  // const categories = ["Antipasti", "Primi Piatti", "Secondi Piatti", "Dolci", "Contorni", "Bevande"];
-
   const fetchCategories = async () => {
     if (!restaurantId) {
       console.log("No restaurant ID available for fetching categories");

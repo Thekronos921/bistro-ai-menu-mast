@@ -18,7 +18,7 @@ import {
 } from "@/components/ui/sidebar"
 import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
-import { SettingsDialog } from "./SettingsDialog"
+import SettingsDialog from "./SettingsDialog"
 import { useAuth } from "@/contexts/AuthContext"
 
 // Menu items.

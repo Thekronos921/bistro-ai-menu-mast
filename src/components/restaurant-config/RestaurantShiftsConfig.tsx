@@ -1,7 +1,7 @@
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Clock } from "lucide-react";
-import { ShiftManagementPage } from "@/components/shifts/ShiftManagementPage";
+import ShiftManagementPage from "@/components/shifts/ShiftManagementPage";
 
 export const RestaurantShiftsConfig = () => {
   return (

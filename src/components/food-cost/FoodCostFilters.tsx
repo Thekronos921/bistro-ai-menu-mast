@@ -2,6 +2,7 @@
 import { FilterConfig } from "@/components/AdvancedFilters";
 import { FoodCostSalesData, DateRange } from "@/hooks/food-cost/types";
 import EnhancedFilters from "./EnhancedFilters";
+import DishCategoriesDrawer from "@/components/categories/DishCategoriesDrawer";
 
 interface FoodCostFiltersProps {
   searchTerm: string;
@@ -20,6 +21,7 @@ interface FoodCostFiltersProps {
   onDateRangeChange: (range: DateRange) => void;
   totalItems?: number;
   filteredItems?: number;
+  restaurantId?: string;
 }
 
 const FoodCostFilters = ({
@@ -33,7 +35,9 @@ const FoodCostFilters = ({
   showAdvancedFilters,
   onToggleAdvancedFilters,
   totalItems = 0,
-  filteredItems = 0
+  filteredItems = 0,
+  restaurantId,
+  onRefresh
 }: FoodCostFiltersProps) => {
   const handleClearFilters = () => {
     onSearchChange("");
@@ -41,21 +45,38 @@ const FoodCostFilters = ({
     onAdvancedFiltersChange({});
   };
 
+  const handleCategoryChange = () => {
+    // Ricarica le categorie quando vengono modificate
+    onRefresh();
+  };
+
   return (
-    <EnhancedFilters
-      searchTerm={searchTerm}
-      onSearchChange={onSearchChange}
-      selectedCategory={selectedCategory}
-      onCategoryChange={onCategoryChange}
-      categories={categories}
-      filters={advancedFilters}
-      onFiltersChange={onAdvancedFiltersChange}
-      showAdvanced={showAdvancedFilters}
-      onToggleAdvanced={onToggleAdvancedFilters}
-      totalItems={totalItems}
-      filteredItems={filteredItems}
-      onClearFilters={handleClearFilters}
-    />
+    <div className="space-y-4">
+      <EnhancedFilters
+        searchTerm={searchTerm}
+        onSearchChange={onSearchChange}
+        selectedCategory={selectedCategory}
+        onCategoryChange={onCategoryChange}
+        categories={categories}
+        filters={advancedFilters}
+        onFiltersChange={onAdvancedFiltersChange}
+        showAdvanced={showAdvancedFilters}
+        onToggleAdvanced={onToggleAdvancedFilters}
+        totalItems={totalItems}
+        filteredItems={filteredItems}
+        onClearFilters={handleClearFilters}
+      />
+      
+      {/* Aggiungi il drawer per la gestione categorie */}
+      {restaurantId && (
+        <div className="flex justify-end">
+          <DishCategoriesDrawer 
+            restaurantId={restaurantId}
+            onCategoryChange={handleCategoryChange}
+          />
+        </div>
+      )}
+    </div>
   );
 };
 

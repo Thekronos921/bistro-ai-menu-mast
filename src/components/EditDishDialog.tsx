@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -11,6 +12,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useRestaurant } from "@/hooks/useRestaurant";
 import { calculateTotalCost, calculateCostPerPortion } from "@/utils/recipeCalculations";
 import { Recipe as RecipeType } from "@/types/recipe";
+import CategorySelect from "@/components/categories/CategorySelect";
 
 interface Dish {
   id: string;
@@ -31,7 +33,6 @@ interface EditDishDialogProps {
 const EditDishDialog = ({ dish, onClose, onDishUpdated, onEditRecipe }: EditDishDialogProps) => {
   const [loading, setLoading] = useState(false);
   const [recipes, setRecipes] = useState<RecipeType[]>([]);
-  const [categories, setCategories] = useState<string[]>([]);
   const [selectedRecipe, setSelectedRecipe] = useState<RecipeType | null>(null);
   const { toast } = useToast();
   const { restaurantId } = useRestaurant();
@@ -45,51 +46,14 @@ const EditDishDialog = ({ dish, onClose, onDishUpdated, onEditRecipe }: EditDish
     is_active: true
   });
 
-
-
   useEffect(() => {
     if (restaurantId) {
       fetchRecipes();
-      fetchCategories();
     }
     if (dish.recipes) {
       setSelectedRecipe(dish.recipes);
     }
   }, [restaurantId]);
-
-  const fetchCategories = async () => {
-    try {
-      if (!restaurantId) {
-        console.log("No restaurant ID available for categories");
-        return;
-      }
-
-      const { data, error } = await supabase
-        .from('dishes')
-        .select('restaurant_category_name')
-        .eq('restaurant_id', restaurantId)
-        .not('restaurant_category_name', 'is', null);
-
-      if (error) throw error;
-      
-      // Estrai le categorie uniche e filtra quelle non null/undefined
-      const uniqueCategories = [...new Set(
-        data
-          .map(dish => dish.restaurant_category_name)
-          .filter(Boolean)
-      )].sort();
-      
-      setCategories(uniqueCategories);
-      console.log("Fetched categories:", uniqueCategories);
-    } catch (error) {
-      console.error('Error fetching categories:', error);
-      toast({
-        title: "Errore",
-        description: "Errore nel caricamento delle categorie",
-        variant: "destructive"
-      });
-    }
-  };
 
   const fetchRecipes = async () => {
     try {
@@ -173,6 +137,10 @@ const EditDishDialog = ({ dish, onClose, onDishUpdated, onEditRecipe }: EditDish
     setFormData({...formData, recipe_id: recipeId});
   };
 
+  const handleCategoryChange = (categoryName: string | undefined) => {
+    setFormData({...formData, category: categoryName || ""});
+  };
+
   const getFoodCostPercentage = () => {
     if (!selectedRecipe || formData.selling_price <= 0) return 0;
     const costPerPortion = calculateCostPerPortion(selectedRecipe.recipe_ingredients, selectedRecipe.portions);
@@ -229,9 +197,39 @@ const EditDishDialog = ({ dish, onClose, onDishUpdated, onEditRecipe }: EditDish
 
     setLoading(true);
     try {
+      // Trova o crea la categoria usando il nuovo sistema dish_categories
+      let categoryId = null;
+      
+      // Prima prova a trovare la categoria esistente
+      const { data: existingCategory } = await supabase
+        .from('dish_categories')
+        .select('id')
+        .eq('restaurant_id', restaurantId)
+        .eq('name', formData.category)
+        .single();
+
+      if (existingCategory) {
+        categoryId = existingCategory.id;
+      } else {
+        // Se non esiste, creala
+        const { data: newCategory, error: categoryError } = await supabase
+          .from('dish_categories')
+          .insert({
+            restaurant_id: restaurantId,
+            name: formData.category,
+            display_order: 0
+          })
+          .select('id')
+          .single();
+
+        if (categoryError) throw categoryError;
+        categoryId = newCategory.id;
+      }
+
       const updateData: any = {
         name: formData.name,
-        restaurant_category_name: formData.category,
+        category_id: categoryId,
+        restaurant_category_name: formData.category, // Mantieni per compatibilità
         selling_price: formData.selling_price
       };
 
@@ -295,25 +293,29 @@ const EditDishDialog = ({ dish, onClose, onDishUpdated, onEditRecipe }: EditDish
 
               <div>
                 <label className="block text-sm font-medium mb-2">Categoria Piatto</label>
-                <Select value={formData.category} onValueChange={(value) => setFormData({...formData, category: value})}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Seleziona categoria" />
-                  </SelectTrigger>
-                  <SelectContent>
-                  {categories.length === 0 ? (
-                      <SelectItem value="no-categories-available" disabled>Nessuna categoria disponibile</SelectItem>
-                    ) : (
-                      categories.map(cat => (
-                        <SelectItem key={cat} value={cat}>{cat}</SelectItem>
-                      ))
-                    )}
-                  </SelectContent>
-                </Select>
-                {categories.length === 0 && (
-                  <p className="text-sm text-gray-500 mt-1">
-                    Nessuna categoria trovata. Le categorie vengono caricate dai piatti esistenti.
-                  </p>
+                {restaurantId && (
+                  <CategorySelect
+                    restaurantId={restaurantId}
+                    value={formData.category}
+                    onValueChange={handleCategoryChange}
+                    placeholder="Seleziona o crea categoria"
+                  />
                 )}
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium mb-2">
+                  <DollarSign className="w-4 h-4 inline mr-1" />
+                  Prezzo di Vendita (€)
+                </label>
+                <Input
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  value={formData.selling_price}
+                  onChange={(e) => setFormData({...formData, selling_price: parseFloat(e.target.value) || 0})}
+                  placeholder="25.00"
+                />
               </div>
 
               <div>

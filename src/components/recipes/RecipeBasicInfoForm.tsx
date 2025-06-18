@@ -1,11 +1,12 @@
 
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Clock, Users, Info } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { useCategories } from '@/hooks/useCategories';
+import { CategorySelect } from '@/components/categories/CategorySelect';
+import { useRestaurant } from '@/hooks/useRestaurant';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 interface RecipeBasicInfoFormProps {
   formData: {
@@ -23,8 +24,12 @@ interface RecipeBasicInfoFormProps {
 }
 
 const RecipeBasicInfoForm = ({ formData, onFormDataChange }: RecipeBasicInfoFormProps) => {
-  const { categories } = useCategories();
+  const { restaurantId } = useRestaurant();
   const difficulties = ["Bassa", "Media", "Alta"];
+
+  const handleCategoryChange = (category: string | undefined) => {
+    onFormDataChange({ category: category || '' });
+  };
 
   return (
     <TooltipProvider>
@@ -42,16 +47,14 @@ const RecipeBasicInfoForm = ({ formData, onFormDataChange }: RecipeBasicInfoForm
 
         <div>
           <label className="block text-sm font-medium mb-1">Categoria</label>
-          <Select value={formData.category} onValueChange={(value) => onFormDataChange({category: value})}>
-            <SelectTrigger>
-              <SelectValue placeholder="Seleziona categoria" />
-            </SelectTrigger>
-            <SelectContent>
-              {categories.map(cat => (
-                <SelectItem key={cat} value={cat}>{cat}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          {restaurantId && (
+            <CategorySelect
+              restaurantId={restaurantId}
+              value={formData.category}
+              onValueChange={handleCategoryChange}
+              placeholder="Seleziona o crea categoria"
+            />
+          )}
         </div>
 
         <div className="grid grid-cols-2 gap-2">

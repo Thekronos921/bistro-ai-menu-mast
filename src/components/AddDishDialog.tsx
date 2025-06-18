@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -9,8 +8,9 @@ import { Plus, DollarSign, Calculator, ExternalLink, AlertTriangle, CheckCircle,
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useRestaurant } from "@/hooks/useRestaurant";
-import CategorySelect from "@/components/categories/CategorySelect";
+import UnifiedCategorySelect from "@/components/categories/UnifiedCategorySelect";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useUnifiedCategories } from "@/hooks/useUnifiedCategories";
 
 interface Recipe {
   id: string;
@@ -38,6 +38,7 @@ const AddDishDialog = ({ onAddDish, onEditRecipe }: AddDishDialogProps) => {
   const [selectedRecipe, setSelectedRecipe] = useState<Recipe | null>(null);
   const { toast } = useToast();
   const { restaurantId } = useRestaurant();
+  const { ensureCategoryExists } = useUnifiedCategories(restaurantId);
   
   const [formData, setFormData] = useState({
     name: "",
@@ -223,42 +224,20 @@ const AddDishDialog = ({ onAddDish, onEditRecipe }: AddDishDialogProps) => {
 
     setLoading(true);
     try {
-      // Trova o crea la categoria usando il nuovo sistema dish_categories
-      let categoryId = null;
-      
-      // Prima prova a trovare la categoria esistente
-      const { data: existingCategory } = await supabase
-        .from('dish_categories')
-        .select('id')
-        .eq('restaurant_id', restaurantId)
-        .eq('name', formData.category_name)
-        .single();
-
-      if (existingCategory) {
-        categoryId = existingCategory.id;
-      } else {
-        // Se non esiste, creala
-        const { data: newCategory, error: categoryError } = await supabase
-          .from('dish_categories')
-          .insert({
-            restaurant_id: restaurantId,
-            name: formData.category_name,
-            display_order: 0
-          })
-          .select('id')
-          .single();
-
-        if (categoryError) throw categoryError;
-        categoryId = newCategory.id;
-      }
+      // Assicura che la categoria esista nel nuovo sistema
+      const categoryId = await ensureCategoryExists(formData.category_name);
 
       const dishData: any = {
         name: formData.name,
-        category_id: categoryId,
         restaurant_category_name: formData.category_name, // Mantieni per compatibilità
         selling_price: formData.selling_price,
         restaurant_id: restaurantId
       };
+
+      // Aggiungi category_id se ottenuto con successo
+      if (categoryId) {
+        dishData.category_id = categoryId;
+      }
 
       if (formData.recipe_id) {
         dishData.recipe_id = formData.recipe_id;
@@ -332,7 +311,7 @@ const AddDishDialog = ({ onAddDish, onEditRecipe }: AddDishDialogProps) => {
               <div>
                 <label className="block text-sm font-medium mb-2">Categoria Piatto *</label>
                 {restaurantId && (
-                  <CategorySelect
+                  <UnifiedCategorySelect
                     restaurantId={restaurantId}
                     value={formData.category_name}
                     onValueChange={handleCategoryChange}

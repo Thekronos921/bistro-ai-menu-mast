@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -12,7 +11,8 @@ import { useToast } from "@/hooks/use-toast";
 import { useRestaurant } from "@/hooks/useRestaurant";
 import { calculateTotalCost, calculateCostPerPortion } from "@/utils/recipeCalculations";
 import { Recipe as RecipeType } from "@/types/recipe";
-import CategorySelect from "@/components/categories/CategorySelect";
+import UnifiedCategorySelect from "@/components/categories/UnifiedCategorySelect";
+import { useUnifiedCategories } from "@/hooks/useUnifiedCategories";
 
 interface Dish {
   id: string;
@@ -36,6 +36,7 @@ const EditDishDialog = ({ dish, onClose, onDishUpdated, onEditRecipe }: EditDish
   const [selectedRecipe, setSelectedRecipe] = useState<RecipeType | null>(null);
   const { toast } = useToast();
   const { restaurantId } = useRestaurant();
+  const { ensureCategoryExists } = useUnifiedCategories(restaurantId);
   
   const [formData, setFormData] = useState({
     name: dish.name,
@@ -195,43 +196,30 @@ const EditDishDialog = ({ dish, onClose, onDishUpdated, onEditRecipe }: EditDish
       return;
     }
 
+    if (!restaurantId) {
+      toast({
+        title: "Errore",
+        description: "ID ristorante non trovato",
+        variant: "destructive"
+      });
+      return;
+    }
+
     setLoading(true);
     try {
-      // Trova o crea la categoria usando il nuovo sistema dish_categories
-      let categoryId = null;
-      
-      // Prima prova a trovare la categoria esistente
-      const { data: existingCategory } = await supabase
-        .from('dish_categories')
-        .select('id')
-        .eq('restaurant_id', restaurantId)
-        .eq('name', formData.category)
-        .single();
-
-      if (existingCategory) {
-        categoryId = existingCategory.id;
-      } else {
-        // Se non esiste, creala
-        const { data: newCategory, error: categoryError } = await supabase
-          .from('dish_categories')
-          .insert({
-            restaurant_id: restaurantId,
-            name: formData.category,
-            display_order: 0
-          })
-          .select('id')
-          .single();
-
-        if (categoryError) throw categoryError;
-        categoryId = newCategory.id;
-      }
+      // Assicura che la categoria esista nel nuovo sistema
+      const categoryId = await ensureCategoryExists(formData.category);
 
       const updateData: any = {
         name: formData.name,
-        category_id: categoryId,
         restaurant_category_name: formData.category, // Mantieni per compatibilità
         selling_price: formData.selling_price
       };
+
+      // Aggiungi category_id se ottenuto con successo
+      if (categoryId) {
+        updateData.category_id = categoryId;
+      }
 
       if (formData.recipe_id) {
         updateData.recipe_id = formData.recipe_id;
@@ -294,7 +282,7 @@ const EditDishDialog = ({ dish, onClose, onDishUpdated, onEditRecipe }: EditDish
               <div>
                 <label className="block text-sm font-medium mb-2">Categoria Piatto</label>
                 {restaurantId && (
-                  <CategorySelect
+                  <UnifiedCategorySelect
                     restaurantId={restaurantId}
                     value={formData.category}
                     onValueChange={handleCategoryChange}

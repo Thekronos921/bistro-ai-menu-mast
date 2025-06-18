@@ -1,3 +1,4 @@
+
 import EditRecipeDialog from "@/components/EditRecipeDialog";
 import EditDishDialog from "@/components/EditDishDialog";
 import AssociateRecipeDialog from "@/components/AssociateRecipeDialog";
@@ -9,8 +10,11 @@ import FoodCostCalculationSection from "@/components/food-cost/FoodCostCalculati
 import FoodCostPagination from "@/components/food-cost/FoodCostPagination";
 import { useMenuIntelligencePage } from "@/hooks/useMenuIntelligencePage";
 import { useMenuCategories } from "@/hooks/useMenuCategories";
+import { useRestaurant } from "@/hooks/useRestaurant";
 
 const FoodCost = () => {
+  const { restaurantId } = useRestaurant();
+  
   const {
     // State
     searchTerm,
@@ -39,7 +43,6 @@ const FoodCost = () => {
     saveSettings,
     // Data
     foodCostSalesData,
-    // This is now the aggregated data for the period
     lastCalculationDate,
     categories,
     loading,
@@ -66,11 +69,8 @@ const FoodCost = () => {
     handleDeleteDish
   } = useMenuIntelligencePage();
 
-  // Importa il nuovo hook per le categorie menu
-  const { categories: menuCategories, refresh: refreshCategories } = useMenuCategories(
-    // Assumendo che il restaurantId sia disponibile nel context o derivabile
-    '00000000-0000-0000-0000-000000000000' // Placeholder - dovrà essere sostituito con l'ID reale
-  );
+  // Usa il nuovo hook per le categorie menu
+  const { categories: menuCategories, refresh: refreshCategories } = useMenuCategories(restaurantId);
 
   // Transform categories array to match expected interface
   const formattedCategories = menuCategories.map(category => ({ name: category.name }));
@@ -88,6 +88,7 @@ const FoodCost = () => {
         </div>
       </div>;
   }
+  
   return <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-stone-50">
       <FoodCostHeader 
         selectedPeriod={selectedPeriod} 
@@ -134,7 +135,7 @@ const FoodCost = () => {
           onDateRangeChange={setDateRange} 
           totalItems={filteredItems.length}
           filteredItems={paginatedItems.length}
-          restaurantId="00000000-0000-0000-0000-000000000000" // Placeholder - dovrà essere sostituito
+          restaurantId={restaurantId}
         />
 
         <FoodCostTable 

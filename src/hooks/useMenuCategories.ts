@@ -33,18 +33,26 @@ export const useMenuCategories = (restaurantId?: string) => {
 
       if (categoriesError) throw categoriesError;
 
-      // Carica il conteggio piatti per categoria usando restaurant_category_name
+      // Carica il conteggio piatti per categoria usando category_id
       const { data: dishes, error: dishesError } = await supabase
         .from('dishes')
-        .select('restaurant_category_name')
+        .select('category_id, restaurant_category_name')
         .eq('restaurant_id', restaurantId);
 
       if (dishesError) throw dishesError;
 
-      // Conta i piatti per categoria
+      // Conta i piatti per categoria (sia per category_id che per restaurant_category_name come fallback)
       const dishCounts: Record<string, number> = {};
       dishes?.forEach((dish) => {
-        if (dish.restaurant_category_name) {
+        // Prima prova con category_id
+        if (dish.category_id) {
+          const category = dishCategories?.find(cat => cat.id === dish.category_id);
+          if (category) {
+            dishCounts[category.name] = (dishCounts[category.name] || 0) + 1;
+          }
+        }
+        // Fallback con restaurant_category_name per dati non ancora migrati
+        else if (dish.restaurant_category_name) {
           dishCounts[dish.restaurant_category_name] = (dishCounts[dish.restaurant_category_name] || 0) + 1;
         }
       });
@@ -58,11 +66,11 @@ export const useMenuCategories = (restaurantId?: string) => {
         dishCount: dishCounts[cat.name] || 0
       }));
 
-      // Aggiungi le categorie esistenti nei piatti ma non ancora nella tabella dish_categories
+      // Aggiungi categorie orfane (presenti nei piatti ma non nella tabella dish_categories)
       const existingCategoryNames = new Set(categoriesWithCounts.map(c => c.name));
-      const uniqueDishCategories = [...new Set(dishes?.map(d => d.restaurant_category_name).filter(Boolean) || [])];
+      const orphanCategories = [...new Set(dishes?.map(d => d.restaurant_category_name).filter(Boolean) || [])];
       
-      uniqueDishCategories.forEach((categoryName, index) => {
+      orphanCategories.forEach((categoryName, index) => {
         if (!existingCategoryNames.has(categoryName)) {
           categoriesWithCounts.push({
             id: `temp-${categoryName}`,
@@ -81,6 +89,11 @@ export const useMenuCategories = (restaurantId?: string) => {
       const errorMessage = err instanceof Error ? err.message : 'Errore nel caricamento delle categorie';
       setError(errorMessage);
       console.error('Errore caricamento categorie:', err);
+      toast({
+        title: "Errore",
+        description: errorMessage,
+        variant: "destructive",
+      });
     } finally {
       setLoading(false);
     }

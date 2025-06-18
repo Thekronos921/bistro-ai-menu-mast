@@ -50,6 +50,7 @@ export const useDishCategories = (restaurantId?: string) => {
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Errore nel caricamento delle categorie';
       setError(errorMessage);
+      console.error('Errore caricamento categorie:', err);
       toast({
         title: "Errore",
         description: errorMessage,
@@ -84,6 +85,7 @@ export const useDishCategories = (restaurantId?: string) => {
       return data;
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Errore nella creazione della categoria';
+      console.error('Errore creazione categoria:', err);
       toast({
         title: "Errore",
         description: errorMessage,
@@ -111,6 +113,7 @@ export const useDishCategories = (restaurantId?: string) => {
       return true;
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Errore nell\'aggiornamento della categoria';
+      console.error('Errore aggiornamento categoria:', err);
       toast({
         title: "Errore",
         description: errorMessage,
@@ -155,6 +158,7 @@ export const useDishCategories = (restaurantId?: string) => {
       return true;
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Errore nell\'eliminazione della categoria';
+      console.error('Errore eliminazione categoria:', err);
       toast({
         title: "Errore",
         description: errorMessage,
@@ -184,6 +188,7 @@ export const useDishCategories = (restaurantId?: string) => {
       return true;
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Errore nel riordino delle categorie';
+      console.error('Errore riordino categorie:', err);
       toast({
         title: "Errore",
         description: errorMessage,

@@ -689,6 +689,44 @@ export type Database = {
         }
         Relationships: []
       }
+      dish_categories: {
+        Row: {
+          created_at: string
+          description: string | null
+          display_order: number
+          id: string
+          name: string
+          restaurant_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          display_order?: number
+          id?: string
+          name: string
+          restaurant_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          display_order?: number
+          id?: string
+          name?: string
+          restaurant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "dish_categories_restaurant_id_fkey"
+            columns: ["restaurant_id"]
+            isOneToOne: false
+            referencedRelation: "restaurants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       dish_sales_data: {
         Row: {
           created_at: string
@@ -739,6 +777,7 @@ export type Database = {
       dishes: {
         Row: {
           availability_status: string | null
+          category_id: string | null
           cic_department_id: string | null
           cic_department_name: string | null
           cic_has_variants: boolean | null
@@ -766,6 +805,7 @@ export type Database = {
         }
         Insert: {
           availability_status?: string | null
+          category_id?: string | null
           cic_department_id?: string | null
           cic_department_name?: string | null
           cic_has_variants?: boolean | null
@@ -793,6 +833,7 @@ export type Database = {
         }
         Update: {
           availability_status?: string | null
+          category_id?: string | null
           cic_department_id?: string | null
           cic_department_name?: string | null
           cic_has_variants?: boolean | null
@@ -819,6 +860,13 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "dishes_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "dish_categories"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "dishes_recipe_id_fkey"
             columns: ["recipe_id"]

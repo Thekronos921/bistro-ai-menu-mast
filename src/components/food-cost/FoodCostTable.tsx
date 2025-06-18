@@ -1,4 +1,3 @@
-
 import { DollarSign, Edit, Link2, Trash2, MoreHorizontal } from "lucide-react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -134,7 +133,7 @@ const FoodCostTable = ({
         <div className="px-3 sm:px-6 py-3 sm:py-4 border-b border-stone-200">
           <div className="flex items-center justify-between">
             <h2 className="text-base sm:text-lg font-semibold text-slate-800">
-              Analisi Menu Engineering ({totalItems} elementi)
+              Menu Intelligence Analysis ({totalItems} elementi)
             </h2>
             {getTotalSalesForPeriod() > 0 && (
               <p className="text-xs sm:text-sm text-slate-500 hidden sm:block">
@@ -276,6 +275,8 @@ const FoodCostTable = ({
                       category={menuCategory}
                       foodCostPercentage={analysis.foodCostPercentage}
                       margin={analysis.margin}
+                      salesMix={salesMixPercentage}
+                      unitsSold={unitsSold}
                     />
                   </div>
                 </div>
@@ -298,8 +299,8 @@ const FoodCostTable = ({
                 <TableHead className="text-right">Costo Ingredienti</TableHead>
                 <TableHead className="text-right">Food Cost %</TableHead>
                 <TableHead className="text-right">Margine</TableHead>
-                <TableHead className="text-center">Menu Engineering</TableHead>
-                <TableHead className="text-center">AI Suggerimenti</TableHead>
+                <TableHead className="text-center">BCG Category</TableHead>
+                <TableHead className="text-center">AI Intelligence</TableHead>
                 <TableHead className="text-center">Azioni</TableHead>
               </TableRow>
             </TableHeader>
@@ -311,7 +312,7 @@ const FoodCostTable = ({
                 const salesMixPercentage = type === 'dish' ? getSalesMixPercentage(item.name) : 0;
 
                 return (
-                  <TableRow key={`${type}-${item.id}`}>
+                  <TableRow key={`${type}-${item.id}`} className="hover:bg-slate-50/50">
                     <TableCell>
                       <div className="font-medium text-slate-800 flex items-center space-x-2">
                         <span>{item.name}</span>
@@ -378,6 +379,8 @@ const FoodCostTable = ({
                         category={menuCategory}
                         foodCostPercentage={analysis.foodCostPercentage}
                         margin={analysis.margin}
+                        salesMix={salesMixPercentage}
+                        unitsSold={unitsSold}
                       />
                     </TableCell>
                     <TableCell className="text-center">

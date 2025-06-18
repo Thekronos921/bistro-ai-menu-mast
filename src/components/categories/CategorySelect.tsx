@@ -48,7 +48,7 @@ const CategorySelect = ({ restaurantId, value, onValueChange, placeholder = "Sel
       setNewCategoryName('');
       setNewCategoryDescription('');
       setIsCreateDialogOpen(false);
-      onValueChange(result.id);
+      onValueChange(result.name); // Usa il nome invece dell'id per compatibilità
       await fetchCategories();
     }
   };
@@ -72,7 +72,7 @@ const CategorySelect = ({ restaurantId, value, onValueChange, placeholder = "Sel
         <SelectContent>
           <SelectItem value="none">Nessuna categoria</SelectItem>
           {categories.map((category) => (
-            <SelectItem key={category.id} value={category.id}>
+            <SelectItem key={category.id} value={category.name}>
               {category.name}
             </SelectItem>
           ))}

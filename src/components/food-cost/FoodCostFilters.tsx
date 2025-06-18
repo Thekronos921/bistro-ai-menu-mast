@@ -1,4 +1,3 @@
-
 import { FilterConfig } from "@/components/AdvancedFilters";
 import { FoodCostSalesData, DateRange } from "@/hooks/food-cost/types";
 import EnhancedFilters from "./EnhancedFilters";
@@ -67,7 +66,7 @@ const FoodCostFilters = ({
         onClearFilters={handleClearFilters}
       />
       
-      {/* Aggiungi il drawer per la gestione categorie */}
+      {/* Gestione categorie - posizionata prominentemente */}
       {restaurantId && (
         <div className="flex justify-end">
           <DishCategoriesDrawer 

@@ -1,5 +1,5 @@
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Plus, Edit, Trash2, GripVertical, Settings } from 'lucide-react';
 import {
   Sheet,
@@ -41,6 +41,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import { Badge } from '@/components/ui/badge';
 import { useDishCategories, DishCategory, CreateDishCategoryData, UpdateDishCategoryData } from '@/hooks/useDishCategories';
+import { supabase } from '@/integrations/supabase/client';
 
 interface DishCategoriesDrawerProps {
   restaurantId: string;
@@ -49,6 +50,7 @@ interface DishCategoriesDrawerProps {
 
 const DishCategoriesDrawer = ({ restaurantId, onCategoryChange }: DishCategoriesDrawerProps) => {
   const { categories, loading, createCategory, updateCategory, deleteCategory } = useDishCategories(restaurantId);
+  const [dishCounts, setDishCounts] = useState<Record<string, number>>({});
   
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
@@ -60,6 +62,35 @@ const DishCategoriesDrawer = ({ restaurantId, onCategoryChange }: DishCategories
     name: '',
     description: '',
   });
+
+  // Carica il conteggio piatti per categoria
+  const loadDishCounts = async () => {
+    if (!restaurantId) return;
+
+    try {
+      const { data: dishes, error } = await supabase
+        .from('dishes')
+        .select('restaurant_category_name')
+        .eq('restaurant_id', restaurantId);
+
+      if (error) throw error;
+
+      const counts: Record<string, number> = {};
+      dishes?.forEach((dish) => {
+        if (dish.restaurant_category_name) {
+          counts[dish.restaurant_category_name] = (counts[dish.restaurant_category_name] || 0) + 1;
+        }
+      });
+
+      setDishCounts(counts);
+    } catch (error) {
+      console.error('Errore nel caricamento conteggio piatti:', error);
+    }
+  };
+
+  useEffect(() => {
+    loadDishCounts();
+  }, [restaurantId, categories]);
 
   const handleCreateCategory = async () => {
     if (!formData.name.trim()) return;
@@ -173,7 +204,9 @@ const DishCategoriesDrawer = ({ restaurantId, onCategoryChange }: DishCategories
                           {category.description || <span className="italic">Nessuna descrizione</span>}
                         </TableCell>
                         <TableCell>
-                          <Badge variant="secondary">0</Badge>
+                          <Badge variant="secondary">
+                            {dishCounts[category.name] || 0}
+                          </Badge>
                         </TableCell>
                         <TableCell>
                           <div className="flex space-x-1">
@@ -290,6 +323,11 @@ const DishCategoriesDrawer = ({ restaurantId, onCategoryChange }: DishCategories
             <AlertDialogTitle>Conferma Eliminazione</AlertDialogTitle>
             <AlertDialogDescription>
               Sei sicuro di voler eliminare la categoria "{deletingCategory?.name}"?
+              {dishCounts[deletingCategory?.name || ''] > 0 && (
+                <span className="block mt-2 text-red-600 font-medium">
+                  Attenzione: Ci sono {dishCounts[deletingCategory?.name || '']} piatti in questa categoria.
+                </span>
+              )}
               Questa azione non può essere annullata.
             </AlertDialogDescription>
           </AlertDialogHeader>

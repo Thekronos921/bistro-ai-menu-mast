@@ -8,6 +8,7 @@ import FoodCostTable from "@/components/food-cost/FoodCostTable";
 import FoodCostCalculationSection from "@/components/food-cost/FoodCostCalculationSection";
 import FoodCostPagination from "@/components/food-cost/FoodCostPagination";
 import { useMenuIntelligencePage } from "@/hooks/useMenuIntelligencePage";
+import { useMenuCategories } from "@/hooks/useMenuCategories";
 
 const FoodCost = () => {
   const {
@@ -65,8 +66,19 @@ const FoodCost = () => {
     handleDeleteDish
   } = useMenuIntelligencePage();
 
+  // Importa il nuovo hook per le categorie menu
+  const { categories: menuCategories, refresh: refreshCategories } = useMenuCategories(
+    // Assumendo che il restaurantId sia disponibile nel context o derivabile
+    '00000000-0000-0000-0000-000000000000' // Placeholder - dovrà essere sostituito con l'ID reale
+  );
+
   // Transform categories array to match expected interface
-  const formattedCategories = categories.map(category => ({ name: category }));
+  const formattedCategories = menuCategories.map(category => ({ name: category.name }));
+
+  const handleRefreshWithCategories = () => {
+    fetchData();
+    refreshCategories();
+  };
 
   if (loading) {
     return <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-stone-50 flex items-center justify-center">
@@ -117,11 +129,12 @@ const FoodCost = () => {
           onToggleAdvancedFilters={() => setShowAdvancedFilters(!showAdvancedFilters)} 
           onImportSales={handleSalesImportWrapper} 
           onExportCSV={exportToCSV} 
-          onRefresh={fetchData} 
+          onRefresh={handleRefreshWithCategories} 
           dateRange={dateRange} 
           onDateRangeChange={setDateRange} 
           totalItems={filteredItems.length}
           filteredItems={paginatedItems.length}
+          restaurantId="00000000-0000-0000-0000-000000000000" // Placeholder - dovrà essere sostituito
         />
 
         <FoodCostTable 

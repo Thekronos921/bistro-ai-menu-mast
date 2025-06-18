@@ -1,9 +1,8 @@
-
 import { Link, useLocation } from "react-router-dom";
 import {
   ChefHat,
   Package,
-  Calculator,
+  Brain,
   PieChart,
   TrendingUp,
   Users,
@@ -63,14 +62,9 @@ const navigationItems = [
     category: "analytics",
     items: [
       {
-        title: "Food Cost Analysis",
+        title: "Menu Intelligence",
         url: "/food-cost",
-        icon: Calculator,
-      },
-      {
-        title: "Menu Engineering",
-        url: "/menu-engineering",
-        icon: PieChart,
+        icon: Brain,
       },
       {
         title: "Analisi Clienti",

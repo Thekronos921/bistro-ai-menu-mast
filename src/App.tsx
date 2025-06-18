@@ -1,8 +1,9 @@
+
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import PostRegistrationSetup from "@/components/PostRegistrationSetup";
@@ -15,7 +16,6 @@ import ResetPassword from "./pages/ResetPassword";
 import Profile from "./pages/Profile";
 import Recipes from "./pages/Recipes";
 import Inventory from "./pages/Inventory";
-import MenuEngineering from "./pages/MenuEngineering";
 import FoodCost from "./pages/FoodCost";
 import ProductionPlanning from "./pages/ProductionPlanning";
 import DemandForecast from "./pages/DemandForecast";
@@ -45,6 +45,9 @@ const App = () => (
             <Route path="/forgot-password" element={<ForgotPassword />} />
             <Route path="/reset-password" element={<ResetPassword />} />
             <Route path="/label/:id" element={<LabelView />} />
+            
+            {/* Redirect menu-engineering to food-cost (Menu Intelligence) */}
+            <Route path="/menu-engineering" element={<Navigate to="/food-cost" replace />} />
             
             {/* Protected routes - with layout */}
             <Route path="/" element={
@@ -84,14 +87,6 @@ const App = () => (
                 <PostRegistrationSetup />
                 <Layout>
                   <Inventory />
-                </Layout>
-              </ProtectedRoute>
-            } />
-            <Route path="/menu-engineering" element={
-              <ProtectedRoute>
-                <PostRegistrationSetup />
-                <Layout>
-                  <MenuEngineering />
                 </Layout>
               </ProtectedRoute>
             } />

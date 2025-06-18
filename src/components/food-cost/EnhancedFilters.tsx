@@ -241,14 +241,14 @@ const EnhancedFilters = ({
               <div>
                 <Label className="text-sm font-medium text-slate-700 mb-2 block">Classificazione BCG</Label>
                 <Select 
-                  value={localFilters.menuCategory || ""} 
-                  onValueChange={(value) => setLocalFilters({ ...localFilters, menuCategory: value || undefined })}
+                  value={localFilters.menuCategory || "all"} 
+                  onValueChange={(value) => setLocalFilters({ ...localFilters, menuCategory: value === "all" ? undefined : value })}
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="Tutte" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">Tutte</SelectItem>
+                    <SelectItem value="all">Tutte</SelectItem>
                     <SelectItem value="star">🌟 Star</SelectItem>
                     <SelectItem value="plowhorse">🐎 Plowhorse</SelectItem>
                     <SelectItem value="puzzle">🧩 Puzzle</SelectItem>

@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -9,6 +10,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useRestaurant } from "@/hooks/useRestaurant";
 import CategorySelect from "@/components/categories/CategorySelect";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 interface Recipe {
   id: string;
@@ -356,12 +358,19 @@ const AddDishDialog = ({ onAddDish, onEditRecipe }: AddDishDialogProps) => {
 
               <div>
                 <label className="block text-sm font-medium mb-2">Ricetta Associata (Opzionale)</label>
-                <CategorySelect
-                  restaurantId={restaurantId || ''}
-                  value={formData.recipe_id || "none"}
-                  onValueChange={handleRecipeChange}
-                  placeholder={fetchingRecipes ? "Caricamento ricette..." : "Nessuna ricetta (configurabile in seguito)"}
-                />
+                <Select value={formData.recipe_id || "none"} onValueChange={handleRecipeChange}>
+                  <SelectTrigger>
+                    <SelectValue placeholder={fetchingRecipes ? "Caricamento ricette..." : "Nessuna ricetta (configurabile in seguito)"} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">Nessuna ricetta</SelectItem>
+                    {recipes.map((recipe) => (
+                      <SelectItem key={recipe.id} value={recipe.id}>
+                        {recipe.name} ({recipe.category})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
                 <p className="text-xs text-slate-500 mt-1">
                   {fetchingRecipes ? "Caricamento in corso..." : 
                    "Puoi associare una ricetta ora o configurarla in seguito"}

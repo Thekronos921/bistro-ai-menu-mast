@@ -1,4 +1,3 @@
-
 import EditRecipeDialog from "@/components/EditRecipeDialog";
 import EditDishDialog from "@/components/EditDishDialog";
 import AssociateRecipeDialog from "@/components/AssociateRecipeDialog";
@@ -8,7 +7,7 @@ import FoodCostFilters from "@/components/food-cost/FoodCostFilters";
 import FoodCostTable from "@/components/food-cost/FoodCostTable";
 import FoodCostCalculationSection from "@/components/food-cost/FoodCostCalculationSection";
 import FoodCostPagination from "@/components/food-cost/FoodCostPagination";
-import { useFoodCostPage } from "@/hooks/useFoodCostPage";
+import { useMenuIntelligencePage } from "@/hooks/useMenuIntelligencePage";
 
 const FoodCost = () => {
   const {
@@ -64,7 +63,7 @@ const FoodCost = () => {
     handleRecalculateFoodCost,
     exportToCSV,
     handleDeleteDish
-  } = useFoodCostPage();
+  } = useMenuIntelligencePage();
 
   // Transform categories array to match expected interface
   const formattedCategories = categories.map(category => ({ name: category }));

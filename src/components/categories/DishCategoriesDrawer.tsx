@@ -1,6 +1,6 @@
 
 import { useState, useEffect } from 'react';
-import { Plus, Edit, Trash2, GripVertical, Settings } from 'lucide-react';
+import { Plus, Edit2, Trash2, GripVertical, Settings } from 'lucide-react';
 import {
   Sheet,
   SheetContent,
@@ -215,7 +215,7 @@ const DishCategoriesDrawer = ({ restaurantId, onCategoryChange }: DishCategories
                               size="sm"
                               onClick={() => openEditDialog(category)}
                             >
-                              <Edit className="w-4 h-4" />
+                              <Edit2 className="w-4 h-4" />
                             </Button>
                             <Button
                               variant="ghost"

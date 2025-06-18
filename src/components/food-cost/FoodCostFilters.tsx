@@ -1,3 +1,4 @@
+
 import { FilterConfig } from "@/components/AdvancedFilters";
 import { FoodCostSalesData, DateRange } from "@/hooks/food-cost/types";
 import EnhancedFilters from "./EnhancedFilters";

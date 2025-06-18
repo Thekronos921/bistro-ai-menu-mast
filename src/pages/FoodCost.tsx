@@ -65,6 +65,10 @@ const FoodCost = () => {
     exportToCSV,
     handleDeleteDish
   } = useFoodCostPage();
+
+  // Transform categories array to match expected interface
+  const formattedCategories = categories.map(category => ({ name: category }));
+
   if (loading) {
     return <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-stone-50 flex items-center justify-center">
         <div className="text-center">
@@ -107,7 +111,7 @@ const FoodCost = () => {
           onSearchChange={setSearchTerm} 
           selectedCategory={selectedCategory} 
           onCategoryChange={setSelectedCategory} 
-          categories={categories} 
+          categories={formattedCategories} 
           advancedFilters={advancedFilters} 
           onAdvancedFiltersChange={setAdvancedFilters} 
           showAdvancedFilters={showAdvancedFilters} 

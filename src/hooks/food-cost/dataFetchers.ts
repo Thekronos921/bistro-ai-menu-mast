@@ -11,8 +11,9 @@ export const fetchDishes = async (restaurantId: string): Promise<any[]> => {
       selling_price,
       recipe_id,
       external_id,
-      restaurant_category_id,
-      category:restaurant_categories ( name )
+      category_id, 
+      restaurant_category_name,
+      dish_categories ( name )
     `)
     .eq('restaurant_id', restaurantId)
     .order('created_at', { ascending: false });
@@ -21,9 +22,14 @@ export const fetchDishes = async (restaurantId: string): Promise<any[]> => {
 
   return (dishesData || []).map(dish => {
     let categoryName = 'Senza categoria';
-    // Simplified category handling
-    if (dish.category && typeof dish.category === 'object' && dish.category !== null && 'name' in dish.category && dish.category.name) {
-      categoryName = (dish.category as { name: string }).name;
+
+    // Priorità 1: Nome da dish_categories tramite category_id
+    if (dish.dish_categories && typeof dish.dish_categories === 'object' && dish.dish_categories !== null && 'name' in dish.dish_categories && dish.dish_categories.name) {
+      categoryName = (dish.dish_categories as { name: string }).name;
+    } 
+    // Priorità 2: Nome da restaurant_category_name (legacy)
+    else if (dish.restaurant_category_name) {
+      categoryName = dish.restaurant_category_name;
     }
 
     return {
@@ -32,7 +38,11 @@ export const fetchDishes = async (restaurantId: string): Promise<any[]> => {
       selling_price: dish.selling_price,
       recipe_id: dish.recipe_id,
       external_id: dish.external_id,
-      category: categoryName
+      category: categoryName, // Questo è il campo usato per i filtri
+      // Manteniamo category_id e restaurant_category_name se servono altrove, 
+      // anche se non direttamente usati per Dish.category nei filtri.
+      category_id: dish.category_id,
+      legacy_category_name: dish.restaurant_category_name 
     };
   });
 };

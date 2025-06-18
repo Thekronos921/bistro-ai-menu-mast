@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -9,7 +8,7 @@ import { Plus, DollarSign, Calculator, ExternalLink, AlertTriangle, CheckCircle,
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useRestaurant } from "@/hooks/useRestaurant";
-import { CategorySelect } from "@/components/categories/CategorySelect";
+import CategorySelect from "@/components/categories/CategorySelect";
 
 interface Recipe {
   id: string;
@@ -222,7 +221,7 @@ const AddDishDialog = ({ onAddDish, onEditRecipe }: AddDishDialogProps) => {
 
     setLoading(true);
     try {
-      // Trova o crea la categoria
+      // Trova o crea la categoria usando il nuovo sistema dish_categories
       let categoryId = null;
       
       // Prima prova a trovare la categoria esistente

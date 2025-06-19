@@ -34,9 +34,9 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   }
 
   // Check if user needs to complete restaurant setup
-  if (requireAuth && user && userProfile && !userProfile.restaurant_id && location.pathname !== '/setup') {
-    return <Navigate to="/setup" replace />;
-  }
+  // if (requireAuth && user && userProfile && !userProfile.restaurant_id && location.pathname !== '/setup') {
+  //  return <Navigate to="/setup" replace />;
+  // }
 
   return <>{children}</>;
 };

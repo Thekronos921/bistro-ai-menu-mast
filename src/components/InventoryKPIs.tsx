@@ -1,3 +1,4 @@
+
 import { Package, AlertTriangle, TrendingUp, Users, Calculator, Tag } from "lucide-react";
 import KPICard from "./KPICard";
 import MobileKPICard from "./mobile/MobileKPICard";
@@ -74,7 +75,7 @@ const InventoryKPIs = ({ ingredients }: InventoryKPIsProps) => {
       value: lowStockCount,
       subtitle: `${lowStockCount > 0 ? 'Richiedono riordino' : 'Tutti OK'}`,
       icon: AlertTriangle,
-      trend: lowStockCount > 0 ? "down" : "up" as const
+      trend: (lowStockCount > 0 ? "down" : "up") as const
     },
     {
       title: "Costo Medio Effettivo",
@@ -95,7 +96,7 @@ const InventoryKPIs = ({ ingredients }: InventoryKPIsProps) => {
       value: syncedIngredients,
       subtitle: `${syncedIngredients}/${ingredients.length} connessi`,
       icon: TrendingUp,
-      trend: syncedIngredients === ingredients.length ? "up" : "neutral" as const
+      trend: (syncedIngredients === ingredients.length ? "up" : "neutral") as const
     },
     {
       title: "Stock Etichettato",

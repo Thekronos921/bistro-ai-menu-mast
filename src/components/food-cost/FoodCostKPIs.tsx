@@ -38,7 +38,7 @@ const FoodCostKPIs = ({
       value: `${avgFoodCostPercentage.toFixed(1)}%`,
       subtitle: "Aggiornato in tempo reale",
       icon: TrendingDown,
-      trend: avgFoodCostPercentage < 30 ? "up" : avgFoodCostPercentage > settings.criticalThreshold ? "down" : "neutral" as const
+      trend: (avgFoodCostPercentage < 30 ? "up" : avgFoodCostPercentage > settings.criticalThreshold ? "down" : "neutral") as const
     },
     {
       title: `Margine Totale (${selectedPeriod})`,
@@ -52,7 +52,7 @@ const FoodCostKPIs = ({
       value: criticalDishes,
       subtitle: `Food cost > ${settings.criticalThreshold}%`,
       icon: AlertTriangle,
-      trend: criticalDishes === 0 ? "up" : "down" as const
+      trend: (criticalDishes === 0 ? "up" : "down") as const
     },
     {
       title: "Target Raggiunto",

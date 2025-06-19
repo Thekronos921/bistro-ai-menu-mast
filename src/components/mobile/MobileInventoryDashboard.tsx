@@ -73,7 +73,7 @@ const MobileInventoryDashboard: React.FC<MobileInventoryDashboardProps> = ({
       icon: <AlertTriangle className="w-5 h-5" />,
       description: 'Riordina ora',
       badge: data.lowStockCount > 0 ? data.lowStockCount : undefined,
-      color: data.lowStockCount > 0 ? 'danger' : 'success' as const,
+      color: (data.lowStockCount > 0 ? 'danger' : 'success') as 'danger' | 'success',
       onClick: onViewLowStock || (() => {})
     },
     {

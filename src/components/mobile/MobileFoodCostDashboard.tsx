@@ -74,7 +74,7 @@ const MobileFoodCostDashboard: React.FC<MobileFoodCostDashboardProps> = ({
       icon: <AlertTriangle className="w-5 h-5" />,
       description: 'Visualizza critici',
       badge: data.criticalDishes > 0 ? data.criticalDishes : undefined,
-      color: data.criticalDishes > 0 ? 'danger' : 'success' as const,
+      color: (data.criticalDishes > 0 ? 'danger' : 'success') as 'danger' | 'success',
       onClick: () => onViewDetails?.('critical')
     },
     {
@@ -82,7 +82,7 @@ const MobileFoodCostDashboard: React.FC<MobileFoodCostDashboardProps> = ({
       title: 'Target',
       icon: <Target className="w-5 h-5" />,
       description: `${data.targetReached.toFixed(0)}% raggiunto`,
-      color: data.targetReached >= 80 ? 'success' : 'warning' as const,
+      color: (data.targetReached >= 80 ? 'success' : 'warning') as 'success' | 'warning',
       onClick: () => onViewDetails?.('target')
     }
   ];

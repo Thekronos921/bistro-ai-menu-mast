@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useRestaurant } from '@/hooks/useRestaurant';
-import { useMobile } from '@/hooks/use-mobile';
+import { useIsMobile } from '@/hooks/use-mobile';
 import MobileHeader from '@/components/mobile/MobileHeader';
 import MobileSafeArea from '@/components/mobile/MobileSafeArea';
 import BottomNavigation from '@/components/mobile/BottomNavigation';
@@ -17,7 +17,7 @@ const MobileRecipes: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
   const { restaurantId } = useRestaurant();
-  const { isMobile } = useMobile();
+  const isMobile = useIsMobile();
   const navigate = useNavigate();
 
   // Redirect to desktop if not mobile

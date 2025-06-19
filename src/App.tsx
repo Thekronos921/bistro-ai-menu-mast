@@ -33,7 +33,7 @@ const queryClient = new QueryClient();
 
 function App() {
   return (
-    <QueryClient>
+    <QueryClientProvider client={queryClient}>
       <TooltipProvider>
         <Router>
           <AuthProvider>
@@ -172,8 +172,10 @@ function App() {
             </Routes>
           </AuthProvider>
         </Router>
+        <Toaster />
+        <Sonner />
       </TooltipProvider>
-    </QueryClient>
+    </QueryClientProvider>
   );
 }
 

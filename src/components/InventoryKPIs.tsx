@@ -75,7 +75,7 @@ const InventoryKPIs = ({ ingredients }: InventoryKPIsProps) => {
       value: lowStockCount,
       subtitle: `${lowStockCount > 0 ? 'Richiedono riordino' : 'Tutti OK'}`,
       icon: AlertTriangle,
-      trend: (lowStockCount > 0 ? "down" : "up") as const
+      trend: (lowStockCount > 0 ? "down" : "up") as "up" | "down"
     },
     {
       title: "Costo Medio Effettivo",
@@ -96,7 +96,7 @@ const InventoryKPIs = ({ ingredients }: InventoryKPIsProps) => {
       value: syncedIngredients,
       subtitle: `${syncedIngredients}/${ingredients.length} connessi`,
       icon: TrendingUp,
-      trend: (syncedIngredients === ingredients.length ? "up" : "neutral") as const
+      trend: (syncedIngredients === ingredients.length ? "up" : "neutral") as "up" | "neutral"
     },
     {
       title: "Stock Etichettato",

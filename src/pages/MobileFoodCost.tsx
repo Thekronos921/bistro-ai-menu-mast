@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useIsMobile } from '@/hooks/use-mobile';
@@ -82,26 +83,26 @@ const MobileFoodCost: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-emerald-50 to-blue-50">
-      {/* Header compatto */}
-      <header className="bg-white/90 backdrop-blur-sm border-b border-stone-200 sticky top-0 z-50">
+    <div className="min-h-screen bg-gradient-to-br from-emerald-50 to-blue-50 w-full max-w-full overflow-x-hidden">
+      {/* Header compatto e fullscreen */}
+      <header className="bg-white/90 backdrop-blur-sm border-b border-stone-200 sticky top-0 z-50 w-full">
         <div className="px-2 py-2">
           <div className="flex items-center space-x-2">
             <Link to="/" className="p-1 hover:bg-stone-100 rounded-lg transition-colors flex-shrink-0">
               <ArrowLeft className="w-4 h-4 text-slate-600" />
             </Link>
-            <div className="w-7 h-7 bg-gradient-to-br from-emerald-500 to-blue-600 rounded-xl flex items-center justify-center flex-shrink-0">
+            <div className="w-6 h-6 bg-gradient-to-br from-emerald-500 to-blue-600 rounded-lg flex items-center justify-center flex-shrink-0">
               <span className="text-white font-bold text-xs">📊</span>
             </div>
             <div className="min-w-0 flex-1">
-              <h1 className="text-base font-bold text-slate-800 truncate">Food Cost Analytics</h1>
+              <h1 className="text-sm font-bold text-slate-800 truncate">Food Cost Analytics</h1>
               <p className="text-xs text-slate-500">Periodo: {selectedPeriod}</p>
             </div>
             <Button
               variant="outline"
               size="sm"
               onClick={handleOpenFilters}
-              className="flex-shrink-0 h-7 px-2"
+              className="flex-shrink-0 h-6 px-2 text-xs"
             >
               <Filter className="w-3 h-3" />
             </Button>
@@ -109,10 +110,10 @@ const MobileFoodCost: React.FC = () => {
         </div>
       </header>
 
-      <main className="flex-1 pb-16">
+      <main className="flex-1 pb-16 w-full max-w-full">
         <Tabs defaultValue="overview" className="w-full">
-          <div className="px-2 pt-2 pb-1">
-            <TabsList className="grid w-full grid-cols-3 h-7">
+          <div className="px-2 pt-1 pb-1">
+            <TabsList className="grid w-full grid-cols-3 h-6">
               <TabsTrigger value="overview" className="text-xs">Overview</TabsTrigger>
               <TabsTrigger value="trends" className="text-xs">Trends</TabsTrigger>
               <TabsTrigger value="alerts" className="text-xs">Alert</TabsTrigger>
@@ -120,8 +121,8 @@ const MobileFoodCost: React.FC = () => {
           </div>
 
           <TabsContent value="overview" className="px-2 mt-0">
-            {/* KPI Cards - Più compatti */}
-            <div className="grid grid-cols-2 gap-1.5 mb-3">
+            {/* KPI Cards - Molto più compatti */}
+            <div className="grid grid-cols-2 gap-1 mb-2">
               <MobileKPICard
                 title="Food Cost"
                 value={`${avgFoodCostPercentage.toFixed(1)}%`}
@@ -153,11 +154,11 @@ const MobileFoodCost: React.FC = () => {
               />
             </div>
 
-            {/* Quick Actions */}
-            <div className="grid grid-cols-2 gap-1.5 mb-3">
+            {/* Quick Actions - Compatte */}
+            <div className="grid grid-cols-2 gap-1 mb-2">
               <Button
                 onClick={handleAddDish}
-                className="bg-emerald-600 hover:bg-emerald-700 h-8 text-xs"
+                className="bg-emerald-600 hover:bg-emerald-700 h-7 text-xs"
               >
                 <Plus className="w-3 h-3 mr-1" />
                 Nuovo Piatto
@@ -166,7 +167,7 @@ const MobileFoodCost: React.FC = () => {
               {criticalDishes > 0 && (
                 <Button
                   variant="outline"
-                  className="border-red-200 text-red-700 hover:bg-red-50 h-8 text-xs"
+                  className="border-red-200 text-red-700 hover:bg-red-50 h-7 text-xs"
                   onClick={() => console.log('View critical dishes')}
                 >
                   <AlertTriangle className="w-3 h-3 mr-1" />
@@ -175,10 +176,10 @@ const MobileFoodCost: React.FC = () => {
               )}
             </div>
 
-            {/* Mini Chart */}
+            {/* Mini Chart - Compatto */}
             {mockTrends.length > 0 && (
               <div className="bg-white rounded-lg p-2 shadow-sm border border-stone-200">
-                <h3 className="text-sm font-medium text-slate-800 mb-2">Trend Settimanale</h3>
+                <h3 className="text-xs font-medium text-slate-800 mb-1">Trend Settimanale</h3>
                 <MobileMetricsChart
                   data={mockTrends}
                   currentValue={avgFoodCostPercentage}
@@ -207,11 +208,11 @@ const MobileFoodCost: React.FC = () => {
               />
             )}
 
-            {/* Detailed Stats */}
-            <div className="mt-3 grid grid-cols-1 gap-2">
+            {/* Detailed Stats - Compatte */}
+            <div className="mt-2 grid grid-cols-1 gap-2">
               <div className="bg-white rounded-lg p-2 shadow-sm border border-stone-200">
-                <h3 className="text-sm font-medium text-slate-800 mb-2">Statistiche Periodo</h3>
-                <div className="grid grid-cols-2 gap-2 text-sm">
+                <h3 className="text-xs font-medium text-slate-800 mb-1">Statistiche Periodo</h3>
+                <div className="grid grid-cols-2 gap-2 text-xs">
                   <div>
                     <span className="text-slate-600">Food Cost Medio:</span>
                     <p className="font-bold text-slate-800">{avgFoodCostPercentage.toFixed(1)}%</p>

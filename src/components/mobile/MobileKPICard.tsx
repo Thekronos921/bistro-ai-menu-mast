@@ -1,17 +1,16 @@
 
 import React from 'react';
-import { LucideIcon } from 'lucide-react';
-import TouchOptimizedCard from './TouchOptimizedCard';
+import { LucideIcon, TrendingUp, TrendingDown, Minus } from 'lucide-react';
+import { Card, CardContent } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
 
 interface MobileKPICardProps {
   title: string;
   value: string | number;
   subtitle?: string;
-  icon: LucideIcon;
+  icon?: LucideIcon;
   trend?: 'up' | 'down' | 'neutral';
   progress?: number;
-  onClick?: () => void;
   className?: string;
 }
 
@@ -22,62 +21,65 @@ const MobileKPICard: React.FC<MobileKPICardProps> = ({
   icon: Icon,
   trend = 'neutral',
   progress,
-  onClick,
   className
 }) => {
-  const getTrendColor = () => {
+  const getTrendIcon = () => {
     switch (trend) {
-      case 'up': return 'text-emerald-600';
-      case 'down': return 'text-red-600';
-      default: return 'text-slate-600';
+      case 'up':
+        return <TrendingUp className="w-3 h-3 text-green-600" />;
+      case 'down':
+        return <TrendingDown className="w-3 h-3 text-red-600" />;
+      default:
+        return <Minus className="w-3 h-3 text-slate-400" />;
     }
   };
 
-  const getTrendBgColor = () => {
+  const getTrendColor = () => {
     switch (trend) {
-      case 'up': return 'bg-emerald-50';
-      case 'down': return 'bg-red-50';
-      default: return 'bg-slate-50';
+      case 'up':
+        return 'text-green-600';
+      case 'down':
+        return 'text-red-600';
+      default:
+        return 'text-slate-400';
     }
   };
 
   return (
-    <TouchOptimizedCard onTap={onClick} className={className}>
-      <div className="flex items-start justify-between">
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center space-x-2 mb-2">
-            <div className={cn(
-              "p-2 rounded-lg",
-              getTrendBgColor()
-            )}>
-              <Icon className={cn("w-4 h-4", getTrendColor())} />
+    <Card className={cn("border-0 shadow-sm w-full", className)}>
+      <CardContent className="p-2">
+        <div className="space-y-1">
+          {/* Header con icona e trend */}
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-1">
+              {Icon && <Icon className="w-3 h-3 text-slate-600" />}
+              <span className="text-xs font-medium text-slate-600 truncate">{title}</span>
             </div>
+            {getTrendIcon()}
           </div>
-          
-          <h3 className="text-sm font-medium text-slate-600 mb-1 truncate">
-            {title}
-          </h3>
-          
-          <div className="space-y-1">
-            <p className="text-2xl font-bold text-slate-900 truncate">
+
+          {/* Valore principale */}
+          <div className="space-y-0.5">
+            <div className="text-lg font-bold text-slate-800 leading-none">
               {value}
-            </p>
-            
+            </div>
             {subtitle && (
-              <p className="text-xs text-slate-500 truncate">
+              <div className="text-xs text-slate-500 truncate">
                 {subtitle}
-              </p>
+              </div>
             )}
           </div>
-          
+
+          {/* Progress bar se fornita */}
           {progress !== undefined && (
-            <div className="mt-3">
-              <div className="w-full bg-slate-200 rounded-full h-1.5">
+            <div className="w-full">
+              <div className="w-full h-1 bg-slate-200 rounded-full overflow-hidden">
                 <div 
                   className={cn(
-                    "h-1.5 rounded-full transition-all duration-300",
-                    trend === 'up' ? 'bg-emerald-500' : 
-                    trend === 'down' ? 'bg-red-500' : 'bg-slate-500'
+                    "h-full transition-all duration-300 rounded-full",
+                    trend === 'up' ? 'bg-green-500' :
+                    trend === 'down' ? 'bg-red-500' :
+                    'bg-slate-400'
                   )}
                   style={{ width: `${Math.min(100, Math.max(0, progress))}%` }}
                 />
@@ -85,8 +87,8 @@ const MobileKPICard: React.FC<MobileKPICardProps> = ({
             </div>
           )}
         </div>
-      </div>
-    </TouchOptimizedCard>
+      </CardContent>
+    </Card>
   );
 };
 

@@ -10,7 +10,6 @@ import { Link } from 'react-router-dom';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import MobileSafeArea from '@/components/mobile/MobileSafeArea';
 import BottomNavigation from '@/components/mobile/BottomNavigation';
 import MobileRecipeCard from '@/components/mobile/MobileRecipeCard';
 import RecipeScalingWidget from '@/components/mobile/RecipeScalingWidget';
@@ -125,7 +124,7 @@ const MobileRecipes: React.FC = () => {
   }, [restaurantId]);
 
   const handleAddRecipe = () => {
-    navigate('/recipes'); // Navigate to desktop version for adding recipes
+    navigate('/recipes');
   };
 
   // Extract unique categories
@@ -153,86 +152,81 @@ const MobileRecipes: React.FC = () => {
 
   if (loading) {
     return (
-      <MobileSafeArea>
-        <div className="flex items-center justify-center h-full">
-          <div className="text-center">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-orange-600 mx-auto mb-4"></div>
-            <p className="text-slate-600">Caricamento ricette...</p>
-          </div>
+      <div className="min-h-screen bg-gradient-to-br from-orange-50 to-red-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-orange-600 mx-auto mb-4"></div>
+          <p className="text-slate-600">Caricamento ricette...</p>
         </div>
-      </MobileSafeArea>
+      </div>
     );
   }
 
   if (!restaurantId) {
     return (
-      <MobileSafeArea>
-        <div className="flex items-center justify-center h-full">
-          <div className="text-center">
-            <p className="text-slate-600">Errore: Nessun ristorante associato</p>
-          </div>
+      <div className="min-h-screen bg-gradient-to-br from-orange-50 to-red-50 flex items-center justify-center">
+        <div className="text-center">
+          <p className="text-slate-600">Errore: Nessun ristorante associato</p>
         </div>
-      </MobileSafeArea>
+      </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-orange-50 to-red-50">
-      {/* Header */}
-      <header className="bg-white/80 backdrop-blur-sm border-b border-stone-200 sticky top-0 z-50">
-        <div className="px-3 py-3">
-          {/* Mobile Layout */}
-          <div className="flex items-center space-x-3">
-            <Link to="/" className="p-1.5 hover:bg-stone-100 rounded-lg transition-colors flex-shrink-0">
+    <div className="min-h-screen bg-gradient-to-br from-orange-50 to-red-50 w-full max-w-full overflow-x-hidden">
+      {/* Header - Compatto e fullscreen */}
+      <header className="bg-white/90 backdrop-blur-sm border-b border-stone-200 sticky top-0 z-50 w-full">
+        <div className="px-3 py-2">
+          <div className="flex items-center space-x-2">
+            <Link to="/" className="p-1 hover:bg-stone-100 rounded-lg transition-colors flex-shrink-0">
               <ArrowLeft className="w-4 h-4 text-slate-600" />
             </Link>
-            <div className="w-8 h-8 bg-gradient-to-br from-orange-500 to-red-600 rounded-xl flex items-center justify-center flex-shrink-0">
-              <span className="text-white font-bold text-sm">👨‍🍳</span>
+            <div className="w-6 h-6 bg-gradient-to-br from-orange-500 to-red-600 rounded-lg flex items-center justify-center flex-shrink-0">
+              <span className="text-white font-bold text-xs">👨‍🍳</span>
             </div>
             <div className="min-w-0 flex-1">
-              <h1 className="text-lg font-bold text-slate-800 truncate">Ricette</h1>
-              <p className="text-xs text-slate-500">{recipes.length} ricette disponibili</p>
+              <h1 className="text-sm font-bold text-slate-800 truncate">Ricette</h1>
+              <p className="text-xs text-slate-500">{recipes.length} ricette</p>
             </div>
           </div>
         </div>
       </header>
 
-      <main className="flex-1 pb-20">
+      <main className="flex-1 pb-16 w-full max-w-full">
         <Tabs defaultValue="all" className="w-full">
-          {/* Stats Cards */}
-          <div className="px-3 pt-4 pb-2">
-            <div className="grid grid-cols-3 gap-2">
+          {/* Stats Cards - Compatte */}
+          <div className="px-2 pt-2 pb-1">
+            <div className="grid grid-cols-3 gap-1">
               <div className="bg-purple-50 rounded-lg p-2 text-center">
-                <div className="text-base font-bold text-purple-800">{totalRecipes}</div>
+                <div className="text-sm font-bold text-purple-800">{totalRecipes}</div>
                 <div className="text-xs text-purple-600">Totali</div>
               </div>
               <div className="bg-blue-50 rounded-lg p-2 text-center">
-                <div className="text-base font-bold text-blue-800">{semilavoratiCount}</div>
+                <div className="text-sm font-bold text-blue-800">{semilavoratiCount}</div>
                 <div className="text-xs text-blue-600">Semilavorati</div>
               </div>
               <div className="bg-green-50 rounded-lg p-2 text-center">
-                <div className="text-base font-bold text-green-800">{avgPreparationTime}m</div>
+                <div className="text-sm font-bold text-green-800">{avgPreparationTime}m</div>
                 <div className="text-xs text-green-600">Tempo Medio</div>
               </div>
             </div>
           </div>
 
-          {/* Search */}
-          <div className="px-3 pb-3">
+          {/* Search - Compatta */}
+          <div className="px-2 pb-2">
             <div className="relative">
-              <Search className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
+              <Search className="w-3 h-3 text-slate-400 absolute left-2 top-2.5" />
               <Input
                 placeholder="Cerca ricette..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10 h-10"
+                className="pl-7 h-8 text-sm"
               />
             </div>
           </div>
 
-          {/* Category Tabs */}
-          <div className="px-3 pb-3">
-            <TabsList className="grid w-full grid-cols-2 h-8">
+          {/* Category Tabs - Compatte */}
+          <div className="px-2 pb-2">
+            <TabsList className="grid w-full grid-cols-2 h-7">
               <TabsTrigger 
                 value="all" 
                 className="text-xs"
@@ -249,18 +243,18 @@ const MobileRecipes: React.FC = () => {
             </TabsList>
           </div>
 
-          <TabsContent value="all" className="px-3 mt-0">
-            {/* Add Recipe Button */}
+          <TabsContent value="all" className="px-2 mt-0">
+            {/* Add Recipe Button - Compatto */}
             <Button
               onClick={handleAddRecipe}
-              className="w-full bg-orange-600 hover:bg-orange-700 mb-3 h-10"
+              className="w-full bg-orange-600 hover:bg-orange-700 mb-2 h-8 text-xs"
             >
-              <Plus className="w-4 h-4 mr-2" />
+              <Plus className="w-3 h-3 mr-1" />
               Aggiungi Nuova Ricetta
             </Button>
 
-            {/* Recipe List */}
-            <div className="space-y-3">
+            {/* Recipe List - Compatta */}
+            <div className="space-y-2">
               {filteredRecipes.length > 0 ? (
                 filteredRecipes.map((recipe) => (
                   <MobileRecipeCard
@@ -271,27 +265,28 @@ const MobileRecipes: React.FC = () => {
                   />
                 ))
               ) : (
-                <div className="text-center py-8 text-gray-500">
-                  <ChefHat className="w-12 h-12 mx-auto mb-3 opacity-50" />
-                  <p className="text-base font-medium">Nessuna ricetta trovata</p>
+                <div className="text-center py-6 text-gray-500">
+                  <ChefHat className="w-8 h-8 mx-auto mb-2 opacity-50" />
+                  <p className="text-sm font-medium">Nessuna ricetta trovata</p>
                   {searchTerm ? (
-                    <div className="mt-3">
+                    <div className="mt-2">
                       <Button
                         variant="outline"
                         size="sm"
                         onClick={() => setSearchTerm('')}
+                        className="h-7 text-xs"
                       >
                         Rimuovi filtri
                       </Button>
                     </div>
                   ) : (
-                    <div className="mt-3">
+                    <div className="mt-2">
                       <Button
                         onClick={handleAddRecipe}
-                        className="bg-orange-600 hover:bg-orange-700"
+                        className="bg-orange-600 hover:bg-orange-700 h-7 text-xs"
                         size="sm"
                       >
-                        <Plus className="w-4 h-4 mr-2" />
+                        <Plus className="w-3 h-3 mr-1" />
                         Crea Prima Ricetta
                       </Button>
                     </div>
@@ -301,15 +296,15 @@ const MobileRecipes: React.FC = () => {
             </div>
           </TabsContent>
 
-          <TabsContent value="categories" className="px-3 mt-0">
-            <div className="space-y-2">
+          <TabsContent value="categories" className="px-2 mt-0">
+            <div className="space-y-1">
               {categories.map(category => {
                 const categoryRecipes = recipes.filter(r => r.category === category);
                 return (
                   <Button
                     key={category}
                     variant="outline"
-                    className="w-full justify-between h-10"
+                    className="w-full justify-between h-8 text-xs"
                     onClick={() => {
                       setSelectedCategory(category);
                       // Switch back to all tab to show filtered results
@@ -318,7 +313,7 @@ const MobileRecipes: React.FC = () => {
                     }}
                   >
                     <span className="capitalize">{category}</span>
-                    <span className="text-xs bg-slate-100 px-2 py-1 rounded">
+                    <span className="text-xs bg-slate-100 px-1 py-0.5 rounded">
                       {categoryRecipes.length}
                     </span>
                   </Button>

@@ -1,9 +1,8 @@
-
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import PostRegistrationSetup from "@/components/PostRegistrationSetup";
@@ -28,146 +27,154 @@ import Reservations from "./pages/Reservations";
 import ShiftManagementPage from "./components/shifts/ShiftManagementPage";
 import NotFound from "./pages/NotFound";
 import Configuration from "./pages/Configuration";
+import MobileRecipes from "./pages/MobileRecipes";
 
 const queryClient = new QueryClient();
 
-const App = () => (
-  <QueryClientProvider client={queryClient}>
-    <AuthProvider>
+function App() {
+  return (
+    <QueryClient>
       <TooltipProvider>
-        <Toaster />
-        <Sonner />
-        <BrowserRouter>
-          <Routes>
-            {/* Public routes - without layout */}
-            <Route path="/login" element={<Login />} />
-            <Route path="/register" element={<Register />} />
-            <Route path="/forgot-password" element={<ForgotPassword />} />
-            <Route path="/reset-password" element={<ResetPassword />} />
-            <Route path="/label/:id" element={<LabelView />} />
-            
-            {/* Redirect menu-engineering to food-cost (Menu Intelligence) */}
-            <Route path="/menu-engineering" element={<Navigate to="/food-cost" replace />} />
-            
-            {/* Protected routes - with layout */}
-            <Route path="/" element={
-              <ProtectedRoute>
-                <PostRegistrationSetup />
-                <Layout>
-                  <Index />
-                </Layout>
-              </ProtectedRoute>
-            } />
-            <Route path="/configuration" element={
-              <ProtectedRoute>
-                <PostRegistrationSetup />
-                <Layout>
-                  <Configuration />
-                </Layout>
-              </ProtectedRoute>
-            } />
-            <Route path="/profile" element={
-              <ProtectedRoute>
-                <PostRegistrationSetup />
-                <Layout>
-                  <Profile />
-                </Layout>
-              </ProtectedRoute>
-            } />
-            <Route path="/recipes" element={
-              <ProtectedRoute>
-                <PostRegistrationSetup />
-                <Layout>
-                  <Recipes />
-                </Layout>
-              </ProtectedRoute>
-            } />
-            <Route path="/inventory" element={
-              <ProtectedRoute>
-                <PostRegistrationSetup />
-                <Layout>
-                  <Inventory />
-                </Layout>
-              </ProtectedRoute>
-            } />
-            <Route path="/food-cost" element={
-              <ProtectedRoute>
-                <PostRegistrationSetup />
-                <Layout>
-                  <FoodCost />
-                </Layout>
-              </ProtectedRoute>
-            } />
-            <Route path="/production-planning" element={
-              <ProtectedRoute>
-                <PostRegistrationSetup />
-                <Layout>
-                  <ProductionPlanning />
-                </Layout>
-              </ProtectedRoute>
-            } />
-            <Route path="/demand-forecast" element={
-              <ProtectedRoute>
-                <PostRegistrationSetup />
-                <Layout>
-                  <DemandForecast />
-                </Layout>
-              </ProtectedRoute>
-            } />
-            <Route path="/customer-analysis" element={
-              <ProtectedRoute>
-                <PostRegistrationSetup />
-                <Layout>
-                  <CustomerAnalysis />
-                </Layout>
-              </ProtectedRoute>
-            } />
-            <Route path="/cassa-in-cloud" element={
-              <ProtectedRoute>
-                <PostRegistrationSetup />
-                <Layout>
-                  <CassaInCloudIntegration />
-                </Layout>
-              </ProtectedRoute>
-            } />
-            <Route path="/events" element={
-              <ProtectedRoute>
-                <PostRegistrationSetup />
-                <Layout>
-                  <EventCalendar />
-                </Layout>
-              </ProtectedRoute>
-            } />
-            <Route path="/staff" element={
-              <ProtectedRoute>
-                <PostRegistrationSetup />
-                <Layout>
-                  <StaffDashboard />
-                </Layout>
-              </ProtectedRoute>
-            } />
-            <Route path="/reservations" element={
-              <ProtectedRoute>
-                <PostRegistrationSetup />
-                <Layout>
-                  <Reservations />
-                </Layout>
-              </ProtectedRoute>
-            } />
-            <Route path="/gestione-turni" element={
-              <ProtectedRoute>
-                <PostRegistrationSetup />
-                <Layout>
-                  <ShiftManagementPage />
-                </Layout>
-              </ProtectedRoute>
-            } />
-            <Route path="*" element={<NotFound />} />
-          </Routes>
-        </BrowserRouter>
+        <Router>
+          <AuthProvider>
+            <Routes>
+              {/* Public routes - without layout */}
+              <Route path="/login" element={<Login />} />
+              <Route path="/register" element={<Register />} />
+              <Route path="/forgot-password" element={<ForgotPassword />} />
+              <Route path="/reset-password" element={<ResetPassword />} />
+              <Route path="/label/:id" element={<LabelView />} />
+              
+              {/* Redirect menu-engineering to food-cost (Menu Intelligence) */}
+              <Route path="/menu-engineering" element={<Navigate to="/food-cost" replace />} />
+              
+              {/* Protected routes - with layout */}
+              <Route path="/" element={
+                <ProtectedRoute>
+                  <PostRegistrationSetup />
+                  <Layout>
+                    <Index />
+                  </Layout>
+                </ProtectedRoute>
+              } />
+              <Route path="/configuration" element={
+                <ProtectedRoute>
+                  <PostRegistrationSetup />
+                  <Layout>
+                    <Configuration />
+                  </Layout>
+                </ProtectedRoute>
+              } />
+              <Route path="/profile" element={
+                <ProtectedRoute>
+                  <PostRegistrationSetup />
+                  <Layout>
+                    <Profile />
+                  </Layout>
+                </ProtectedRoute>
+              } />
+              <Route path="/recipes" element={
+                <ProtectedRoute>
+                  <PostRegistrationSetup />
+                  <Layout>
+                    <Recipes />
+                  </Layout>
+                </ProtectedRoute>
+              } />
+              <Route path="/inventory" element={
+                <ProtectedRoute>
+                  <PostRegistrationSetup />
+                  <Layout>
+                    <Inventory />
+                  </Layout>
+                </ProtectedRoute>
+              } />
+              <Route path="/food-cost" element={
+                <ProtectedRoute>
+                  <PostRegistrationSetup />
+                  <Layout>
+                    <FoodCost />
+                  </Layout>
+                </ProtectedRoute>
+              } />
+              <Route path="/production-planning" element={
+                <ProtectedRoute>
+                  <PostRegistrationSetup />
+                  <Layout>
+                    <ProductionPlanning />
+                  </Layout>
+                </ProtectedRoute>
+              } />
+              <Route path="/demand-forecast" element={
+                <ProtectedRoute>
+                  <PostRegistrationSetup />
+                  <Layout>
+                    <DemandForecast />
+                  </Layout>
+                </ProtectedRoute>
+              } />
+              <Route path="/customer-analysis" element={
+                <ProtectedRoute>
+                  <PostRegistrationSetup />
+                  <Layout>
+                    <CustomerAnalysis />
+                  </Layout>
+                </ProtectedRoute>
+              } />
+              <Route path="/cassa-in-cloud" element={
+                <ProtectedRoute>
+                  <PostRegistrationSetup />
+                  <Layout>
+                    <CassaInCloudIntegration />
+                  </Layout>
+                </ProtectedRoute>
+              } />
+              <Route path="/events" element={
+                <ProtectedRoute>
+                  <PostRegistrationSetup />
+                  <Layout>
+                    <EventCalendar />
+                  </Layout>
+                </ProtectedRoute>
+              } />
+              <Route path="/staff" element={
+                <ProtectedRoute>
+                  <PostRegistrationSetup />
+                  <Layout>
+                    <StaffDashboard />
+                  </Layout>
+                </ProtectedRoute>
+              } />
+              <Route path="/reservations" element={
+                <ProtectedRoute>
+                  <PostRegistrationSetup />
+                  <Layout>
+                    <Reservations />
+                  </Layout>
+                </ProtectedRoute>
+              } />
+              <Route path="/gestione-turni" element={
+                <ProtectedRoute>
+                  <PostRegistrationSetup />
+                  <Layout>
+                    <ShiftManagementPage />
+                  </Layout>
+                </ProtectedRoute>
+              } />
+              <Route path="*" element={<NotFound />} />
+              
+              {/* Mobile Routes */}
+              <Route path="/mobile/recipes" element={
+                <ProtectedRoute>
+                  <MobileRecipes />
+                </ProtectedRoute>
+              } />
+            </Routes>
+          </AuthProvider>
+        </Router>
       </TooltipProvider>
-    </AuthProvider>
-  </QueryClientProvider>
-);
+    </QueryClient>
+  );
+}
 
 export default App;

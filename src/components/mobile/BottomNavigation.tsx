@@ -1,80 +1,78 @@
 
 import React from 'react';
-import { Link, useLocation } from 'react-router-dom';
-import { Home, Package, ChefHat, BarChart3, Menu } from 'lucide-react';
-import { cn } from '@/lib/utils';
-import { useSidebar } from '@/components/ui/sidebar';
+import { useNavigate, useLocation } from 'react-router-dom';
+import { Home, ChefHat, BarChart3, Package, Settings } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { useIsMobile } from '@/hooks/use-mobile';
 
-const bottomNavItems = [
-  {
-    icon: Home,
-    label: 'Dashboard',
-    route: '/',
-    key: 'dashboard'
-  },
-  {
-    icon: Package,
-    label: 'Inventario',
-    route: '/inventory',
-    key: 'inventory'
-  },
-  {
-    icon: ChefHat,
-    label: 'Ricette',
-    route: '/recipes',
-    key: 'recipes'
-  },
-  {
-    icon: BarChart3,
-    label: 'Analytics',
-    route: '/food-cost',
-    key: 'analytics'
-  },
-];
-
-const BottomNavigation = () => {
+const BottomNavigation: React.FC = () => {
+  const navigate = useNavigate();
   const location = useLocation();
-  const { toggleSidebar } = useSidebar();
+  const isMobile = useIsMobile();
 
-  const isActive = (route: string) => {
-    if (route === '/') {
-      return location.pathname === '/';
-    }
-    return location.pathname.startsWith(route);
-  };
+  if (!isMobile) return null;
+
+  const navItems = [
+    {
+      id: 'dashboard',
+      icon: Home,
+      label: 'Dashboard',
+      path: '/',
+    },
+    {
+      id: 'recipes',
+      icon: ChefHat,
+      label: 'Ricette',
+      path: '/mobile/recipes',
+    },
+    {
+      id: 'analytics',
+      icon: BarChart3,
+      label: 'Analytics',
+      path: '/mobile/food-cost',
+    },
+    {
+      id: 'inventory',
+      icon: Package,
+      label: 'Magazzino',
+      path: '/inventory',
+    },
+    {
+      id: 'settings',
+      icon: Settings,
+      label: 'Impostazioni',
+      path: '/configuration',
+    },
+  ];
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-50 md:hidden bg-white border-t border-stone-200 safe-area-pb">
-      <div className="flex items-center justify-around h-16">
-        {bottomNavItems.map((item) => (
-          <Link
-            key={item.key}
-            to={item.route}
-            className={cn(
-              "flex flex-col items-center justify-center min-w-[44px] min-h-[44px] px-2 py-1 rounded-lg transition-colors",
-              isActive(item.route)
-                ? "text-orange-600 bg-orange-50"
-                : "text-slate-600 hover:text-orange-600 hover:bg-orange-50"
-            )}
-          >
-            <item.icon className="w-5 h-5 mb-1" />
-            <span className="text-xs font-medium truncate">{item.label}</span>
-          </Link>
-        ))}
-        
-        {/* Menu trigger per aprire sidebar */}
-        <button
-          onClick={toggleSidebar}
-          className={cn(
-            "flex flex-col items-center justify-center min-w-[44px] min-h-[44px] px-2 py-1 rounded-lg transition-colors",
-            "text-slate-600 hover:text-orange-600 hover:bg-orange-50"
-          )}
-        >
-          <Menu className="w-5 h-5 mb-1" />
-          <span className="text-xs font-medium">Menu</span>
-        </button>
+    <div className="fixed bottom-0 left-0 right-0 z-50 bg-white border-t border-slate-200 safe-area-bottom">
+      <div className="grid grid-cols-5 gap-1 p-2">
+        {navItems.map((item) => {
+          const Icon = item.icon;
+          const isActive = location.pathname === item.path;
+          
+          return (
+            <Button
+              key={item.id}
+              variant="ghost"
+              size="sm"
+              onClick={() => navigate(item.path)}
+              className={`flex flex-col items-center space-y-1 h-auto py-2 px-1 ${
+                isActive 
+                  ? 'bg-orange-50 text-orange-600 hover:bg-orange-100' 
+                  : 'text-slate-600 hover:text-slate-800 hover:bg-slate-50'
+              }`}
+            >
+              <Icon className={`w-5 h-5 ${isActive ? 'text-orange-600' : 'text-slate-500'}`} />
+              <span className={`text-xs font-medium ${isActive ? 'text-orange-600' : 'text-slate-600'}`}>
+                {item.label}
+              </span>
+            </Button>
+          );
+        })}
       </div>
-    </nav>
+    </div>
   );
 };
 

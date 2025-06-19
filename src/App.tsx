@@ -28,6 +28,7 @@ import ShiftManagementPage from "./components/shifts/ShiftManagementPage";
 import NotFound from "./pages/NotFound";
 import Configuration from "./pages/Configuration";
 import MobileRecipes from "./pages/MobileRecipes";
+import MobileFoodCost from "./pages/MobileFoodCost";
 
 const queryClient = new QueryClient();
 
@@ -167,6 +168,11 @@ function App() {
               <Route path="/mobile/recipes" element={
                 <ProtectedRoute>
                   <MobileRecipes />
+                </ProtectedRoute>
+              } />
+              <Route path="/mobile/food-cost" element={
+                <ProtectedRoute>
+                  <MobileFoodCost />
                 </ProtectedRoute>
               } />
             </Routes>

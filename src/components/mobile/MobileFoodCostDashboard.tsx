@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Calculator, TrendingDown, AlertTriangle, Target, Plus, Filter } from 'lucide-react';
 import MobileKPICard from './MobileKPICard';
@@ -81,10 +80,10 @@ const MobileFoodCostDashboard: React.FC<MobileFoodCostDashboardProps> = ({
 
   return (
     <div className={className}>
-      <div className="space-y-4 p-3">
+      <div className="space-y-2 p-2">
         {/* KPI compatti */}
         <section>
-          <div className="grid grid-cols-2 gap-2">
+          <div className="grid grid-cols-2 gap-1.5">
             <MobileKPICard
               title="Food Cost"
               value={`${data.avgFoodCostPercentage.toFixed(1)}%`}
@@ -101,7 +100,7 @@ const MobileFoodCostDashboard: React.FC<MobileFoodCostDashboardProps> = ({
             />
           </div>
           
-          <div className="grid grid-cols-2 gap-2 mt-2">
+          <div className="grid grid-cols-2 gap-1.5 mt-1.5">
             <MobileKPICard
               title="Critici"
               value={data.criticalDishes}
@@ -130,7 +129,6 @@ const MobileFoodCostDashboard: React.FC<MobileFoodCostDashboardProps> = ({
               previousValue={data.trends[data.trends.length - 2]?.value}
               unit="%"
               trend={data.avgFoodCostPercentage < 30 ? 'up' : 'down'}
-              height={120}
             />
           </section>
         )}
@@ -139,7 +137,7 @@ const MobileFoodCostDashboard: React.FC<MobileFoodCostDashboardProps> = ({
         <section>
           <MobileQuickActions
             actions={quickActions}
-            layout="horizontal"
+            layout="grid"
           />
         </section>
 

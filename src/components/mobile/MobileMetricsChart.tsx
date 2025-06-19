@@ -12,13 +12,14 @@ interface MetricPoint {
 }
 
 interface MobileMetricsChartProps {
-  title: string;
+  title?: string;
   data: MetricPoint[];
   currentValue: number;
   previousValue?: number;
   unit?: string;
   trend?: 'up' | 'down' | 'neutral';
   trendPercentage?: number;
+  height?: number;
   className?: string;
 }
 
@@ -30,6 +31,7 @@ const MobileMetricsChart: React.FC<MobileMetricsChartProps> = ({
   unit = '',
   trend = 'neutral',
   trendPercentage,
+  height = 200,
   className
 }) => {
   const getTrendIcon = () => {
@@ -61,21 +63,23 @@ const MobileMetricsChart: React.FC<MobileMetricsChartProps> = ({
 
   return (
     <Card className={cn("border-0 shadow-sm", className)}>
-      <CardHeader className="pb-3">
-        <div className="flex items-center justify-between">
-          <CardTitle className="text-lg">{title}</CardTitle>
-          {trendPercentage !== undefined && (
-            <Badge variant="outline" className={getTrendColor()}>
-              <div className="flex items-center space-x-1">
-                {getTrendIcon()}
-                <span className="text-xs">
-                  {trendPercentage > 0 ? '+' : ''}{trendPercentage.toFixed(1)}%
-                </span>
-              </div>
-            </Badge>
-          )}
-        </div>
-      </CardHeader>
+      {title && (
+        <CardHeader className="pb-3">
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-lg">{title}</CardTitle>
+            {trendPercentage !== undefined && (
+              <Badge variant="outline" className={getTrendColor()}>
+                <div className="flex items-center space-x-1">
+                  {getTrendIcon()}
+                  <span className="text-xs">
+                    {trendPercentage > 0 ? '+' : ''}{trendPercentage.toFixed(1)}%
+                  </span>
+                </div>
+              </Badge>
+            )}
+          </div>
+        </CardHeader>
+      )}
       <CardContent className="pt-0">
         <div className="space-y-4">
           {/* Valore corrente */}
@@ -93,22 +97,24 @@ const MobileMetricsChart: React.FC<MobileMetricsChartProps> = ({
           {/* Mini grafico a barre */}
           <div className="space-y-2">
             <div className="text-xs text-slate-600 mb-2">Trend ultimi periodi</div>
-            <div className="flex items-end justify-between space-x-1 h-16">
+            <div className="flex items-end justify-between space-x-1" style={{ height: `${Math.min(height, 200)}px` }}>
               {data.slice(-7).map((point, index) => {
-                const height = range > 0 
+                const heightPercentage = range > 0 
                   ? ((point.value - minValue) / range) * 100 
                   : 50;
                 const isLast = index === data.slice(-7).length - 1;
                 
                 return (
-                  <div key={index} className="flex-1 flex flex-col items-center">
-                    <div 
-                      className={cn(
-                        "w-full rounded-t transition-all duration-300",
-                        isLast ? "bg-blue-500" : "bg-slate-300"
-                      )}
-                      style={{ height: `${Math.max(height, 10)}%` }}
-                    />
+                  <div key={index} className="flex-1 flex flex-col items-center h-full">
+                    <div className="flex-1 flex flex-col justify-end w-full">
+                      <div 
+                        className={cn(
+                          "w-full rounded-t transition-all duration-300",
+                          isLast ? "bg-blue-500" : "bg-slate-300"
+                        )}
+                        style={{ height: `${Math.max(heightPercentage, 10)}%` }}
+                      />
+                    </div>
                     <div className="text-xs text-slate-500 mt-1 truncate">
                       {point.label.slice(0, 3)}
                     </div>

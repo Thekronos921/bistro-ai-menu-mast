@@ -5,12 +5,11 @@ import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useRestaurant } from '@/hooks/useRestaurant';
 import { useIsMobile } from '@/hooks/use-mobile';
-import { ArrowLeft, Search, Filter, Plus, ChefHat } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { Search, Plus, ChefHat } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import BottomNavigation from '@/components/mobile/BottomNavigation';
+import MobilePageWrapper from '@/components/mobile/MobilePageWrapper';
 import MobileRecipeCard from '@/components/mobile/MobileRecipeCard';
 import RecipeScalingWidget from '@/components/mobile/RecipeScalingWidget';
 import KitchenModeModal from '@/components/mobile/KitchenModeModal';
@@ -152,48 +151,53 @@ const MobileRecipes: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-orange-50 to-red-50 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-orange-600 mx-auto mb-4"></div>
-          <p className="text-slate-600">Caricamento ricette...</p>
+      <MobilePageWrapper
+        title="Ricette"
+        subtitle="Caricamento..."
+        icon={<span className="text-white font-bold text-xs">👨‍🍳</span>}
+        background="gradient"
+      >
+        <div className="flex items-center justify-center h-64">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-orange-600 mx-auto mb-4"></div>
+            <p className="text-slate-600 text-sm">Caricamento ricette...</p>
+          </div>
         </div>
-      </div>
+      </MobilePageWrapper>
     );
   }
 
   if (!restaurantId) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-orange-50 to-red-50 flex items-center justify-center">
-        <div className="text-center">
-          <p className="text-slate-600">Errore: Nessun ristorante associato</p>
+      <MobilePageWrapper
+        title="Ricette"
+        subtitle="Errore"
+        icon={<span className="text-white font-bold text-xs">👨‍🍳</span>}
+        background="gradient"
+      >
+        <div className="flex items-center justify-center h-64">
+          <div className="text-center">
+            <p className="text-slate-600 text-sm">Errore: Nessun ristorante associato</p>
+          </div>
         </div>
-      </div>
+      </MobilePageWrapper>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-orange-50 to-red-50 w-full max-w-full overflow-x-hidden">
-      {/* Header - Compatto e fullscreen */}
-      <header className="bg-white/90 backdrop-blur-sm border-b border-stone-200 sticky top-0 z-50 w-full">
-        <div className="px-3 py-2">
-          <div className="flex items-center space-x-2">
-            <Link to="/" className="p-1 hover:bg-stone-100 rounded-lg transition-colors flex-shrink-0">
-              <ArrowLeft className="w-4 h-4 text-slate-600" />
-            </Link>
-            <div className="w-6 h-6 bg-gradient-to-br from-orange-500 to-red-600 rounded-lg flex items-center justify-center flex-shrink-0">
-              <span className="text-white font-bold text-xs">👨‍🍳</span>
-            </div>
-            <div className="min-w-0 flex-1">
-              <h1 className="text-sm font-bold text-slate-800 truncate">Ricette</h1>
-              <p className="text-xs text-slate-500">{recipes.length} ricette</p>
-            </div>
-          </div>
+    <MobilePageWrapper
+      title="Ricette"
+      subtitle={`${recipes.length} ricette`}
+      icon={
+        <div className="w-6 h-6 bg-gradient-to-br from-orange-500 to-red-600 rounded-lg flex items-center justify-center">
+          <span className="text-white font-bold text-xs">👨‍🍳</span>
         </div>
-      </header>
-
-      <main className="flex-1 pb-16 w-full max-w-full">
+      }
+      background="gradient"
+    >
+      <div className="w-full max-w-full">
         <Tabs defaultValue="all" className="w-full">
-          {/* Stats Cards - Compatte */}
+          {/* Stats Cards - Ultra compatte 3 colonne */}
           <div className="px-2 pt-2 pb-1">
             <div className="grid grid-cols-3 gap-1">
               <div className="bg-purple-50 rounded-lg p-2 text-center">
@@ -211,7 +215,7 @@ const MobileRecipes: React.FC = () => {
             </div>
           </div>
 
-          {/* Search - Compatta */}
+          {/* Search - Ultra compatta */}
           <div className="px-2 pb-2">
             <div className="relative">
               <Search className="w-3 h-3 text-slate-400 absolute left-2 top-2.5" />
@@ -219,14 +223,14 @@ const MobileRecipes: React.FC = () => {
                 placeholder="Cerca ricette..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-7 h-8 text-sm"
+                className="pl-7 h-7 text-sm"
               />
             </div>
           </div>
 
-          {/* Category Tabs - Compatte */}
+          {/* Category Tabs - Ultra compatte */}
           <div className="px-2 pb-2">
-            <TabsList className="grid w-full grid-cols-2 h-7">
+            <TabsList className="grid w-full grid-cols-2 h-6">
               <TabsTrigger 
                 value="all" 
                 className="text-xs"
@@ -238,23 +242,23 @@ const MobileRecipes: React.FC = () => {
                 value="categories" 
                 className="text-xs"
               >
-                Per Categoria
+                Categorie
               </TabsTrigger>
             </TabsList>
           </div>
 
           <TabsContent value="all" className="px-2 mt-0">
-            {/* Add Recipe Button - Compatto */}
+            {/* Add Recipe Button - Ultra compatto */}
             <Button
               onClick={handleAddRecipe}
-              className="w-full bg-orange-600 hover:bg-orange-700 mb-2 h-8 text-xs"
+              className="w-full bg-orange-600 hover:bg-orange-700 mb-2 h-7 text-xs"
             >
               <Plus className="w-3 h-3 mr-1" />
               Aggiungi Nuova Ricetta
             </Button>
 
-            {/* Recipe List - Compatta */}
-            <div className="space-y-2">
+            {/* Recipe List - Ultra compatta */}
+            <div className="space-y-1.5">
               {filteredRecipes.length > 0 ? (
                 filteredRecipes.map((recipe) => (
                   <MobileRecipeCard
@@ -265,7 +269,7 @@ const MobileRecipes: React.FC = () => {
                   />
                 ))
               ) : (
-                <div className="text-center py-6 text-gray-500">
+                <div className="text-center py-8 text-gray-500">
                   <ChefHat className="w-8 h-8 mx-auto mb-2 opacity-50" />
                   <p className="text-sm font-medium">Nessuna ricetta trovata</p>
                   {searchTerm ? (
@@ -274,7 +278,7 @@ const MobileRecipes: React.FC = () => {
                         variant="outline"
                         size="sm"
                         onClick={() => setSearchTerm('')}
-                        className="h-7 text-xs"
+                        className="h-6 text-xs"
                       >
                         Rimuovi filtri
                       </Button>
@@ -283,7 +287,7 @@ const MobileRecipes: React.FC = () => {
                     <div className="mt-2">
                       <Button
                         onClick={handleAddRecipe}
-                        className="bg-orange-600 hover:bg-orange-700 h-7 text-xs"
+                        className="bg-orange-600 hover:bg-orange-700 h-6 text-xs"
                         size="sm"
                       >
                         <Plus className="w-3 h-3 mr-1" />
@@ -304,7 +308,7 @@ const MobileRecipes: React.FC = () => {
                   <Button
                     key={category}
                     variant="outline"
-                    className="w-full justify-between h-8 text-xs"
+                    className="w-full justify-between h-7 text-xs"
                     onClick={() => {
                       setSelectedCategory(category);
                       // Switch back to all tab to show filtered results
@@ -322,7 +326,7 @@ const MobileRecipes: React.FC = () => {
             </div>
           </TabsContent>
         </Tabs>
-      </main>
+      </div>
 
       {/* Modals */}
       <RecipeScalingWidget
@@ -336,9 +340,7 @@ const MobileRecipes: React.FC = () => {
         onClose={() => setSelectedRecipeForKitchen(null)}
         recipe={selectedRecipeForKitchen}
       />
-
-      <BottomNavigation />
-    </div>
+    </MobilePageWrapper>
   );
 };
 

@@ -34,43 +34,34 @@ const MobileKPICard: React.FC<MobileKPICardProps> = ({
     }
   };
 
-  const getTrendColor = () => {
-    switch (trend) {
-      case 'up':
-        return 'text-green-600';
-      case 'down':
-        return 'text-red-600';
-      default:
-        return 'text-slate-400';
-    }
-  };
-
   return (
     <Card className={cn("border-0 shadow-sm w-full", className)}>
       <CardContent className="p-2">
         <div className="space-y-1">
-          {/* Header con icona e trend */}
+          {/* Header ultra compatto */}
           <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-1">
-              {Icon && <Icon className="w-3 h-3 text-slate-600" />}
+            <div className="flex items-center space-x-1 flex-1 min-w-0">
+              {Icon && <Icon className="w-3 h-3 text-slate-600 flex-shrink-0" />}
               <span className="text-xs font-medium text-slate-600 truncate">{title}</span>
             </div>
-            {getTrendIcon()}
+            <div className="flex-shrink-0">
+              {getTrendIcon()}
+            </div>
           </div>
 
-          {/* Valore principale */}
+          {/* Valore principale ultra compatto */}
           <div className="space-y-0.5">
-            <div className="text-lg font-bold text-slate-800 leading-none">
+            <div className="text-base font-bold text-slate-800 leading-none">
               {value}
             </div>
             {subtitle && (
-              <div className="text-xs text-slate-500 truncate">
+              <div className="text-xs text-slate-500 truncate leading-none">
                 {subtitle}
               </div>
             )}
           </div>
 
-          {/* Progress bar se fornita */}
+          {/* Progress bar ultra compatta */}
           {progress !== undefined && (
             <div className="w-full">
               <div className="w-full h-1 bg-slate-200 rounded-full overflow-hidden">

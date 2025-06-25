@@ -4,10 +4,11 @@ import { useNavigate } from 'react-router-dom';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { useRestaurant } from '@/hooks/useRestaurant';
 import { useFoodCostPage } from '@/hooks/useFoodCostPage';
-import { Calculator, TrendingUp, AlertTriangle, Target, Plus, Filter } from 'lucide-react';
+import { ArrowLeft, Calculator, TrendingUp, AlertTriangle, Target, Plus, Filter } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import MobilePageWrapper from '@/components/mobile/MobilePageWrapper';
+import BottomNavigation from '@/components/mobile/BottomNavigation';
 import MobileKPICard from '@/components/mobile/MobileKPICard';
 import MobileMetricsChart from '@/components/mobile/MobileMetricsChart';
 import MobileAlerts from '@/components/mobile/MobileAlerts';
@@ -72,47 +73,47 @@ const MobileFoodCost: React.FC = () => {
 
   if (loading) {
     return (
-      <MobilePageWrapper
-        title="Food Cost Analytics"
-        subtitle="Caricamento..."
-        icon={<span className="text-white font-bold text-xs">📊</span>}
-        background="gradient"
-      >
-        <div className="flex items-center justify-center h-64">
-          <div className="text-center">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-emerald-600 mx-auto mb-4"></div>
-            <p className="text-slate-600 text-sm">Caricamento analytics...</p>
-          </div>
+      <div className="min-h-screen bg-gradient-to-br from-emerald-50 to-blue-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-emerald-600 mx-auto mb-4"></div>
+          <p className="text-slate-600">Caricamento analytics...</p>
         </div>
-      </MobilePageWrapper>
+      </div>
     );
   }
 
   return (
-    <MobilePageWrapper
-      title="Food Cost Analytics"
-      subtitle={`Periodo: ${selectedPeriod}`}
-      icon={
-        <div className="w-6 h-6 bg-gradient-to-br from-emerald-500 to-blue-600 rounded-lg flex items-center justify-center">
-          <span className="text-white font-bold text-xs">📊</span>
+    <div className="min-h-screen bg-gradient-to-br from-emerald-50 to-blue-50 w-full max-w-full overflow-x-hidden">
+      {/* Header compatto e fullscreen */}
+      <header className="bg-white/90 backdrop-blur-sm border-b border-stone-200 sticky top-0 z-50 w-full">
+        <div className="px-2 py-2">
+          <div className="flex items-center space-x-2">
+            <Link to="/" className="p-1 hover:bg-stone-100 rounded-lg transition-colors flex-shrink-0">
+              <ArrowLeft className="w-4 h-4 text-slate-600" />
+            </Link>
+            <div className="w-6 h-6 bg-gradient-to-br from-emerald-500 to-blue-600 rounded-lg flex items-center justify-center flex-shrink-0">
+              <span className="text-white font-bold text-xs">📊</span>
+            </div>
+            <div className="min-w-0 flex-1">
+              <h1 className="text-sm font-bold text-slate-800 truncate">Food Cost Analytics</h1>
+              <p className="text-xs text-slate-500">Periodo: {selectedPeriod}</p>
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleOpenFilters}
+              className="flex-shrink-0 h-6 px-2 text-xs"
+            >
+              <Filter className="w-3 h-3" />
+            </Button>
+          </div>
         </div>
-      }
-      headerActions={
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={handleOpenFilters}
-          className="h-6 px-2 text-xs"
-        >
-          <Filter className="w-3 h-3" />
-        </Button>
-      }
-      background="gradient"
-    >
-      <div className="w-full max-w-full">
+      </header>
+
+      <main className="flex-1 pb-16 w-full max-w-full">
         <Tabs defaultValue="overview" className="w-full">
           <div className="px-2 pt-1 pb-1">
-            <TabsList className="grid w-full grid-cols-3 h-7">
+            <TabsList className="grid w-full grid-cols-3 h-6">
               <TabsTrigger value="overview" className="text-xs">Overview</TabsTrigger>
               <TabsTrigger value="trends" className="text-xs">Trends</TabsTrigger>
               <TabsTrigger value="alerts" className="text-xs">Alert</TabsTrigger>
@@ -120,8 +121,8 @@ const MobileFoodCost: React.FC = () => {
           </div>
 
           <TabsContent value="overview" className="px-2 mt-0">
-            {/* KPI Cards - Ultra compatti 2x2 */}
-            <div className="grid grid-cols-2 gap-1.5 mb-3">
+            {/* KPI Cards - Molto più compatti */}
+            <div className="grid grid-cols-2 gap-1 mb-2">
               <MobileKPICard
                 title="Food Cost"
                 value={`${avgFoodCostPercentage.toFixed(1)}%`}
@@ -153,11 +154,11 @@ const MobileFoodCost: React.FC = () => {
               />
             </div>
 
-            {/* Quick Actions - Ultra compatte */}
-            <div className="grid grid-cols-2 gap-1.5 mb-3">
+            {/* Quick Actions - Compatte */}
+            <div className="grid grid-cols-2 gap-1 mb-2">
               <Button
                 onClick={handleAddDish}
-                className="bg-emerald-600 hover:bg-emerald-700 h-8 text-xs"
+                className="bg-emerald-600 hover:bg-emerald-700 h-7 text-xs"
               >
                 <Plus className="w-3 h-3 mr-1" />
                 Nuovo Piatto
@@ -166,7 +167,7 @@ const MobileFoodCost: React.FC = () => {
               {criticalDishes > 0 && (
                 <Button
                   variant="outline"
-                  className="border-red-200 text-red-700 hover:bg-red-50 h-8 text-xs"
+                  className="border-red-200 text-red-700 hover:bg-red-50 h-7 text-xs"
                   onClick={() => console.log('View critical dishes')}
                 >
                   <AlertTriangle className="w-3 h-3 mr-1" />
@@ -175,10 +176,10 @@ const MobileFoodCost: React.FC = () => {
               )}
             </div>
 
-            {/* Mini Chart - Ultra compatto */}
+            {/* Mini Chart - Compatto */}
             {mockTrends.length > 0 && (
-              <div className="bg-white rounded-lg p-2 shadow-sm border border-stone-200 mb-3">
-                <h3 className="text-xs font-medium text-slate-800 mb-2">Trend Settimanale</h3>
+              <div className="bg-white rounded-lg p-2 shadow-sm border border-stone-200">
+                <h3 className="text-xs font-medium text-slate-800 mb-1">Trend Settimanale</h3>
                 <MobileMetricsChart
                   data={mockTrends}
                   currentValue={avgFoodCostPercentage}
@@ -192,42 +193,42 @@ const MobileFoodCost: React.FC = () => {
 
           <TabsContent value="trends" className="px-2 mt-0">
             {mockTrends.length > 0 && (
-              <div className="mb-3">
-                <MobileMetricsChart
-                  title="Andamento Food Cost"
-                  data={mockTrends}
-                  currentValue={avgFoodCostPercentage}
-                  previousValue={mockTrends[mockTrends.length - 2]?.value}
-                  unit="%"
-                  trend={avgFoodCostPercentage < 30 ? 'up' : 'down'}
-                  trendPercentage={
-                    mockTrends.length > 1
-                      ? ((avgFoodCostPercentage - mockTrends[mockTrends.length - 2].value) / mockTrends[mockTrends.length - 2].value) * 100
-                      : undefined
-                  }
-                />
-              </div>
+              <MobileMetricsChart
+                title="Andamento Food Cost"
+                data={mockTrends}
+                currentValue={avgFoodCostPercentage}
+                previousValue={mockTrends[mockTrends.length - 2]?.value}
+                unit="%"
+                trend={avgFoodCostPercentage < 30 ? 'up' : 'down'}
+                trendPercentage={
+                  mockTrends.length > 1
+                    ? ((avgFoodCostPercentage - mockTrends[mockTrends.length - 2].value) / mockTrends[mockTrends.length - 2].value) * 100
+                    : undefined
+                }
+              />
             )}
 
-            {/* Detailed Stats - Ultra compatte */}
-            <div className="bg-white rounded-lg p-3 shadow-sm border border-stone-200">
-              <h3 className="text-xs font-medium text-slate-800 mb-2">Statistiche Periodo</h3>
-              <div className="grid grid-cols-2 gap-3 text-xs">
-                <div>
-                  <span className="text-slate-600 block">Food Cost Medio:</span>
-                  <p className="font-bold text-slate-800">{avgFoodCostPercentage.toFixed(1)}%</p>
-                </div>
-                <div>
-                  <span className="text-slate-600 block">Margine Totale:</span>
-                  <p className="font-bold text-slate-800">€{totalMargin.toFixed(2)}</p>
-                </div>
-                <div>
-                  <span className="text-slate-600 block">Ricavi Totali:</span>
-                  <p className="font-bold text-slate-800">€{totalRevenue.toFixed(2)}</p>
-                </div>
-                <div>
-                  <span className="text-slate-600 block">Target:</span>
-                  <p className="font-bold text-slate-800">{targetReached.toFixed(0)}%</p>
+            {/* Detailed Stats - Compatte */}
+            <div className="mt-2 grid grid-cols-1 gap-2">
+              <div className="bg-white rounded-lg p-2 shadow-sm border border-stone-200">
+                <h3 className="text-xs font-medium text-slate-800 mb-1">Statistiche Periodo</h3>
+                <div className="grid grid-cols-2 gap-2 text-xs">
+                  <div>
+                    <span className="text-slate-600">Food Cost Medio:</span>
+                    <p className="font-bold text-slate-800">{avgFoodCostPercentage.toFixed(1)}%</p>
+                  </div>
+                  <div>
+                    <span className="text-slate-600">Margine Totale:</span>
+                    <p className="font-bold text-slate-800">€{totalMargin.toFixed(2)}</p>
+                  </div>
+                  <div>
+                    <span className="text-slate-600">Ricavi Totali:</span>
+                    <p className="font-bold text-slate-800">€{totalRevenue.toFixed(2)}</p>
+                  </div>
+                  <div>
+                    <span className="text-slate-600">Target:</span>
+                    <p className="font-bold text-slate-800">{targetReached.toFixed(0)}%</p>
+                  </div>
                 </div>
               </div>
             </div>
@@ -242,8 +243,10 @@ const MobileFoodCost: React.FC = () => {
             )}
           </TabsContent>
         </Tabs>
-      </div>
-    </MobilePageWrapper>
+      </main>
+
+      <BottomNavigation />
+    </div>
   );
 };
 

@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { Clock, Users, Utensils, Play, Scale } from 'lucide-react';
+import { Clock, Users, Utensils, ChefHat, Play, Scale } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -45,14 +45,14 @@ const MobileRecipeCard: React.FC<MobileRecipeCardProps> = ({
     <Card className={cn("border-0 shadow-sm w-full max-w-full", className)}>
       <CardContent className="p-2">
         <div className="space-y-2">
-          {/* Header ultra compatto */}
+          {/* Header compatto */}
           <div className="flex items-start justify-between">
             <div className="flex-1 min-w-0">
               <h3 className="text-sm font-semibold text-slate-800 truncate leading-tight">
                 {recipe.name}
               </h3>
               {recipe.category && (
-                <p className="text-xs text-slate-500 capitalize leading-tight">
+                <p className="text-xs text-slate-500 capitalize">
                   {recipe.category}
                 </p>
               )}
@@ -71,15 +71,15 @@ const MobileRecipeCard: React.FC<MobileRecipeCardProps> = ({
             </div>
           </div>
 
-          {/* Metriche ultra compatte - 3 colonne */}
-          <div className="grid grid-cols-3 gap-1 text-xs">
+          {/* Metriche compatte */}
+          <div className="grid grid-cols-3 gap-2 text-xs">
             <div className="flex items-center space-x-1">
               <Clock className="w-3 h-3 text-slate-400" />
               <span className="text-slate-600">{recipe.preparation_time || 0}min</span>
             </div>
             <div className="flex items-center space-x-1">
               <Users className="w-3 h-3 text-slate-400" />
-              <span className="text-slate-600">{recipe.portions || 1}</span>
+              <span className="text-slate-600">{recipe.portions || 1} porz</span>
             </div>
             <div className="flex items-center space-x-1">
               <Utensils className="w-3 h-3 text-slate-400" />
@@ -87,9 +87,9 @@ const MobileRecipeCard: React.FC<MobileRecipeCardProps> = ({
             </div>
           </div>
 
-          {/* Ingredienti summary ultra compatto */}
+          {/* Ingredienti summary compatto */}
           {recipe.recipe_ingredients && recipe.recipe_ingredients.length > 0 && (
-            <div className="text-xs text-slate-500 leading-tight">
+            <div className="text-xs text-slate-500">
               <span>{recipe.recipe_ingredients.length} ingredienti</span>
               {recipe.recipe_ingredients.slice(0, 2).map((ingredient, index) => (
                 <span key={index} className="ml-1">
@@ -102,7 +102,7 @@ const MobileRecipeCard: React.FC<MobileRecipeCardProps> = ({
             </div>
           )}
 
-          {/* Actions ultra compatte */}
+          {/* Actions compatte */}
           <div className="flex space-x-1 pt-1">
             <Button
               variant="outline"
